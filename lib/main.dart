@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import 'pickleball_rules.dart';
 
 class CourtPainter extends CustomPainter {
   @override
@@ -32,7 +29,7 @@ class CourtPainter extends CustomPainter {
       ..color = Colors.white
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
-    final courtInset = 2.0;
+    const courtInset = 2.0;
     final left = courtInset;
     final right = size.width - courtInset;
     final top = courtInset;
@@ -42,26 +39,10 @@ class CourtPainter extends CustomPainter {
     final kitchenBottom = size.height * 0.65;
 
     canvas.drawRect(Rect.fromLTRB(left, top, right, bottom), linePaint);
-    canvas.drawLine(
-      Offset(left, kitchenTop),
-      Offset(right, kitchenTop),
-      linePaint,
-    );
-    canvas.drawLine(
-      Offset(left, kitchenBottom),
-      Offset(right, kitchenBottom),
-      linePaint,
-    );
-    canvas.drawLine(
-      Offset(centerX, top),
-      Offset(centerX, kitchenTop),
-      linePaint,
-    );
-    canvas.drawLine(
-      Offset(centerX, kitchenBottom),
-      Offset(centerX, bottom),
-      linePaint,
-    );
+    canvas.drawLine(Offset(left, kitchenTop), Offset(right, kitchenTop), linePaint);
+    canvas.drawLine(Offset(left, kitchenBottom), Offset(right, kitchenBottom), linePaint);
+    canvas.drawLine(Offset(centerX, top), Offset(centerX, kitchenTop), linePaint);
+    canvas.drawLine(Offset(centerX, kitchenBottom), Offset(centerX, bottom), linePaint);
 
     final kitchenPaint = Paint()
       ..color = const Color(0xFFFFD54F).withValues(alpha: 0.12)
@@ -75,22 +56,14 @@ class CourtPainter extends CustomPainter {
       ..color = Colors.white
       ..strokeWidth = 5
       ..style = PaintingStyle.stroke;
-    canvas.drawLine(
-      Offset(left, size.height / 2),
-      Offset(right, size.height / 2),
-      netPaint,
-    );
+    canvas.drawLine(Offset(left, size.height / 2), Offset(right, size.height / 2), netPaint);
     canvas.drawCircle(Offset(left, size.height / 2), 6, netPaint);
     canvas.drawCircle(Offset(right, size.height / 2), 6, netPaint);
 
     final netShadowPaint = Paint()
       ..color = Colors.black.withValues(alpha: 0.2)
       ..strokeWidth = 10;
-    canvas.drawLine(
-      Offset(left, size.height / 2 + 7),
-      Offset(right, size.height / 2 + 7),
-      netShadowPaint,
-    );
+    canvas.drawLine(Offset(left, size.height / 2 + 7), Offset(right, size.height / 2 + 7), netShadowPaint);
   }
 
   @override
@@ -116,15 +89,11 @@ class PickleballGame extends StatefulWidget {
 class _PickleballGameState extends State<PickleballGame> {
   final FocusNode _focusNode = FocusNode();
 
-  // Player position on court (-1.0 to 1.0)
+  // Positions
   double playerX = 0.0;
   double playerY = 0.75;
-
-  // Bot position
   double botX = 0.0;
   double botY = -0.75;
-
-  // Ball positions (X, Y ground, Z altitude)
   double ballX = 0.0;
   double ballY = 0.0;
   double ballZ = 0.4;
@@ -135,45 +104,18 @@ class _PickleballGameState extends State<PickleballGame> {
   double ballSpeedZ = 0.02;
   final double gravity = 0.0012;
 
-  // Track who made the last contact
+  // Joystick state
+  double joystickX = 0.0;
+  double joystickY = 0.0;
+
   bool lastHitByPlayer = false;
-
-  // Touch button hold flags
-  bool moveLeft = false;
-  bool moveRight = false;
-  bool moveUp = false;
-  bool moveDown = false;
   bool isSwinging = false;
-
-  // Game state
   bool isPlaying = false;
+  
   int playerScore = 0;
   int botScore = 0;
   String feedbackText = "";
   Timer? gameTimer;
-  RallyPhase rallyPhase = RallyPhase.botServe;
-  bool playerServing = false;
-  bool bounceReadyForHit = false;
-  bool gameOver = false;
-
-  void _resetRallyPositions() {
-    playerX = 0.0;
-    playerY = 0.75;
-    botX = 0.0;
-    botY = -0.75;
-  }
-
-  bool _isBallInReach({
-    required double targetX,
-    required double targetY,
-    double radius = 0.35,
-  }) {
-    final deltaX = ballX - targetX;
-    final deltaY = ballY - targetY;
-    return math.sqrt(deltaX * deltaX + deltaY * deltaY) < radius &&
-        ballZ > 0.05 &&
-        ballZ < 0.6;
-  }
 
   @override
   void initState() {
@@ -188,196 +130,113 @@ class _PickleballGameState extends State<PickleballGame> {
 
   void startGame() {
     setState(() {
-      if (gameOver) {
-        playerScore = 0;
-        botScore = 0;
-        playerServing = false;
-        gameOver = false;
-      }
-      _resetRallyPositions();
       isPlaying = true;
-      rallyPhase = playerServing ? RallyPhase.playerServe : RallyPhase.botServe;
       ballX = 0.0;
-      ballY = playerServing ? 0.6 : -0.6;
+      ballY = -0.6;
       ballZ = 0.4;
       ballSpeedX = 0.008;
-      ballSpeedY = playerServing ? -0.022 : 0.022;
+      ballSpeedY = 0.022;
       ballSpeedZ = 0.015;
-      lastHitByPlayer = playerServing;
-      bounceReadyForHit = false;
-      moveLeft = false;
-      moveRight = false;
-      moveUp = false;
-      moveDown = false;
-      isSwinging = false;
+      lastHitByPlayer = false;
       feedbackText = "";
     });
 
     gameTimer?.cancel();
-    final stopwatch = Stopwatch()..start();
     gameTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
-      final timeScale = (stopwatch.elapsedMicroseconds / 25000)
-          .clamp(0.5, 2.0)
-          .toDouble();
-      stopwatch.reset();
       setState(() {
-        // 1. Hardware Keyboard + On-Screen Touch Polling
+        // 1. Smooth Hardware Polling & Mobile Joystick
         const double moveSpeed = 0.025;
         final keyboard = HardwareKeyboard.instance;
 
+        playerX += joystickX * moveSpeed;
+        playerY += joystickY * moveSpeed;
+
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyA) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowLeft) ||
-            moveLeft) {
-          playerX -= moveSpeed * timeScale;
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowLeft)) {
+          playerX -= moveSpeed;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyD) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowRight) ||
-            moveRight) {
-          playerX += moveSpeed * timeScale;
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowRight)) {
+          playerX += moveSpeed;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyW) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowUp) ||
-            moveUp) {
-          playerY -= moveSpeed * timeScale;
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowUp)) {
+          playerY -= moveSpeed;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyS) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowDown) ||
-            moveDown) {
-          playerY += moveSpeed * timeScale;
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowDown)) {
+          playerY += moveSpeed;
         }
 
-        playerX = playerX.clamp(
-          -PickleballRules.courtWidth,
-          PickleballRules.courtWidth,
-        );
-        playerY = playerY.clamp(0.15, PickleballRules.courtLength);
+        // EXPANDED BOUNDARIES: Let the player run wide into the blue void to catch stray balls
+        playerX = playerX.clamp(-1.4, 1.4);
+        playerY = playerY.clamp(0.05, 1.3);
 
-        // 2. Ball ground trajectory
-        final previousBallY = ballY;
-        ballX += ballSpeedX * timeScale;
-        ballY += ballSpeedY * timeScale;
-
-        // 3. Ball Z-axis (gravity arc)
-        ballZ += ballSpeedZ * timeScale;
-        ballSpeedZ -= gravity * timeScale;
+        // 2. Ball trajectory
+        ballX += ballSpeedX;
+        ballY += ballSpeedY;
+        ballZ += ballSpeedZ;
+        ballSpeedZ -= gravity;
 
         // Ground bounce & Out-of-bounds check
         if (ballZ <= 0.0) {
           ballZ = 0.0;
           ballSpeedZ = 0.018;
 
-          if (!PickleballRules.isInsideCourt(ballX, ballY)) {
-            _handleFault(
-              playerAtFault: lastHitByPlayer,
-              message: "OUT OF BOUNDS",
-            );
-            stopGame();
-            return;
-          }
-
-          final ballOnPlayerSide = ballY > 0;
-          final validBotServeBounce =
-              rallyPhase == RallyPhase.botServe && ballOnPlayerSide;
-          final validPlayerServeBounce =
-              rallyPhase == RallyPhase.playerServe && !ballOnPlayerSide;
-          final validPlayerReturnBounce =
-              rallyPhase == RallyPhase.playerReturn && ballOnPlayerSide;
-          final validBotReturnBounce =
-              rallyPhase == RallyPhase.botReturn && !ballOnPlayerSide;
-
-          if (validBotServeBounce) {
-            rallyPhase = RallyPhase.playerReturn;
-            bounceReadyForHit = true;
-            feedbackText = "RETURN THE SERVE";
-          } else if (validPlayerServeBounce) {
-            rallyPhase = RallyPhase.botReturn;
-            bounceReadyForHit = true;
-            feedbackText = "BOT RETURN";
-          } else if (validBotReturnBounce) {
-            if (bounceReadyForHit) {
-              _handleFault(playerAtFault: false, message: "DOUBLE BOUNCE");
-              stopGame();
-              return;
+          if (ballX.abs() > 0.85 || ballY.abs() > 0.95) {
+            if (lastHitByPlayer) {
+              botScore++;
+              feedbackText = "OUT! YOUR FAULT";
+            } else {
+              playerScore++;
+              feedbackText = "OUT! BOT FAULT";
             }
-            bounceReadyForHit = true;
-            feedbackText = "BOT RETURN";
-          } else if (validPlayerReturnBounce) {
-            if (bounceReadyForHit) {
-              _handleFault(playerAtFault: true, message: "DOUBLE BOUNCE");
-              stopGame();
-              return;
-            }
-            bounceReadyForHit = true;
-            feedbackText = "GOOD BOUNCE";
-          } else if (rallyPhase == RallyPhase.openRally) {
-            if (bounceReadyForHit) {
-              _handleFault(
-                playerAtFault: !lastHitByPlayer,
-                message: "DOUBLE BOUNCE",
-              );
-              stopGame();
-              return;
-            }
-            bounceReadyForHit = true;
-          } else if (rallyPhase == RallyPhase.botServe ||
-              rallyPhase == RallyPhase.playerServe ||
-              rallyPhase == RallyPhase.playerReturn ||
-              rallyPhase == RallyPhase.botReturn) {
-            feedbackText = ballOnPlayerSide ? "BOT FAULT" : "YOUR FAULT";
             stopGame();
             return;
           }
         }
 
-        // A pickleball must clear the net with enough height.
-        final crossedNet =
-            (previousBallY < 0 && ballY >= 0) ||
-            (previousBallY > 0 && ballY <= 0);
-        final ballIsOverNet = ballX.abs() <= PickleballRules.courtWidth;
-        if (crossedNet && ballIsOverNet && ballZ < PickleballRules.netHeight) {
-          _handleFault(playerAtFault: lastHitByPlayer, message: "NET FAULT");
-          stopGame();
-          return;
-        }
-
-        // 4. Humanized Bot AI
+        // 3. Humanized Bot AI
         if (ballSpeedY < 0) {
           double targetX = ballX;
           if ((botX - targetX).abs() > 0.08) {
             if (botX < targetX) {
-              botX += 0.009 * timeScale;
+              botX += 0.009;
             } else {
-              botX -= 0.009 * timeScale;
+              botX -= 0.009;
             }
           }
         }
-        botX = botX.clamp(
-          -PickleballRules.courtWidth,
-          PickleballRules.courtWidth,
-        );
+        
+        // Let the bot stretch out wide too
+        botX = botX.clamp(-1.4, 1.4);
 
-        // Fixed Bot Strike Zone (requires accurate X, Y, and reasonable height)
-        final botCanHit =
-            rallyPhase == RallyPhase.openRally ||
-            (rallyPhase == RallyPhase.botReturn && bounceReadyForHit);
-        if (ballSpeedY < 0 &&
-            botCanHit &&
-            _isBallInReach(targetX: botX, targetY: botY, radius: 0.3)) {
+        if (ballSpeedY < 0 && (ballY - botY).abs() < 0.18 && (ballX - botX).abs() < 0.22 && ballZ < 0.40) {
           lastHitByPlayer = false;
           ballSpeedY = 0.020;
           ballSpeedZ = 0.018;
           ballSpeedX = (ballX - botX) * 0.08;
-          bounceReadyForHit = false;
-          rallyPhase = RallyPhase.openRally;
         }
 
-        // 5. Backline Pass Check (Safety catch if ball flies off screen)
-        if (ballY > PickleballRules.courtLength + 0.2) {
-          _handleFault(playerAtFault: lastHitByPlayer, message: "OUT");
+        // 4. Backline Pass Check
+        if (ballY > 1.15) {
+          if (lastHitByPlayer) {
+            botScore++;
+            feedbackText = "OUT! YOUR FAULT";
+          } else {
+            playerScore++;
+            feedbackText = "POINT FOR YOU!";
+          }
           stopGame();
         }
-        if (ballY < -PickleballRules.courtLength - 0.2) {
-          _handleFault(playerAtFault: lastHitByPlayer, message: "OUT");
+        if (ballY < -1.15) {
+          if (lastHitByPlayer) {
+            playerScore++;
+            feedbackText = "POINT FOR YOU!";
+          } else {
+            botScore++;
+            feedbackText = "OUT! BOT FAULT";
+          }
           stopGame();
         }
       });
@@ -387,38 +246,12 @@ class _PickleballGameState extends State<PickleballGame> {
   void stopGame() {
     gameTimer?.cancel();
     isPlaying = false;
-    moveLeft = false;
-    moveRight = false;
-    moveUp = false;
-    moveDown = false;
-  }
-
-  void _handleFault({required bool playerAtFault, required String message}) {
-    final servingSideFaulted = playerServing == playerAtFault;
-    if (servingSideFaulted) {
-      playerServing = !playerServing;
-      feedbackText = "SIDE OUT - $message";
-    } else {
-      if (playerServing) {
-        playerScore++;
-      } else {
-        botScore++;
-      }
-      feedbackText = message;
-      if (PickleballRules.isWinningScore(playerScore, botScore)) {
-        gameOver = true;
-        feedbackText = playerScore > botScore ? "YOU WIN!" : "CPU WINS";
-      }
-    }
+    joystickX = 0.0;
+    joystickY = 0.0;
   }
 
   void executeSwing() {
-    final canPlayerHit =
-        rallyPhase == RallyPhase.openRally ||
-        (rallyPhase == RallyPhase.playerReturn && bounceReadyForHit);
-    if (!isPlaying || gameOver || !canPlayerHit || ballSpeedY <= 0) {
-      return;
-    }
+    if (!isPlaying) return;
 
     setState(() {
       isSwinging = true;
@@ -428,59 +261,79 @@ class _PickleballGameState extends State<PickleballGame> {
       if (mounted) setState(() => isSwinging = false);
     });
 
-    // Valid hit window
-    final ballIsInReach = _isBallInReach(targetX: playerX, targetY: playerY);
-    final isKitchenVolley =
-        playerY < PickleballRules.kitchenDepth && ballIsInReach && ballZ > 0.1;
-    if (isKitchenVolley) {
-      setState(
-        () => _handleFault(playerAtFault: true, message: "KITCHEN FAULT"),
-      );
-      stopGame();
-      return;
-    }
+    double distToShadow = (ballX - playerX).abs() + (ballY - playerY).abs();
 
-    if (ballIsInReach) {
+    if (distToShadow < 0.35 && ballZ > 0.05 && ballZ < 0.6) {
       setState(() {
-        lastHitByPlayer = true; // Player successfully contacted the ball
+        lastHitByPlayer = true;
 
         if (ballZ > 0.3) {
-          // Smash hit
           ballSpeedY = -0.032;
           ballSpeedZ = 0.01;
           feedbackText = "SMASH!";
         } else {
-          // Regular drive
           ballSpeedY = -0.022;
           ballSpeedZ = 0.022;
           feedbackText = "GOOD HIT";
         }
         ballSpeedX = (ballX - playerX) * 0.12;
-        if (rallyPhase == RallyPhase.playerReturn) {
-          rallyPhase = RallyPhase.botReturn;
-        }
-        bounceReadyForHit = false;
       });
     }
   }
 
-  Widget _buildDirectionBtn(IconData icon, void Function(bool) onStateChange) {
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (_) => onStateChange(true),
-      onPointerUp: (_) => onStateChange(false),
-      onPointerCancel: (_) => onStateChange(false),
+  Widget _buildJoystick() {
+    return GestureDetector(
+      onPanStart: (details) => _updateJoystick(details.localPosition),
+      onPanUpdate: (details) => _updateJoystick(details.localPosition),
+      onPanEnd: (details) {
+        setState(() {
+          joystickX = 0.0;
+          joystickY = 0.0;
+        });
+      },
       child: Container(
-        width: 54,
-        height: 54,
+        width: 140,
+        height: 140,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.25),
+          color: Colors.white.withValues(alpha: 0.15),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white60, width: 1.5),
+          border: Border.all(color: Colors.white54, width: 2),
         ),
-        child: Icon(icon, color: Colors.white, size: 30),
+        child: Center(
+          child: Transform.translate(
+            offset: Offset(joystickX * 45, joystickY * 45),
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                shape: BoxShape.circle,
+                boxShadow: const [
+                  BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
+  }
+
+  void _updateJoystick(Offset localPosition) {
+    double dx = localPosition.dx - 70;
+    double dy = localPosition.dy - 70;
+    
+    double distance = math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > 45) {
+      dx = (dx / distance) * 45;
+      dy = (dy / distance) * 45;
+    }
+    
+    setState(() {
+      joystickX = dx / 45;
+      joystickY = dy / 45;
+    });
   }
 
   @override
@@ -493,189 +346,147 @@ class _PickleballGameState extends State<PickleballGame> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final courtScale = (screenHeight / 850).clamp(0.4, 1.2);
+
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A8A),
       body: Focus(
         focusNode: _focusNode,
         autofocus: true,
         onKeyEvent: (node, event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
+            executeSwing();
+            return KeyEventResult.handled;
+          }
           return KeyEventResult.ignored;
         },
         child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
-            if (event.kind == PointerDeviceKind.mouse &&
-                event.buttons & kSecondaryMouseButton != 0) {
+            if (event.buttons == kSecondaryMouseButton) {
               executeSwing();
             }
           },
           child: Stack(
             children: [
-              // Court Surface
               Center(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  height: MediaQuery.of(context).size.height * 0.9,
-                  child: CustomPaint(painter: CourtPainter()),
-                ),
-              ),
-
-              // Bot Character
-              Align(
-                alignment: Alignment(
-                  botX * PickleballRules.screenCourtScale,
-                  botY * PickleballRules.screenCourtScale,
-                ),
-                child: Container(
-                  width: 45,
-                  height: 45,
-                  decoration: const BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Colors.black45, blurRadius: 6),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.sports_tennis,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              ),
-
-              // Ground Shadow
-              Align(
-                alignment: Alignment(
-                  ballX * PickleballRules.screenCourtScale,
-                  ballY * PickleballRules.screenCourtScale,
-                ),
-                child: Container(
-                  width: 18 * (1.0 - ballZ * 0.5),
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-
-              // Ball
-              Align(
-                alignment: Alignment(
-                  ballX * PickleballRules.screenCourtScale,
-                  (ballY - ballZ) * PickleballRules.screenCourtScale,
-                ),
-                child: Container(
-                  width: 22 + (ballZ * 10),
-                  height: 22 + (ballZ * 10),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFD4E157),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Player
-              Align(
-                alignment: Alignment(
-                  playerX * PickleballRules.screenCourtScale,
-                  playerY * PickleballRules.screenCourtScale,
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.blueAccent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black38, blurRadius: 6),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                    Positioned(
-                      right: -20,
-                      top: isSwinging ? -15 : 5,
-                      child: Transform.rotate(
-                        angle: isSwinging ? -0.8 : 0.4,
-                        child: Container(
-                          width: 14,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: isSwinging
-                                ? Colors.orangeAccent
-                                : Colors.amber,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: Colors.black87,
-                              width: 1.5,
+                child: AspectRatio(
+                  aspectRatio: 9 / 16,
+                  child: Container(
+                    margin: const EdgeInsets.all(12),
+                    child: Stack(
+                      // ADDED: This ensures the player isn't visually cut off when running outside the green court
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(painter: CourtPainter()),
+                        ),
+                        Align(
+                          alignment: Alignment(botX, botY),
+                          child: Transform.scale(
+                            scale: courtScale,
+                            child: Container(
+                              width: 45,
+                              height: 45,
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                                boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 6)],
+                              ),
+                              child: const Icon(Icons.sports_tennis, color: Colors.white, size: 28),
                             ),
                           ),
                         ),
-                      ),
+                        Align(
+                          alignment: Alignment(ballX, ballY),
+                          child: Transform.scale(
+                            scale: courtScale,
+                            child: Container(
+                              width: 18 * (1.0 - ballZ * 0.5),
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment(ballX, ballY - ballZ),
+                          child: Transform.scale(
+                            scale: courtScale,
+                            child: Container(
+                              width: 22 + (ballZ * 10),
+                              height: 22 + (ballZ * 10),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFD4E157),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment(playerX, playerY),
+                          child: Transform.scale(
+                            scale: courtScale,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.blueAccent,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6)],
+                                  ),
+                                  child: const Icon(Icons.person, color: Colors.white, size: 32),
+                                ),
+                                Positioned(
+                                  right: -20,
+                                  top: isSwinging ? -15 : 5,
+                                  child: Transform.rotate(
+                                    angle: isSwinging ? -0.8 : 0.4,
+                                    child: Container(
+                                      width: 14,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: isSwinging ? Colors.orangeAccent : Colors.amber,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: Colors.black87, width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-
-              // Score Header
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "CPU: $botScore",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text("CPU: $botScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                       if (feedbackText.isNotEmpty)
-                        Text(
-                          feedbackText,
-                          style: const TextStyle(
-                            color: Colors.amberAccent,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      Text(
-                        "YOU: $playerScore",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                        Text(feedbackText, style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w900)),
+                      Text("YOU: $playerScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
-
-              // Touch Controls (Mobile)
               if (isPlaying)
                 Positioned(
                   bottom: 24,
@@ -685,31 +496,7 @@ class _PickleballGameState extends State<PickleballGame> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Column(
-                        children: [
-                          _buildDirectionBtn(
-                            Icons.arrow_upward,
-                            (val) => moveUp = val,
-                          ),
-                          Row(
-                            children: [
-                              _buildDirectionBtn(
-                                Icons.arrow_back,
-                                (val) => moveLeft = val,
-                              ),
-                              const SizedBox(width: 48),
-                              _buildDirectionBtn(
-                                Icons.arrow_forward,
-                                (val) => moveRight = val,
-                              ),
-                            ],
-                          ),
-                          _buildDirectionBtn(
-                            Icons.arrow_downward,
-                            (val) => moveDown = val,
-                          ),
-                        ],
-                      ),
+                      _buildJoystick(),
                       GestureDetector(
                         onTap: executeSwing,
                         child: Container(
@@ -718,13 +505,7 @@ class _PickleballGameState extends State<PickleballGame> {
                           decoration: BoxDecoration(
                             color: Colors.amber,
                             shape: BoxShape.circle,
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black54,
-                                blurRadius: 10,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
+                            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
                             border: Border.all(color: Colors.white, width: 3.5),
                           ),
                           child: const Center(
@@ -743,8 +524,6 @@ class _PickleballGameState extends State<PickleballGame> {
                     ],
                   ),
                 ),
-
-              // Serve Button Overlay
               if (!isPlaying)
                 Center(
                   child: ElevatedButton(
@@ -754,18 +533,11 @@ class _PickleballGameState extends State<PickleballGame> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 36,
-                        vertical: 16,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
                     ),
-                    child: Text(
-                      gameOver ? "PLAY AGAIN" : "TAP TO SERVE",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                    child: const Text(
+                      "TAP TO SERVE",
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
                     ),
                   ),
                 ),

@@ -17,6 +17,62 @@ void main() {
     expect(PickleballRules.isInsideCourt(0.83, 0), isFalse);
     expect(PickleballRules.isWinningScore(11, 9), isTrue);
     expect(PickleballRules.isWinningScore(11, 10), isFalse);
+    expect(
+      PickleballRules.isServeInCorrectBox(
+        x: 0.3,
+        y: 0.4,
+        playerServing: false,
+        serveFromLeft: true,
+      ),
+      isTrue,
+    );
+    expect(
+      PickleballRules.isServeInCorrectBox(
+        x: -0.3,
+        y: 0.4,
+        playerServing: false,
+        serveFromLeft: true,
+      ),
+      isFalse,
+    );
+    expect(
+      PickleballRules.isKitchenVolley(playerY: 0.2, ballHasBounced: false),
+      isTrue,
+    );
+    expect(
+      PickleballRules.isKitchenVolley(playerY: 0.2, ballHasBounced: true),
+      isFalse,
+    );
+
+    final serverFault = PickleballRules.resolveFault(
+      playerScore: 3,
+      botScore: 2,
+      playerServing: true,
+      playerAtFault: true,
+    );
+    expect(serverFault.playerScore, 3);
+    expect(serverFault.botScore, 2);
+    expect(serverFault.playerServing, isFalse);
+    expect(serverFault.pointAwarded, isFalse);
+
+    final receiverFault = PickleballRules.resolveFault(
+      playerScore: 3,
+      botScore: 2,
+      playerServing: true,
+      playerAtFault: false,
+    );
+    expect(receiverFault.playerScore, 4);
+    expect(receiverFault.botScore, 2);
+    expect(receiverFault.playerServing, isTrue);
+    expect(receiverFault.pointAwarded, isTrue);
+
+    final matchPoint = PickleballRules.resolveFault(
+      playerScore: 10,
+      botScore: 8,
+      playerServing: true,
+      playerAtFault: false,
+    );
+    expect(matchPoint.gameOver, isTrue);
   });
 
   testWidgets('renders the pickleball game controls', (
