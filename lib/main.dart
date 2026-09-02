@@ -1,14 +1,19 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+enum RallyPhase { botServe, playerServe, playerReturn, botReturn, openRally }
+
 void main() {
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: PickleballGame(),
-  ));
+  runApp(
+    const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: PickleballGame(),
+    ),
+  );
 }
 
 class PickleballGame extends StatefulWidget {
@@ -25,11 +30,11 @@ class _PickleballGameState extends State<PickleballGame> {
   double playerX = 0.0;
   double playerY = 0.75;
 
-  // Opponent position
+  // Bot position
   double botX = 0.0;
   double botY = -0.75;
 
-  // Ball positions (X, Y on ground plane, Z is height)
+  // Ball positions (X, Y ground, Z altitude)
   double ballX = 0.0;
   double ballY = 0.0;
   double ballZ = 0.4;
@@ -40,7 +45,10 @@ class _PickleballGameState extends State<PickleballGame> {
   double ballSpeedZ = 0.02;
   final double gravity = 0.0012;
 
-  // Continuous movement flags
+  // Track who made the last contact
+  bool lastHitByPlayer = false;
+
+  // Touch button hold flags
   bool moveLeft = false;
   bool moveRight = false;
   bool moveUp = false;
@@ -53,6 +61,16 @@ class _PickleballGameState extends State<PickleballGame> {
   int botScore = 0;
   String feedbackText = "";
   Timer? gameTimer;
+  RallyPhase rallyPhase = RallyPhase.botServe;
+  bool playerServing = false;
+  bool bounceReadyForHit = false;
+
+  void _resetRallyPositions() {
+    playerX = 0.0;
+    playerY = 0.75;
+    botX = 0.0;
+    botY = -0.75;
+  }
 
   @override
   void initState() {
@@ -67,69 +85,169 @@ class _PickleballGameState extends State<PickleballGame> {
 
   void startGame() {
     setState(() {
+      _resetRallyPositions();
       isPlaying = true;
+      rallyPhase = playerServing ? RallyPhase.playerServe : RallyPhase.botServe;
       ballX = 0.0;
-      ballY = -0.6;
+      ballY = playerServing ? 0.6 : -0.6;
       ballZ = 0.4;
       ballSpeedX = 0.008;
-      ballSpeedY = 0.022;
+      ballSpeedY = playerServing ? -0.022 : 0.022;
       ballSpeedZ = 0.015;
+      lastHitByPlayer = playerServing;
+      bounceReadyForHit = false;
+      moveLeft = false;
+      moveRight = false;
+      moveUp = false;
+      moveDown = false;
+      isSwinging = false;
       feedbackText = "";
     });
 
     gameTimer?.cancel();
     gameTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
       setState(() {
-        // 1. Continuous movement processing
+        // 1. Hardware Keyboard + On-Screen Touch Polling
         const double moveSpeed = 0.025;
-        if (moveLeft) playerX -= moveSpeed;
-        if (moveRight) playerX += moveSpeed;
-        if (moveUp) playerY -= moveSpeed;
-        if (moveDown) playerY += moveSpeed;
+        final keyboard = HardwareKeyboard.instance;
+
+        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyA) ||
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowLeft) ||
+            moveLeft) {
+          playerX -= moveSpeed;
+        }
+        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyD) ||
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowRight) ||
+            moveRight) {
+          playerX += moveSpeed;
+        }
+        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyW) ||
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowUp) ||
+            moveUp) {
+          playerY -= moveSpeed;
+        }
+        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyS) ||
+            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowDown) ||
+            moveDown) {
+          playerY += moveSpeed;
+        }
 
         playerX = playerX.clamp(-0.85, 0.85);
         playerY = playerY.clamp(0.15, 0.9);
 
         // 2. Ball ground trajectory
+        final previousBallY = ballY;
         ballX += ballSpeedX;
         ballY += ballSpeedY;
 
-        // 3. Ball Z-axis (gravity curve)
+        // 3. Ball Z-axis (gravity arc)
         ballZ += ballSpeedZ;
         ballSpeedZ -= gravity;
 
-        // Ground bounce
+        // Ground bounce & Out-of-bounds check
         if (ballZ <= 0.0) {
           ballZ = 0.0;
           ballSpeedZ = 0.018;
+
+          final ballOnPlayerSide = ballY > 0;
+          final validBotServeBounce =
+              rallyPhase == RallyPhase.botServe && ballOnPlayerSide;
+          final validPlayerServeBounce =
+              rallyPhase == RallyPhase.playerServe && !ballOnPlayerSide;
+          final validPlayerReturnBounce =
+              rallyPhase == RallyPhase.playerReturn && ballOnPlayerSide;
+          final validBotReturnBounce =
+              rallyPhase == RallyPhase.botReturn && !ballOnPlayerSide;
+
+          if (validBotServeBounce) {
+            rallyPhase = RallyPhase.playerReturn;
+            bounceReadyForHit = false;
+            feedbackText = "RETURN THE SERVE";
+          } else if (validPlayerServeBounce) {
+            rallyPhase = RallyPhase.botReturn;
+            bounceReadyForHit = false;
+            feedbackText = "BOT RETURN";
+          } else if (validBotReturnBounce) {
+            if (bounceReadyForHit) {
+              _handleFault(playerAtFault: false, message: "DOUBLE BOUNCE");
+              stopGame();
+              return;
+            }
+            bounceReadyForHit = true;
+            feedbackText = "BOT RETURN";
+          } else if (validPlayerReturnBounce) {
+            if (bounceReadyForHit) {
+              _handleFault(playerAtFault: true, message: "DOUBLE BOUNCE");
+              stopGame();
+              return;
+            }
+            bounceReadyForHit = true;
+            feedbackText = "GOOD BOUNCE";
+          } else if (rallyPhase == RallyPhase.botServe ||
+              rallyPhase == RallyPhase.playerServe ||
+              rallyPhase == RallyPhase.playerReturn ||
+              rallyPhase == RallyPhase.botReturn) {
+            feedbackText = ballOnPlayerSide ? "BOT FAULT" : "YOUR FAULT";
+            stopGame();
+            return;
+          }
+
+          // If the ball hits floor outside sideline or baseline lines
+          if (ballX.abs() > 0.82 || ballY.abs() > 0.95) {
+            _handleFault(
+              playerAtFault: lastHitByPlayer,
+              message: "OUT OF BOUNDS",
+            );
+            stopGame();
+            return;
+          }
         }
 
-        // Side wall bounce
-        if (ballX <= -0.9 || ballX >= 0.9) {
-          ballSpeedX = -ballSpeedX;
+        // A pickleball must clear the net with enough height.
+        final crossedNet =
+            (previousBallY < 0 && ballY >= 0) ||
+            (previousBallY > 0 && ballY <= 0);
+        if (crossedNet && ballZ < 0.18) {
+          _handleFault(playerAtFault: lastHitByPlayer, message: "NET FAULT");
+          stopGame();
+          return;
         }
 
-        // 4. Opponent AI tracking
-        if (botX < ballX) botX += 0.014;
-        if (botX > ballX) botX -= 0.014;
+        // 4. Humanized Bot AI
+        if (ballSpeedY < 0) {
+          double targetX = ballX;
+          if ((botX - targetX).abs() > 0.08) {
+            if (botX < targetX) {
+              botX += 0.009;
+            } else {
+              botX -= 0.009;
+            }
+          }
+        }
         botX = botX.clamp(-0.85, 0.85);
 
-        // Opponent return
-        if (ballY <= -0.65 && (ballX - botX).abs() < 0.25 && ballZ < 0.5) {
-          ballSpeedY = 0.022;
-          ballSpeedZ = 0.02;
-          ballSpeedX = (ballX - botX) * 0.1;
+        // Fixed Bot Strike Zone (requires accurate X, Y, and reasonable height)
+        if (ballSpeedY < 0 &&
+            rallyPhase == RallyPhase.botReturn &&
+            bounceReadyForHit &&
+            (ballY - botY).abs() < 0.18 &&
+            (ballX - botX).abs() < 0.22 &&
+            ballZ < 0.40) {
+          lastHitByPlayer = false;
+          ballSpeedY = 0.020;
+          ballSpeedZ = 0.018;
+          ballSpeedX = (ballX - botX) * 0.08;
+          bounceReadyForHit = false;
+          rallyPhase = RallyPhase.openRally;
         }
 
-        // 5. Bounds & Scoring
-        if (ballY > 1.1) {
-          botScore++;
-          feedbackText = "OUT! BOT POINT";
+        // 5. Backline Pass Check (Safety catch if ball flies off screen)
+        if (ballY > 1.15) {
+          _handleFault(playerAtFault: lastHitByPlayer, message: "OUT");
           stopGame();
         }
-        if (ballY < -1.1) {
-          playerScore++;
-          feedbackText = "POINT FOR YOU!";
+        if (ballY < -1.15) {
+          _handleFault(playerAtFault: lastHitByPlayer, message: "OUT");
           stopGame();
         }
       });
@@ -145,8 +263,28 @@ class _PickleballGameState extends State<PickleballGame> {
     moveDown = false;
   }
 
+  void _handleFault({required bool playerAtFault, required String message}) {
+    final servingSideFaulted = playerServing == playerAtFault;
+    if (servingSideFaulted) {
+      if (playerServing) {
+        playerScore++;
+      } else {
+        botScore++;
+      }
+      feedbackText = message;
+    } else {
+      playerServing = !playerServing;
+      feedbackText = "SIDE OUT - SERVE CHANGES";
+    }
+  }
+
   void executeSwing() {
-    if (!isPlaying) return;
+    final canPlayerHit =
+        rallyPhase == RallyPhase.openRally ||
+        (rallyPhase == RallyPhase.playerReturn && bounceReadyForHit);
+    if (!isPlaying || !canPlayerHit) {
+      return;
+    }
 
     setState(() {
       isSwinging = true;
@@ -158,57 +296,55 @@ class _PickleballGameState extends State<PickleballGame> {
 
     double distToShadow = (ballX - playerX).abs() + (ballY - playerY).abs();
 
-    if (distToShadow < 0.35 && ballZ > 0.05 && ballZ < 0.6) {
+    // Valid hit window
+    final ballIsInReach = distToShadow < 0.35 && ballZ > 0.05 && ballZ < 0.6;
+    final isKitchenVolley = playerY < 0.2 && ballIsInReach && ballZ > 0.1;
+    if (isKitchenVolley) {
+      setState(
+        () => _handleFault(playerAtFault: true, message: "KITCHEN FAULT"),
+      );
+      stopGame();
+      return;
+    }
+
+    if (ballIsInReach) {
       setState(() {
+        lastHitByPlayer = true; // Player successfully contacted the ball
+
         if (ballZ > 0.3) {
+          // Smash hit
           ballSpeedY = -0.032;
           ballSpeedZ = 0.01;
           feedbackText = "SMASH!";
         } else {
+          // Regular drive
           ballSpeedY = -0.022;
           ballSpeedZ = 0.022;
           feedbackText = "GOOD HIT";
         }
         ballSpeedX = (ballX - playerX) * 0.12;
+        if (rallyPhase == RallyPhase.playerReturn) {
+          rallyPhase = RallyPhase.botReturn;
+        }
       });
     }
   }
 
-  void handleKeyEvent(KeyEvent event) {
-    bool isDown = event is KeyDownEvent;
-
-    if (event.logicalKey == LogicalKeyboardKey.keyA ||
-        event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      moveLeft = isDown;
-    } else if (event.logicalKey == LogicalKeyboardKey.keyD ||
-        event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      moveRight = isDown;
-    } else if (event.logicalKey == LogicalKeyboardKey.keyW ||
-        event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      moveUp = isDown;
-    } else if (event.logicalKey == LogicalKeyboardKey.keyS ||
-        event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      moveDown = isDown;
-    } else if (event.logicalKey == LogicalKeyboardKey.space && isDown) {
-      executeSwing();
-    }
-  }
-
-  // Reusable hold-to-move directional button
-  Widget _buildDirectionBtn(IconData icon, VoidFunction onStart, VoidFunction onEnd) {
-    return GestureDetector(
-      onTapDown: (_) => onStart(),
-      onTapUp: (_) => onEnd(),
-      onTapCancel: () => onEnd(),
+  Widget _buildDirectionBtn(IconData icon, void Function(bool) onStateChange) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => onStateChange(true),
+      onPointerUp: (_) => onStateChange(false),
+      onPointerCancel: (_) => onStateChange(false),
       child: Container(
-        width: 52,
-        height: 52,
+        width: 54,
+        height: 54,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.25),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white60, width: 1.5),
         ),
-        child: Icon(icon, color: Colors.white, size: 28),
+        child: Icon(icon, color: Colors.white, size: 30),
       ),
     );
   }
@@ -225,13 +361,19 @@ class _PickleballGameState extends State<PickleballGame> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A8A),
-      body: KeyboardListener(
+      body: Focus(
         focusNode: _focusNode,
         autofocus: true,
-        onKeyEvent: handleKeyEvent,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.space) {
+            executeSwing();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
         child: Listener(
           behavior: HitTestBehavior.opaque,
-          // Right-click on desktop triggers swing
           onPointerDown: (event) {
             if (event.buttons == kSecondaryMouseButton) {
               executeSwing();
@@ -239,7 +381,7 @@ class _PickleballGameState extends State<PickleballGame> {
           },
           child: Stack(
             children: [
-              // Court
+              // Court Surface
               Center(
                 child: Container(
                   width: MediaQuery.of(context).size.width * 0.9,
@@ -274,13 +416,19 @@ class _PickleballGameState extends State<PickleballGame> {
                   decoration: const BoxDecoration(
                     color: Colors.redAccent,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 6)],
+                    boxShadow: [
+                      BoxShadow(color: Colors.black45, blurRadius: 6),
+                    ],
                   ),
-                  child: const Icon(Icons.sports_tennis, color: Colors.white, size: 28),
+                  child: const Icon(
+                    Icons.sports_tennis,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
               ),
 
-              // Shadow
+              // Ground Shadow
               Align(
                 alignment: Alignment(ballX, ballY),
                 child: Container(
@@ -303,7 +451,11 @@ class _PickleballGameState extends State<PickleballGame> {
                     color: Color(0xFFD4E157),
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
                     ],
                   ),
                 ),
@@ -323,9 +475,15 @@ class _PickleballGameState extends State<PickleballGame> {
                         color: Colors.blueAccent,
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6)],
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black38, blurRadius: 6),
+                        ],
                       ),
-                      child: const Icon(Icons.person, color: Colors.white, size: 32),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 32,
+                      ),
                     ),
                     Positioned(
                       right: -20,
@@ -336,9 +494,14 @@ class _PickleballGameState extends State<PickleballGame> {
                           width: 14,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: isSwinging ? Colors.orangeAccent : Colors.amber,
+                            color: isSwinging
+                                ? Colors.orangeAccent
+                                : Colors.amber,
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.black87, width: 1.5),
+                            border: Border.all(
+                              color: Colors.black87,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                       ),
@@ -350,20 +513,44 @@ class _PickleballGameState extends State<PickleballGame> {
               // Score Header
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("CPU: $botScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text(
+                        "CPU: $botScore",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       if (feedbackText.isNotEmpty)
-                        Text(feedbackText, style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w900)),
-                      Text("YOU: $playerScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        Text(
+                          feedbackText,
+                          style: const TextStyle(
+                            color: Colors.amberAccent,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      Text(
+                        "YOU: $playerScore",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
 
-              // Mobile Continuous Touch Controls
+              // Touch Controls (Mobile)
               if (isPlaying)
                 Positioned(
                   bottom: 24,
@@ -373,38 +560,31 @@ class _PickleballGameState extends State<PickleballGame> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // Continuous D-Pad
                       Column(
                         children: [
                           _buildDirectionBtn(
                             Icons.arrow_upward,
-                            () => setState(() => moveUp = true),
-                            () => setState(() => moveUp = false),
+                            (val) => moveUp = val,
                           ),
                           Row(
                             children: [
                               _buildDirectionBtn(
                                 Icons.arrow_back,
-                                () => setState(() => moveLeft = true),
-                                () => setState(() => moveLeft = false),
+                                (val) => moveLeft = val,
                               ),
                               const SizedBox(width: 48),
                               _buildDirectionBtn(
                                 Icons.arrow_forward,
-                                () => setState(() => moveRight = true),
-                                () => setState(() => moveRight = false),
+                                (val) => moveRight = val,
                               ),
                             ],
                           ),
                           _buildDirectionBtn(
                             Icons.arrow_downward,
-                            () => setState(() => moveDown = true),
-                            () => setState(() => moveDown = false),
+                            (val) => moveDown = val,
                           ),
                         ],
                       ),
-
-                      // Enlarged Hit Button
                       GestureDetector(
                         onTap: executeSwing,
                         child: Container(
@@ -413,7 +593,13 @@ class _PickleballGameState extends State<PickleballGame> {
                           decoration: BoxDecoration(
                             color: Colors.amber,
                             shape: BoxShape.circle,
-                            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black54,
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
                             border: Border.all(color: Colors.white, width: 3.5),
                           ),
                           child: const Center(
@@ -433,7 +619,7 @@ class _PickleballGameState extends State<PickleballGame> {
                   ),
                 ),
 
-              // Start / Serve Button
+              // Serve Button Overlay
               if (!isPlaying)
                 Center(
                   child: ElevatedButton(
@@ -443,11 +629,18 @@ class _PickleballGameState extends State<PickleballGame> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
-                      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 36,
+                        vertical: 16,
+                      ),
                     ),
                     child: const Text(
                       "TAP TO SERVE",
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -458,4 +651,3 @@ class _PickleballGameState extends State<PickleballGame> {
     );
   }
 }
-typedef VoidFunction = void Function();
