@@ -1,11 +1,101 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-enum RallyPhase { botServe, playerServe, playerReturn, botReturn, openRally }
+import 'pickleball_rules.dart';
+
+class CourtPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final court = Rect.fromLTWH(0, 0, size.width, size.height);
+    final grassPaint = Paint()..color = const Color(0xFF2E7D32);
+    canvas.drawRect(court, grassPaint);
+
+    final stripePaint = Paint()
+      ..color = const Color(0xFF388E3C).withValues(alpha: 0.32)
+      ..style = PaintingStyle.fill;
+    for (var index = 0; index < 10; index++) {
+      final stripe = Rect.fromLTWH(
+        size.width * index / 10,
+        0,
+        size.width / 20,
+        size.height,
+      );
+      canvas.drawRect(stripe, stripePaint);
+    }
+
+    final linePaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+    final courtInset = 2.0;
+    final left = courtInset;
+    final right = size.width - courtInset;
+    final top = courtInset;
+    final bottom = size.height - courtInset;
+    final centerX = size.width / 2;
+    final kitchenTop = size.height * 0.35;
+    final kitchenBottom = size.height * 0.65;
+
+    canvas.drawRect(Rect.fromLTRB(left, top, right, bottom), linePaint);
+    canvas.drawLine(
+      Offset(left, kitchenTop),
+      Offset(right, kitchenTop),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(left, kitchenBottom),
+      Offset(right, kitchenBottom),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(centerX, top),
+      Offset(centerX, kitchenTop),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(centerX, kitchenBottom),
+      Offset(centerX, bottom),
+      linePaint,
+    );
+
+    final kitchenPaint = Paint()
+      ..color = const Color(0xFFFFD54F).withValues(alpha: 0.12)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTRB(left, kitchenTop, right, kitchenBottom),
+      kitchenPaint,
+    );
+
+    final netPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 5
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(
+      Offset(left, size.height / 2),
+      Offset(right, size.height / 2),
+      netPaint,
+    );
+    canvas.drawCircle(Offset(left, size.height / 2), 6, netPaint);
+    canvas.drawCircle(Offset(right, size.height / 2), 6, netPaint);
+
+    final netShadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.2)
+      ..strokeWidth = 10;
+    canvas.drawLine(
+      Offset(left, size.height / 2 + 7),
+      Offset(right, size.height / 2 + 7),
+      netShadowPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CourtPainter oldDelegate) => false;
+}
 
 void main() {
   runApp(
@@ -64,12 +154,25 @@ class _PickleballGameState extends State<PickleballGame> {
   RallyPhase rallyPhase = RallyPhase.botServe;
   bool playerServing = false;
   bool bounceReadyForHit = false;
+  bool gameOver = false;
 
   void _resetRallyPositions() {
     playerX = 0.0;
     playerY = 0.75;
     botX = 0.0;
     botY = -0.75;
+  }
+
+  bool _isBallInReach({
+    required double targetX,
+    required double targetY,
+    double radius = 0.35,
+  }) {
+    final deltaX = ballX - targetX;
+    final deltaY = ballY - targetY;
+    return math.sqrt(deltaX * deltaX + deltaY * deltaY) < radius &&
+        ballZ > 0.05 &&
+        ballZ < 0.6;
   }
 
   @override
@@ -85,6 +188,12 @@ class _PickleballGameState extends State<PickleballGame> {
 
   void startGame() {
     setState(() {
+      if (gameOver) {
+        playerScore = 0;
+        botScore = 0;
+        playerServing = false;
+        gameOver = false;
+      }
       _resetRallyPositions();
       isPlaying = true;
       rallyPhase = playerServing ? RallyPhase.playerServe : RallyPhase.botServe;
@@ -105,7 +214,12 @@ class _PickleballGameState extends State<PickleballGame> {
     });
 
     gameTimer?.cancel();
+    final stopwatch = Stopwatch()..start();
     gameTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
+      final timeScale = (stopwatch.elapsedMicroseconds / 25000)
+          .clamp(0.5, 2.0)
+          .toDouble();
+      stopwatch.reset();
       setState(() {
         // 1. Hardware Keyboard + On-Screen Touch Polling
         const double moveSpeed = 0.025;
@@ -114,40 +228,52 @@ class _PickleballGameState extends State<PickleballGame> {
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyA) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowLeft) ||
             moveLeft) {
-          playerX -= moveSpeed;
+          playerX -= moveSpeed * timeScale;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyD) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowRight) ||
             moveRight) {
-          playerX += moveSpeed;
+          playerX += moveSpeed * timeScale;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyW) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowUp) ||
             moveUp) {
-          playerY -= moveSpeed;
+          playerY -= moveSpeed * timeScale;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyS) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowDown) ||
             moveDown) {
-          playerY += moveSpeed;
+          playerY += moveSpeed * timeScale;
         }
 
-        playerX = playerX.clamp(-0.85, 0.85);
-        playerY = playerY.clamp(0.15, 0.9);
+        playerX = playerX.clamp(
+          -PickleballRules.courtWidth,
+          PickleballRules.courtWidth,
+        );
+        playerY = playerY.clamp(0.15, PickleballRules.courtLength);
 
         // 2. Ball ground trajectory
         final previousBallY = ballY;
-        ballX += ballSpeedX;
-        ballY += ballSpeedY;
+        ballX += ballSpeedX * timeScale;
+        ballY += ballSpeedY * timeScale;
 
         // 3. Ball Z-axis (gravity arc)
-        ballZ += ballSpeedZ;
-        ballSpeedZ -= gravity;
+        ballZ += ballSpeedZ * timeScale;
+        ballSpeedZ -= gravity * timeScale;
 
         // Ground bounce & Out-of-bounds check
         if (ballZ <= 0.0) {
           ballZ = 0.0;
           ballSpeedZ = 0.018;
+
+          if (!PickleballRules.isInsideCourt(ballX, ballY)) {
+            _handleFault(
+              playerAtFault: lastHitByPlayer,
+              message: "OUT OF BOUNDS",
+            );
+            stopGame();
+            return;
+          }
 
           final ballOnPlayerSide = ballY > 0;
           final validBotServeBounce =
@@ -161,11 +287,11 @@ class _PickleballGameState extends State<PickleballGame> {
 
           if (validBotServeBounce) {
             rallyPhase = RallyPhase.playerReturn;
-            bounceReadyForHit = false;
+            bounceReadyForHit = true;
             feedbackText = "RETURN THE SERVE";
           } else if (validPlayerServeBounce) {
             rallyPhase = RallyPhase.botReturn;
-            bounceReadyForHit = false;
+            bounceReadyForHit = true;
             feedbackText = "BOT RETURN";
           } else if (validBotReturnBounce) {
             if (bounceReadyForHit) {
@@ -183,21 +309,21 @@ class _PickleballGameState extends State<PickleballGame> {
             }
             bounceReadyForHit = true;
             feedbackText = "GOOD BOUNCE";
+          } else if (rallyPhase == RallyPhase.openRally) {
+            if (bounceReadyForHit) {
+              _handleFault(
+                playerAtFault: !lastHitByPlayer,
+                message: "DOUBLE BOUNCE",
+              );
+              stopGame();
+              return;
+            }
+            bounceReadyForHit = true;
           } else if (rallyPhase == RallyPhase.botServe ||
               rallyPhase == RallyPhase.playerServe ||
               rallyPhase == RallyPhase.playerReturn ||
               rallyPhase == RallyPhase.botReturn) {
             feedbackText = ballOnPlayerSide ? "BOT FAULT" : "YOUR FAULT";
-            stopGame();
-            return;
-          }
-
-          // If the ball hits floor outside sideline or baseline lines
-          if (ballX.abs() > 0.82 || ballY.abs() > 0.95) {
-            _handleFault(
-              playerAtFault: lastHitByPlayer,
-              message: "OUT OF BOUNDS",
-            );
             stopGame();
             return;
           }
@@ -207,7 +333,8 @@ class _PickleballGameState extends State<PickleballGame> {
         final crossedNet =
             (previousBallY < 0 && ballY >= 0) ||
             (previousBallY > 0 && ballY <= 0);
-        if (crossedNet && ballZ < 0.18) {
+        final ballIsOverNet = ballX.abs() <= PickleballRules.courtWidth;
+        if (crossedNet && ballIsOverNet && ballZ < PickleballRules.netHeight) {
           _handleFault(playerAtFault: lastHitByPlayer, message: "NET FAULT");
           stopGame();
           return;
@@ -218,21 +345,24 @@ class _PickleballGameState extends State<PickleballGame> {
           double targetX = ballX;
           if ((botX - targetX).abs() > 0.08) {
             if (botX < targetX) {
-              botX += 0.009;
+              botX += 0.009 * timeScale;
             } else {
-              botX -= 0.009;
+              botX -= 0.009 * timeScale;
             }
           }
         }
-        botX = botX.clamp(-0.85, 0.85);
+        botX = botX.clamp(
+          -PickleballRules.courtWidth,
+          PickleballRules.courtWidth,
+        );
 
         // Fixed Bot Strike Zone (requires accurate X, Y, and reasonable height)
+        final botCanHit =
+            rallyPhase == RallyPhase.openRally ||
+            (rallyPhase == RallyPhase.botReturn && bounceReadyForHit);
         if (ballSpeedY < 0 &&
-            rallyPhase == RallyPhase.botReturn &&
-            bounceReadyForHit &&
-            (ballY - botY).abs() < 0.18 &&
-            (ballX - botX).abs() < 0.22 &&
-            ballZ < 0.40) {
+            botCanHit &&
+            _isBallInReach(targetX: botX, targetY: botY, radius: 0.3)) {
           lastHitByPlayer = false;
           ballSpeedY = 0.020;
           ballSpeedZ = 0.018;
@@ -242,11 +372,11 @@ class _PickleballGameState extends State<PickleballGame> {
         }
 
         // 5. Backline Pass Check (Safety catch if ball flies off screen)
-        if (ballY > 1.15) {
+        if (ballY > PickleballRules.courtLength + 0.2) {
           _handleFault(playerAtFault: lastHitByPlayer, message: "OUT");
           stopGame();
         }
-        if (ballY < -1.15) {
+        if (ballY < -PickleballRules.courtLength - 0.2) {
           _handleFault(playerAtFault: lastHitByPlayer, message: "OUT");
           stopGame();
         }
@@ -266,15 +396,19 @@ class _PickleballGameState extends State<PickleballGame> {
   void _handleFault({required bool playerAtFault, required String message}) {
     final servingSideFaulted = playerServing == playerAtFault;
     if (servingSideFaulted) {
+      playerServing = !playerServing;
+      feedbackText = "SIDE OUT - $message";
+    } else {
       if (playerServing) {
         playerScore++;
       } else {
         botScore++;
       }
       feedbackText = message;
-    } else {
-      playerServing = !playerServing;
-      feedbackText = "SIDE OUT - SERVE CHANGES";
+      if (PickleballRules.isWinningScore(playerScore, botScore)) {
+        gameOver = true;
+        feedbackText = playerScore > botScore ? "YOU WIN!" : "CPU WINS";
+      }
     }
   }
 
@@ -282,7 +416,7 @@ class _PickleballGameState extends State<PickleballGame> {
     final canPlayerHit =
         rallyPhase == RallyPhase.openRally ||
         (rallyPhase == RallyPhase.playerReturn && bounceReadyForHit);
-    if (!isPlaying || !canPlayerHit) {
+    if (!isPlaying || gameOver || !canPlayerHit || ballSpeedY <= 0) {
       return;
     }
 
@@ -294,11 +428,10 @@ class _PickleballGameState extends State<PickleballGame> {
       if (mounted) setState(() => isSwinging = false);
     });
 
-    double distToShadow = (ballX - playerX).abs() + (ballY - playerY).abs();
-
     // Valid hit window
-    final ballIsInReach = distToShadow < 0.35 && ballZ > 0.05 && ballZ < 0.6;
-    final isKitchenVolley = playerY < 0.2 && ballIsInReach && ballZ > 0.1;
+    final ballIsInReach = _isBallInReach(targetX: playerX, targetY: playerY);
+    final isKitchenVolley =
+        playerY < PickleballRules.kitchenDepth && ballIsInReach && ballZ > 0.1;
     if (isKitchenVolley) {
       setState(
         () => _handleFault(playerAtFault: true, message: "KITCHEN FAULT"),
@@ -326,6 +459,7 @@ class _PickleballGameState extends State<PickleballGame> {
         if (rallyPhase == RallyPhase.playerReturn) {
           rallyPhase = RallyPhase.botReturn;
         }
+        bounceReadyForHit = false;
       });
     }
   }
@@ -365,17 +499,13 @@ class _PickleballGameState extends State<PickleballGame> {
         focusNode: _focusNode,
         autofocus: true,
         onKeyEvent: (node, event) {
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.space) {
-            executeSwing();
-            return KeyEventResult.handled;
-          }
           return KeyEventResult.ignored;
         },
         child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
-            if (event.buttons == kSecondaryMouseButton) {
+            if (event.kind == PointerDeviceKind.mouse &&
+                event.buttons & kSecondaryMouseButton != 0) {
               executeSwing();
             }
           },
@@ -383,33 +513,19 @@ class _PickleballGameState extends State<PickleballGame> {
             children: [
               // Court Surface
               Center(
-                child: Container(
+                child: SizedBox(
                   width: MediaQuery.of(context).size.width * 0.9,
                   height: MediaQuery.of(context).size.height * 0.9,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32),
-                    border: Border.all(color: Colors.white, width: 4),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Stack(
-                    children: [
-                      Center(child: Container(height: 6, color: Colors.white)),
-                      Align(
-                        alignment: const Alignment(0, -0.3),
-                        child: Container(height: 2, color: Colors.white70),
-                      ),
-                      Align(
-                        alignment: const Alignment(0, 0.3),
-                        child: Container(height: 2, color: Colors.white70),
-                      ),
-                    ],
-                  ),
+                  child: CustomPaint(painter: CourtPainter()),
                 ),
               ),
 
               // Bot Character
               Align(
-                alignment: Alignment(botX, botY),
+                alignment: Alignment(
+                  botX * PickleballRules.screenCourtScale,
+                  botY * PickleballRules.screenCourtScale,
+                ),
                 child: Container(
                   width: 45,
                   height: 45,
@@ -430,7 +546,10 @@ class _PickleballGameState extends State<PickleballGame> {
 
               // Ground Shadow
               Align(
-                alignment: Alignment(ballX, ballY),
+                alignment: Alignment(
+                  ballX * PickleballRules.screenCourtScale,
+                  ballY * PickleballRules.screenCourtScale,
+                ),
                 child: Container(
                   width: 18 * (1.0 - ballZ * 0.5),
                   height: 8,
@@ -443,7 +562,10 @@ class _PickleballGameState extends State<PickleballGame> {
 
               // Ball
               Align(
-                alignment: Alignment(ballX, ballY - ballZ),
+                alignment: Alignment(
+                  ballX * PickleballRules.screenCourtScale,
+                  (ballY - ballZ) * PickleballRules.screenCourtScale,
+                ),
                 child: Container(
                   width: 22 + (ballZ * 10),
                   height: 22 + (ballZ * 10),
@@ -463,7 +585,10 @@ class _PickleballGameState extends State<PickleballGame> {
 
               // Player
               Align(
-                alignment: Alignment(playerX, playerY),
+                alignment: Alignment(
+                  playerX * PickleballRules.screenCourtScale,
+                  playerY * PickleballRules.screenCourtScale,
+                ),
                 child: Stack(
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
@@ -634,8 +759,8 @@ class _PickleballGameState extends State<PickleballGame> {
                         vertical: 16,
                       ),
                     ),
-                    child: const Text(
-                      "TAP TO SERVE",
+                    child: Text(
+                      gameOver ? "PLAY AGAIN" : "TAP TO SERVE",
                       style: TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,

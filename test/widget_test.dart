@@ -9,22 +9,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pickle_ball_game/main.dart';
+import 'package:pickle_ball_game/pickleball_rules.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  test('court and match rules use shared boundaries', () {
+    expect(PickleballRules.isInsideCourt(0, 0), isTrue);
+    expect(PickleballRules.isInsideCourt(0.83, 0), isFalse);
+    expect(PickleballRules.isWinningScore(11, 9), isTrue);
+    expect(PickleballRules.isWinningScore(11, 10), isFalse);
+  });
+
+  testWidgets('renders the pickleball game controls', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: PickleballGame()));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('CPU: 0'), findsOneWidget);
+    expect(find.text('YOU: 0'), findsOneWidget);
+    expect(find.text('TAP TO SERVE'), findsOneWidget);
+    expect(find.byType(CustomPaint), findsWidgets);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('TAP TO SERVE'));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('HIT'), findsOneWidget);
   });
 }
