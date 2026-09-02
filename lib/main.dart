@@ -74,9 +74,115 @@ void main() {
   runApp(
     const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: PickleballGame(),
+      home: MainMenu(), // The app now boots into the menu
     ),
   );
+}
+
+// The New Title Screen
+class MainMenu extends StatelessWidget {
+  const MainMenu({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. Check if the screen is wider than it is tall
+    final size = MediaQuery.of(context).size;
+    final isLandscape = size.width > size.height;
+
+    // 2. We separate the Logo into its own variable to keep the code clean
+    final logoWidget = Container(
+      width: 120,
+      height: 120,
+      decoration: const BoxDecoration(
+        color: Color(0xFFD4E157),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black45, blurRadius: 15, offset: Offset(0, 5))
+        ],
+      ),
+      child: const Icon(Icons.sports_tennis, size: 80, color: Color(0xFF1E3A8A)),
+    );
+
+    // 3. We separate the Text and Button into another variable
+    final textAndButtonWidget = Column(
+      mainAxisSize: MainAxisSize.min, // Prevents it from taking up infinite vertical space
+      children: [
+        const Text(
+          "PRO PICKLEBALL",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 36,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          "Wii-Style Mechanics",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.amberAccent,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 40),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PickleballGame()),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            elevation: 8,
+          ),
+          child: const Text(
+            "PLAY NOW",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF1E3A8A),
+      body: Center(
+        // The scroll view saves us from overflow crashes on tiny screens
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            // 4. The Magic Layout Swap
+            child: isLandscape
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      logoWidget,
+                      const SizedBox(width: 60),
+                      textAndButtonWidget,
+                    ],
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      logoWidget,
+                      const SizedBox(height: 40),
+                      textAndButtonWidget,
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class PickleballGame extends StatefulWidget {
@@ -168,7 +274,6 @@ class _PickleballGameState extends State<PickleballGame> {
           playerY += moveSpeed;
         }
 
-        // EXPANDED BOUNDARIES: Let the player run wide into the blue void to catch stray balls
         playerX = playerX.clamp(-1.4, 1.4);
         playerY = playerY.clamp(0.05, 1.3);
 
@@ -178,7 +283,6 @@ class _PickleballGameState extends State<PickleballGame> {
         ballZ += ballSpeedZ;
         ballSpeedZ -= gravity;
 
-        // Ground bounce & Out-of-bounds check
         if (ballZ <= 0.0) {
           ballZ = 0.0;
           ballSpeedZ = 0.018;
@@ -208,7 +312,6 @@ class _PickleballGameState extends State<PickleballGame> {
           }
         }
         
-        // Let the bot stretch out wide too
         botX = botX.clamp(-1.4, 1.4);
 
         if (ballSpeedY < 0 && (ballY - botY).abs() < 0.18 && (ballX - botX).abs() < 0.22 && ballZ < 0.40) {
@@ -376,7 +479,6 @@ class _PickleballGameState extends State<PickleballGame> {
                   child: Container(
                     margin: const EdgeInsets.all(12),
                     child: Stack(
-                      // ADDED: This ensures the player isn't visually cut off when running outside the green court
                       clipBehavior: Clip.none,
                       children: [
                         Positioned.fill(
@@ -475,14 +577,20 @@ class _PickleballGameState extends State<PickleballGame> {
               ),
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Added a back button to quit the current game
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
                       Text("CPU: $botScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                       if (feedbackText.isNotEmpty)
                         Text(feedbackText, style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w900)),
                       Text("YOU: $playerScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 48), // Balances the layout opposite the back button
                     ],
                   ),
                 ),
