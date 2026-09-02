@@ -1,54 +1,64 @@
 import 'dart:async';
-import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
-    home: PickleballCourt(),
+    home: PickleballGame(),
   ));
 }
 
-class PickleballCourt extends StatefulWidget {
-  const PickleballCourt({super.key});
+class PickleballGame extends StatefulWidget {
+  const PickleballGame({super.key});
 
   @override
-  State<PickleballCourt> createState() => _PickleballCourtState();
+  State<PickleballGame> createState() => _PickleballGameState();
 }
 
-class _PickleballCourtState extends State<PickleballCourt> {
+class _PickleballGameState extends State<PickleballGame> {
   final FocusNode _focusNode = FocusNode();
 
-  // Positions (-1.0 to 1.0)
-  double playerPaddleX = 0.0;
-  double botPaddleX = 0.0;
+  // Player position on court (-1.0 to 1.0)
+  double playerX = 0.0;
+  double playerY = 0.75; // Player stands on bottom half
 
-  // Ball
+  // Opponent position
+  double botX = 0.0;
+  double botY = -0.75;
+
+  // Ball positions (X, Y on ground plane, Z is height)
   double ballX = 0.0;
   double ballY = 0.0;
-  double speedX = 0.015;
-  double speedY = 0.02;
+  double ballZ = 0.4; // Height off ground
 
-  // Smooth keyboard flags
-  bool movingLeft = false;
-  bool movingRight = false;
-  final double paddleSpeed = 0.025;
+  // Velocities
+  double ballSpeedX = 0.01;
+  double ballSpeedY = 0.02;
+  double ballSpeedZ = 0.02;
+  final double gravity = 0.0012;
 
-  // Scores
+  // Player Movement Flags
+  bool moveLeft = false;
+  bool moveRight = false;
+  bool moveUp = false;
+  bool moveDown = false;
+  bool isSwinging = false;
+
+  // Game state
+  bool isPlaying = false;
   int playerScore = 0;
   int botScore = 0;
-
+  String feedbackText = "";
   Timer? gameTimer;
-  bool isPlaying = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Disable browser right-click menu
-    BrowserContextMenu.disableContextMenu();
-
+    if (kIsWeb) {
+      BrowserContextMenu.disableContextMenu();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -58,55 +68,68 @@ class _PickleballCourtState extends State<PickleballCourt> {
     setState(() {
       isPlaying = true;
       ballX = 0.0;
-      ballY = 0.0;
-      speedY = 0.02;
-      speedX = 0.015;
+      ballY = -0.6;
+      ballZ = 0.4;
+      ballSpeedX = 0.008;
+      ballSpeedY = 0.022; // Serves down toward player
+      ballSpeedZ = 0.015;
+      feedbackText = "";
     });
 
     gameTimer?.cancel();
     gameTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
       setState(() {
-        // Smooth keyboard motion
-        if (movingLeft) {
-          playerPaddleX -= paddleSpeed;
-        }
-        if (movingRight) {
-          playerPaddleX += paddleSpeed;
-        }
-        playerPaddleX = playerPaddleX.clamp(-0.8, 0.8);
+        // 1. Move Player Character
+        const double moveSpeed = 0.03;
+        if (moveLeft) playerX -= moveSpeed;
+        if (moveRight) playerX += moveSpeed;
+        if (moveUp) playerY -= moveSpeed;
+        if (moveDown) playerY += moveSpeed;
 
-        // Ball movement
-        ballX += speedX;
-        ballY += speedY;
+        // Keep player on their own half (between net and baseline)
+        playerX = playerX.clamp(-0.85, 0.85);
+        playerY = playerY.clamp(0.15, 0.9);
 
-        // Bot AI
-        if (botPaddleX < ballX) {
-          botPaddleX += 0.012;
-        } else if (botPaddleX > ballX) {
-          botPaddleX -= 0.012;
-        }
-        botPaddleX = botPaddleX.clamp(-0.8, 0.8);
+        // 2. Ball Ground Movement
+        ballX += ballSpeedX;
+        ballY += ballSpeedY;
 
-        // Wall bounce
-        if (ballX <= -0.95 || ballX >= 0.95) {
-          speedX = -speedX;
-        }
+        // 3. Ball Z-axis (Gravity Arc)
+        ballZ += ballSpeedZ;
+        ballSpeedZ -= gravity;
 
-        // Paddle collisions
-        if (ballY >= 0.82 && ballY <= 0.88 && (ballX - playerPaddleX).abs() < 0.25) {
-          speedY = -speedY.abs();
-        }
-        if (ballY <= -0.82 && ballY >= -0.88 && (ballX - botPaddleX).abs() < 0.25) {
-          speedY = speedY.abs();
+        // Ball bounce on the floor
+        if (ballZ <= 0.0) {
+          ballZ = 0.0;
+          ballSpeedZ = 0.018; // Bounce upward
         }
 
-        // Scores
+        // Side boundary wall bounce
+        if (ballX <= -0.9 || ballX >= 0.9) {
+          ballSpeedX = -ballSpeedX;
+        }
+
+        // 4. Opponent AI: Glide toward ball shadow
+        if (botX < ballX) botX += 0.014;
+        if (botX > ballX) botX -= 0.014;
+        botX = botX.clamp(-0.85, 0.85);
+
+        // Opponent auto-swings when ball enters their zone
+        if (ballY <= -0.65 && (ballX - botX).abs() < 0.25 && ballZ < 0.5) {
+          ballSpeedY = 0.022; // Hit back toward player
+          ballSpeedZ = 0.02; // Lob it upward
+          ballSpeedX = (ballX - botX) * 0.1; // Add direction angle
+        }
+
+        // 5. Out of bounds / Miss check
         if (ballY > 1.1) {
           botScore++;
+          feedbackText = "OUT! BOT POINT";
           stopGame();
         }
         if (ballY < -1.1) {
           playerScore++;
+          feedbackText = "POINT FOR YOU!";
           stopGame();
         }
       });
@@ -116,177 +139,300 @@ class _PickleballCourtState extends State<PickleballCourt> {
   void stopGame() {
     gameTimer?.cancel();
     isPlaying = false;
-    movingLeft = false;
-    movingRight = false;
+    moveLeft = false;
+    moveRight = false;
+    moveUp = false;
+    moveDown = false;
   }
 
-  void handleKeyEvent(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.keyA ||
-          event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        movingLeft = true;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyD ||
-          event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        movingRight = true;
-      }
-    } else if (event is KeyUpEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.keyA ||
-          event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        movingLeft = false;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyD ||
-          event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        movingRight = false;
-      }
+  // Player Swing Logic
+  void executeSwing() {
+    if (!isPlaying) return;
+
+    setState(() {
+      isSwinging = true;
+    });
+
+    // Reset swing visual after 150ms
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (mounted) setState(() => isSwinging = false);
+    });
+
+    // Proximity check on the floor plane
+    double distToShadow = (ballX - playerX).abs() + (ballY - playerY).abs();
+
+    // Valid hit window: character is near shadow and ball is at hittable height
+    if (distToShadow < 0.35 && ballZ > 0.05 && ballZ < 0.6) {
+      setState(() {
+        if (ballZ > 0.3) {
+          // Smash hit: fast and sharp
+          ballSpeedY = -0.032;
+          ballSpeedZ = 0.01;
+          feedbackText = "SMASH!";
+        } else {
+          // Regular drive
+          ballSpeedY = -0.022;
+          ballSpeedZ = 0.022;
+          feedbackText = "GOOD HIT";
+        }
+        // Slice angle based on player offset
+        ballSpeedX = (ballX - playerX) * 0.12;
+      });
     }
   }
 
-  void movePaddle(double deltaX) {
-    setState(() {
-      playerPaddleX += deltaX / (MediaQuery.of(context).size.width / 2);
-      playerPaddleX = playerPaddleX.clamp(-0.8, 0.8);
-    });
+  void handleKeyEvent(KeyEvent event) {
+    bool isDown = event is KeyDownEvent;
+
+    if (event.logicalKey == LogicalKeyboardKey.keyA ||
+        event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      moveLeft = isDown;
+    } else if (event.logicalKey == LogicalKeyboardKey.keyD ||
+        event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      moveRight = isDown;
+    } else if (event.logicalKey == LogicalKeyboardKey.keyW ||
+        event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      moveUp = isDown;
+    } else if (event.logicalKey == LogicalKeyboardKey.keyS ||
+        event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      moveDown = isDown;
+    } else if (event.logicalKey == LogicalKeyboardKey.space && isDown) {
+      executeSwing();
+    }
   }
 
   @override
   void dispose() {
-    BrowserContextMenu.enableContextMenu();
+    if (kIsWeb) BrowserContextMenu.enableContextMenu();
     gameTimer?.cancel();
     _focusNode.dispose();
     super.dispose();
   }
 
-  // <--- The build method starts right here --->
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
-      backgroundColor: const Color(0xFF1B4332),
+      backgroundColor: const Color(0xFF1E3A8A), // Deep stadium blue
       body: KeyboardListener(
         focusNode: _focusNode,
         autofocus: true,
         onKeyEvent: handleKeyEvent,
-        child: Listener(
-          behavior: HitTestBehavior.opaque,
-          onPointerMove: (event) {
-            // Checks if right-click is held AND cursor is on bottom half of the court
-            if (event.buttons == kSecondaryMouseButton &&
-                event.position.dy > screenHeight / 2) {
-              movePaddle(event.delta.dx);
-            }
-          },
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onHorizontalDragUpdate: (details) {
-              // Allows drag anywhere on bottom half
-              if (details.localPosition.dy > screenHeight / 2) {
-                movePaddle(details.delta.dx);
-              }
-            },
-            child: Stack(
-              children: [
-                // Net
-                Center(
-                  child: Container(
-                    height: 3,
-                    color: Colors.white60,
-                  ),
+        child: Stack(
+          children: [
+            // Pickleball Court Surface
+            Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                height: MediaQuery.of(context).size.height * 0.9,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32), // Green court
+                  border: Border.all(color: Colors.white, width: 4),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-
-                // Bot Paddle (Top)
-                Align(
-                  alignment: Alignment(botPaddleX, -0.85),
-                  child: Container(
-                    width: 100,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent,
-                      borderRadius: BorderRadius.circular(6),
+                child: Stack(
+                  children: [
+                    // Center Net
+                    Center(
+                      child: Container(
+                        height: 6,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                ),
 
-                // Player Paddle (Bottom)
-                Align(
-                  alignment: Alignment(playerPaddleX, 0.85),
-                  child: Container(
-                    width: 100,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      borderRadius: BorderRadius.circular(6),
+                    // Non-Volley Kitchen Lines (Wii style court zones)
+                    Align(
+                      alignment: const Alignment(0, -0.3),
+                      child: Container(height: 2, color: Colors.white70),
                     ),
-                  ),
+                    Align(
+                      alignment: const Alignment(0, 0.3),
+                      child: Container(height: 2, color: Colors.white70),
+                    ),
+                  ],
                 ),
+              ),
+            ),
 
-                // Ball
-                Align(
-                  alignment: Alignment(ballX, ballY),
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE9D700),
+            // Opponent Character (Top)
+            Align(
+              alignment: Alignment(botX, botY),
+              child: Container(
+                width: 45,
+                height: 45,
+                decoration: const BoxDecoration(
+                  color: Colors.redAccent,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 6)],
+                ),
+                child: const Icon(Icons.sports_tennis, color: Colors.white, size: 28),
+              ),
+            ),
+
+            // Ball Floor Shadow (Gives 3D depth)
+            Align(
+              alignment: Alignment(ballX, ballY),
+              child: Container(
+                width: 18 * (1.0 - ballZ * 0.5),
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+
+            // The Ball (Drawn directly above its shadow based on ballZ)
+            Align(
+              alignment: Alignment(ballX, ballY - ballZ),
+              child: Container(
+                width: 22 + (ballZ * 10),
+                height: 22 + (ballZ * 10),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFD4E157), // Neon Pickleball
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                  ],
+                ),
+              ),
+            ),
+
+            // Player Character + Paddle (Bottom)
+            Align(
+              alignment: Alignment(playerX, playerY),
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  // Body
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent,
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6)],
+                    ),
+                    child: const Icon(Icons.person, color: Colors.white, size: 32),
+                  ),
+
+                  // Paddle / Swing Arc Indicator
+                  Positioned(
+                    right: -20,
+                    top: isSwinging ? -15 : 5,
+                    child: Transform.rotate(
+                      angle: isSwinging ? -0.8 : 0.4,
+                      child: Container(
+                        width: 14,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: isSwinging ? Colors.orangeAccent : Colors.amber,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.black87, width: 1.5),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
+              ),
+            ),
 
-                // Scoreboard
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0, vertical: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Scoreboard & Hit Feedback
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("CPU: $botScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    if (feedbackText.isNotEmpty)
+                      Text(feedbackText, style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w900)),
+                    Text("YOU: $playerScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+
+            // Mobile On-Screen Controls (Visible on mobile/tablets)
+            if (isPlaying)
+              Positioned(
+                bottom: 24,
+                left: 24,
+                right: 24,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // D-Pad for Touch Movement
+                    Column(
                       children: [
-                        Text(
-                          "Bot: $botScore",
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
+                        IconButton.filled(
+                          icon: const Icon(Icons.arrow_upward),
+                          onPressed: () => setState(() => playerY = (playerY - 0.08).clamp(0.15, 0.9)),
                         ),
-                        Text(
-                          "You: $playerScore",
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
+                        Row(
+                          children: [
+                            IconButton.filled(
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed: () => setState(() => playerX = (playerX - 0.08).clamp(-0.85, 0.85)),
+                            ),
+                            const SizedBox(width: 40),
+                            IconButton.filled(
+                              icon: const Icon(Icons.arrow_forward),
+                              onPressed: () => setState(() => playerX = (playerX + 0.08).clamp(-0.85, 0.85)),
+                            ),
+                          ],
+                        ),
+                        IconButton.filled(
+                          icon: const Icon(Icons.arrow_downward),
+                          onPressed: () => setState(() => playerY = (playerY + 0.08).clamp(0.15, 0.9)),
                         ),
                       ],
                     ),
-                  ),
-                ),
 
-                // Serve Button
-                if (!isPlaying)
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        startGame();
-                        _focusNode.requestFocus();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 14),
-                      ),
-                      child: const Text(
-                        "TAP TO SERVE",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                    // Big Swing Button
+                    GestureDetector(
+                      onTap: executeSwing,
+                      child: Container(
+                        width: 75,
+                        height: 75,
+                        decoration: BoxDecoration(
+                          color: Colors.amber,
+                          shape: BoxShape.circle,
+                          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 8)],
+                          border: Border.all(color: Colors.white, width: 3),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "HIT",
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black),
+                          ),
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+
+            // Serve / Start Overlay
+            if (!isPlaying)
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    startGame();
+                    _focusNode.requestFocus();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
                   ),
-              ],
-            ),
-          ),
+                  child: const Text(
+                    "TAP TO SERVE",
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
