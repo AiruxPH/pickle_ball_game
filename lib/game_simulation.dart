@@ -7,6 +7,13 @@ class CourtPoint {
   final double y;
 }
 
+class ProjectedPoint {
+  const ProjectedPoint(this.x, this.y);
+
+  final double x;
+  final double y;
+}
+
 class BallState {
   BallState({
     this.x = 0,
@@ -25,6 +32,33 @@ class BallState {
   double velocityZ;
 }
 
+class CourtProjection {
+  const CourtProjection({
+    required this.courtWidth,
+    required this.courtLength,
+  });
+
+  final double courtWidth;
+  final double courtLength;
+
+  ProjectedPoint project({
+    required double x,
+    required double y,
+    double elevation = 0,
+  }) {
+    final depth = depthScaleAt(y);
+    return ProjectedPoint(
+      (x / courtWidth) * depth,
+      (y / courtLength) - elevation * 0.22,
+    );
+  }
+
+  double depthScaleAt(double y) {
+    final normalizedDepth = ((y + courtLength) / (courtLength * 2)).clamp(0, 1);
+    return 0.84 + normalizedDepth * 0.16;
+  }
+}
+
 class GameSimulation {
   static const double courtWidth = 1.4;
   static const double courtLength = 1.3;
@@ -32,6 +66,10 @@ class GameSimulation {
   static const double moveSpeed = 0.025;
 
   final BallState ball = BallState();
+  final CourtProjection projection = const CourtProjection(
+    courtWidth: courtWidth,
+    courtLength: courtLength,
+  );
 
   double playerX = 0;
   double playerY = 0.75;
@@ -99,11 +137,6 @@ class GameSimulation {
     }
     ball.velocityX = (ball.x - playerX) * 0.12;
     return true;
-  }
-
-  CourtPoint project(CourtPoint point, double depthScale) {
-    final perspective = 1 - ((point.y + courtLength) / (courtLength * 2)) * 0.18;
-    return CourtPoint(point.x * perspective, point.y * depthScale);
   }
 
   double ballScale() => 1 + ball.z * 0.45;

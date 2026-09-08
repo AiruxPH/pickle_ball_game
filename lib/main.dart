@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'game_simulation.dart';
+import 'game_renderers.dart';
 
 class CourtPainter extends CustomPainter {
   @override
@@ -385,6 +386,23 @@ class _PickleballGameState extends State<PickleballGame> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final courtScale = (screenHeight / 850).clamp(0.4, 1.2);
+    final projection = simulation.projection;
+    final botPoint = projection.project(x: botX, y: botY);
+    final playerPoint = projection.project(x: playerX, y: playerY);
+    final ballShadowPoint = projection.project(x: ballX, y: ballY);
+    final ballPoint = projection.project(
+      x: ballX,
+      y: ballY,
+      elevation: ballZ,
+    );
+    final botAlignment = Alignment(botPoint.x, botPoint.y);
+    final playerAlignment = Alignment(playerPoint.x, playerPoint.y);
+    final ballShadowAlignment = Alignment(ballShadowPoint.x, ballShadowPoint.y);
+    final ballAlignment = Alignment(ballPoint.x, ballPoint.y);
+    final botScale = courtScale * projection.depthScaleAt(botY);
+    final playerScale = courtScale * projection.depthScaleAt(playerY);
+    final ballVisualScale = courtScale * projection.depthScaleAt(ballY) * simulation.ballScale();
+    final ballShadowScale = courtScale * projection.depthScaleAt(ballY) * simulation.ballShadowScale();
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A8A),
@@ -418,91 +436,17 @@ class _PickleballGameState extends State<PickleballGame> {
                         Positioned.fill(
                           child: CustomPaint(painter: CourtPainter()),
                         ),
-                        Align(
-                          alignment: Alignment(botX, botY),
-                          child: Transform.scale(
-                            scale: courtScale,
-                            child: Container(
-                              width: 45,
-                              height: 45,
-                              decoration: const BoxDecoration(
-                                color: Colors.redAccent,
-                                shape: BoxShape.circle,
-                                boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 6)],
-                              ),
-                              child: const Icon(Icons.sports_tennis, color: Colors.white, size: 28),
-                            ),
-                          ),
+                        BotRenderer(alignment: botAlignment, scale: botScale),
+                        BallRenderer(
+                          shadowAlignment: ballShadowAlignment,
+                          ballAlignment: ballAlignment,
+                          shadowScale: ballShadowScale,
+                          ballScale: ballVisualScale,
                         ),
-                        Align(
-                          alignment: Alignment(ballX, ballY),
-                          child: Transform.scale(
-                            scale: courtScale,
-                            child: Container(
-                              width: 18 * (1.0 - ballZ * 0.5),
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.35),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Align(
-                          alignment: Alignment(ballX, ballY - ballZ),
-                          child: Transform.scale(
-                            scale: courtScale,
-                            child: Container(
-                              width: 22 + (ballZ * 10),
-                              height: 22 + (ballZ * 10),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFD4E157),
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Align(
-                          alignment: Alignment(playerX, playerY),
-                          child: Transform.scale(
-                            scale: courtScale,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: Colors.blueAccent,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
-                                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6)],
-                                  ),
-                                  child: const Icon(Icons.person, color: Colors.white, size: 32),
-                                ),
-                                Positioned(
-                                  right: -20,
-                                  top: isSwinging ? -15 : 5,
-                                  child: Transform.rotate(
-                                    angle: isSwinging ? -0.8 : 0.4,
-                                    child: Container(
-                                      width: 14,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        color: isSwinging ? Colors.orangeAccent : Colors.amber,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: Colors.black87, width: 1.5),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                        PlayerRenderer(
+                          alignment: playerAlignment,
+                          scale: playerScale,
+                          isSwinging: isSwinging,
                         ),
                       ],
                     ),
