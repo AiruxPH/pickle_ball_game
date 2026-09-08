@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:pickle_ball_game/game_simulation.dart';
 import 'package:pickle_ball_game/main.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
 
@@ -73,6 +74,20 @@ void main() {
       playerAtFault: false,
     );
     expect(matchPoint.gameOver, isTrue);
+  });
+
+  test('simulation keeps mechanics independent from rendering', () {
+    final simulation = GameSimulation();
+    simulation.resetRally();
+    final initialY = simulation.ball.y;
+
+    simulation.update(joystickX: 1, joystickY: -1);
+
+    expect(simulation.ball.y, greaterThan(initialY));
+    expect(simulation.playerX, greaterThan(0));
+    expect(simulation.playerY, lessThan(0.75));
+    expect(simulation.project(const CourtPoint(0, 0), 1).x, 0);
+    expect(simulation.ballScale(), greaterThan(1));
   });
 
   testWidgets('renders the pickleball game controls', (

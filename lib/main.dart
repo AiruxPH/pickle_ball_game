@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'game_simulation.dart';
 
 class CourtPainter extends CustomPainter {
   @override
@@ -194,21 +195,15 @@ class PickleballGame extends StatefulWidget {
 
 class _PickleballGameState extends State<PickleballGame> {
   final FocusNode _focusNode = FocusNode();
+  final GameSimulation simulation = GameSimulation();
 
-  // Positions
-  double playerX = 0.0;
-  double playerY = 0.75;
-  double botX = 0.0;
-  double botY = -0.75;
-  double ballX = 0.0;
-  double ballY = 0.0;
-  double ballZ = 0.4;
-
-  // Velocities
-  double ballSpeedX = 0.01;
-  double ballSpeedY = 0.02;
-  double ballSpeedZ = 0.02;
-  final double gravity = 0.0012;
+  double get playerX => simulation.playerX;
+  double get playerY => simulation.playerY;
+  double get botX => simulation.botX;
+  double get botY => simulation.botY;
+  double get ballX => simulation.ball.x;
+  double get ballY => simulation.ball.y;
+  double get ballZ => simulation.ball.z;
 
   // Joystick state
   double joystickX = 0.0;
@@ -237,91 +232,37 @@ class _PickleballGameState extends State<PickleballGame> {
   void startGame() {
     setState(() {
       isPlaying = true;
-      ballX = 0.0;
-      ballY = -0.6;
-      ballZ = 0.4;
-      ballSpeedX = 0.008;
-      ballSpeedY = 0.022;
-      ballSpeedZ = 0.015;
-      lastHitByPlayer = false;
+      simulation.resetRally();
+      lastHitByPlayer = simulation.lastHitByPlayer;
       feedbackText = "";
     });
 
     gameTimer?.cancel();
     gameTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
       setState(() {
-        // 1. Smooth Hardware Polling & Mobile Joystick
-        const double moveSpeed = 0.025;
         final keyboard = HardwareKeyboard.instance;
-
-        playerX += joystickX * moveSpeed;
-        playerY += joystickY * moveSpeed;
-
+        var inputX = joystickX;
+        var inputY = joystickY;
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyA) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowLeft)) {
-          playerX -= moveSpeed;
+          inputX -= 1;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyD) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowRight)) {
-          playerX += moveSpeed;
+          inputX += 1;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyW) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowUp)) {
-          playerY -= moveSpeed;
+          inputY -= 1;
         }
         if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyS) ||
             keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowDown)) {
-          playerY += moveSpeed;
+          inputY += 1;
         }
 
-        playerX = playerX.clamp(-1.4, 1.4);
-        playerY = playerY.clamp(0.05, 1.3);
+        simulation.update(joystickX: inputX.clamp(-1, 1), joystickY: inputY.clamp(-1, 1));
+        lastHitByPlayer = simulation.lastHitByPlayer;
 
-        // 2. Ball trajectory
-        ballX += ballSpeedX;
-        ballY += ballSpeedY;
-        ballZ += ballSpeedZ;
-        ballSpeedZ -= gravity;
-
-        if (ballZ <= 0.0) {
-          ballZ = 0.0;
-          ballSpeedZ = 0.018;
-
-          if (ballX.abs() > 0.85 || ballY.abs() > 0.95) {
-            if (lastHitByPlayer) {
-              botScore++;
-              feedbackText = "OUT! YOUR FAULT";
-            } else {
-              playerScore++;
-              feedbackText = "OUT! BOT FAULT";
-            }
-            stopGame();
-            return;
-          }
-        }
-
-        // 3. Humanized Bot AI
-        if (ballSpeedY < 0) {
-          double targetX = ballX;
-          if ((botX - targetX).abs() > 0.08) {
-            if (botX < targetX) {
-              botX += 0.009;
-            } else {
-              botX -= 0.009;
-            }
-          }
-        }
-        
-        botX = botX.clamp(-1.4, 1.4);
-
-        if (ballSpeedY < 0 && (ballY - botY).abs() < 0.18 && (ballX - botX).abs() < 0.22 && ballZ < 0.40) {
-          lastHitByPlayer = false;
-          ballSpeedY = 0.020;
-          ballSpeedZ = 0.018;
-          ballSpeedX = (ballX - botX) * 0.08;
-        }
-
-        // 4. Backline Pass Check
         if (ballY > 1.15) {
           if (lastHitByPlayer) {
             botScore++;
@@ -364,22 +305,15 @@ class _PickleballGameState extends State<PickleballGame> {
       if (mounted) setState(() => isSwinging = false);
     });
 
-    double distToShadow = (ballX - playerX).abs() + (ballY - playerY).abs();
-
-    if (distToShadow < 0.35 && ballZ > 0.05 && ballZ < 0.6) {
+    final wasHighBall = ballZ > 0.3;
+    if (simulation.swing()) {
       setState(() {
-        lastHitByPlayer = true;
-
-        if (ballZ > 0.3) {
-          ballSpeedY = -0.032;
-          ballSpeedZ = 0.01;
+        lastHitByPlayer = simulation.lastHitByPlayer;
+        if (wasHighBall) {
           feedbackText = "SMASH!";
         } else {
-          ballSpeedY = -0.022;
-          ballSpeedZ = 0.022;
           feedbackText = "GOOD HIT";
         }
-        ballSpeedX = (ballX - playerX) * 0.12;
       });
     }
   }
