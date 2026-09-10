@@ -6,6 +6,8 @@ game simulation, rules, and rendering can evolve independently.
 
 ## Current status
 
+For a detailed continuation record, see [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md).
+
 - Playable court with player, bot, ball physics, shadows, and depth scaling.
 - Keyboard, touch joystick, HIT button, and secondary mouse-button controls.
 - Logical simulation coordinates are separate from screen projection.
@@ -26,6 +28,10 @@ game simulation, rules, and rendering can evolve independently.
 	scene remains the renderer during the component migration.
 - The ball and its shadow now render through a Flame component using the shared
 	simulation projection. Court, player, and bot rendering remain in Flutter.
+- Player and bot visuals now also render through Flame components, including the
+	player racket swing state. The court painter remains Flutter-owned.
+- The court, net, kitchen markings, and court stripes now render through Flame;
+	the full game scene is Flame-owned.
 
 ## Architecture
 
@@ -75,8 +81,10 @@ flutter test
 3. Improve solo rally behavior, feedback, and court interaction. **In progress.**
 4. Move the live simulation loop into the Flame adapter. **Complete.**
 5. Migrate the ball to a Flame scene component. **Complete.**
-6. Migrate player, bot, and court rendering to Flame components.
-7. Return to full serve phases, serve-box legality, and side-out handling for
+6. Migrate player and bot rendering to Flame components. **Complete.**
+7. Migrate court rendering to a Flame component. **Complete.**
+8. Polish the Flame scene, camera framing, effects, and solo interaction.
+9. Return to full serve phases, serve-box legality, and side-out handling for
 	multiplayer or official-rule play.
 
 ## Design decisions

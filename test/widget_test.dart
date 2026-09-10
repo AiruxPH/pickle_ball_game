@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flame/game.dart';
 
 import 'package:pickle_ball_game/game_simulation.dart';
 import 'package:pickle_ball_game/main.dart';
@@ -158,7 +159,10 @@ void main() {
     expect(find.text('CPU: 0'), findsOneWidget);
     expect(find.text('YOU: 0'), findsOneWidget);
     expect(find.text('TAP TO SERVE'), findsOneWidget);
-    expect(find.byType(CustomPaint), findsWidgets);
+    expect(
+      find.byWidgetPredicate((widget) => widget is GameWidget),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('TAP TO SERVE'));
     await tester.pump();

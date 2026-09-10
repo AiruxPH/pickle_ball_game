@@ -5,74 +5,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'game_simulation.dart';
-import 'game_renderers.dart';
 import 'match_state.dart';
 import 'pickleball_flame_game.dart';
-
-class CourtPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final court = Rect.fromLTWH(0, 0, size.width, size.height);
-    final grassPaint = Paint()..color = const Color(0xFF2E7D32);
-    canvas.drawRect(court, grassPaint);
-
-    final stripePaint = Paint()
-      ..color = const Color(0xFF388E3C).withValues(alpha: 0.32)
-      ..style = PaintingStyle.fill;
-    for (var index = 0; index < 10; index++) {
-      final stripe = Rect.fromLTWH(
-        size.width * index / 10,
-        0,
-        size.width / 20,
-        size.height,
-      );
-      canvas.drawRect(stripe, stripePaint);
-    }
-
-    final linePaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-    const courtInset = 2.0;
-    final left = courtInset;
-    final right = size.width - courtInset;
-    final top = courtInset;
-    final bottom = size.height - courtInset;
-    final centerX = size.width / 2;
-    final kitchenTop = size.height * 0.35;
-    final kitchenBottom = size.height * 0.65;
-
-    canvas.drawRect(Rect.fromLTRB(left, top, right, bottom), linePaint);
-    canvas.drawLine(Offset(left, kitchenTop), Offset(right, kitchenTop), linePaint);
-    canvas.drawLine(Offset(left, kitchenBottom), Offset(right, kitchenBottom), linePaint);
-    canvas.drawLine(Offset(centerX, top), Offset(centerX, kitchenTop), linePaint);
-    canvas.drawLine(Offset(centerX, kitchenBottom), Offset(centerX, bottom), linePaint);
-
-    final kitchenPaint = Paint()
-      ..color = const Color(0xFFFFD54F).withValues(alpha: 0.12)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-      Rect.fromLTRB(left, kitchenTop, right, kitchenBottom),
-      kitchenPaint,
-    );
-
-    final netPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 5
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(left, size.height / 2), Offset(right, size.height / 2), netPaint);
-    canvas.drawCircle(Offset(left, size.height / 2), 6, netPaint);
-    canvas.drawCircle(Offset(right, size.height / 2), 6, netPaint);
-
-    final netShadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.2)
-      ..strokeWidth = 10;
-    canvas.drawLine(Offset(left, size.height / 2 + 7), Offset(right, size.height / 2 + 7), netShadowPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CourtPainter oldDelegate) => false;
-}
 
 void main() {
   runApp(
@@ -289,10 +223,16 @@ class _PickleballGameState extends State<PickleballGame> {
 
     setState(() {
       isSwinging = true;
+      flameGame.isSwinging = true;
     });
 
     Future.delayed(const Duration(milliseconds: 150), () {
-      if (mounted) setState(() => isSwinging = false);
+      if (mounted) {
+        setState(() {
+          isSwinging = false;
+          flameGame.isSwinging = false;
+        });
+      }
     });
 
     final wasHighBall = ballZ > 0.3;
@@ -387,15 +327,6 @@ class _PickleballGameState extends State<PickleballGame> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final courtScale = (screenHeight / 850).clamp(0.4, 1.2);
-    final projection = simulation.projection;
-    final botPoint = projection.project(x: botX, y: botY);
-    final playerPoint = projection.project(x: playerX, y: playerY);
-    final botAlignment = Alignment(botPoint.x, botPoint.y);
-    final playerAlignment = Alignment(playerPoint.x, playerPoint.y);
-    final botScale = courtScale * projection.depthScaleAt(botY);
-    final playerScale = courtScale * projection.depthScaleAt(playerY);
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A8A),
@@ -431,15 +362,6 @@ class _PickleballGameState extends State<PickleballGame> {
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Positioned.fill(
-                          child: CustomPaint(painter: CourtPainter()),
-                        ),
-                        BotRenderer(alignment: botAlignment, scale: botScale),
-                        PlayerRenderer(
-                          alignment: playerAlignment,
-                          scale: playerScale,
-                          isSwinging: isSwinging,
-                        ),
                       ],
                     ),
                   ),
