@@ -186,13 +186,23 @@ class PlayerVisualComponent extends Component {
     );
     final scale = simulation.projection.depthScaleAt(simulation.playerY);
     final center = _screenPoint(court, point.x, point.y);
-    final playerPaint = Paint()..color = const Color(0xFF448AFF);
+        // Hit flash: brighter body + amber glow ring while swinging
+    final bodyColor =
+        game.isSwinging ? const Color(0xFF82B1FF) : const Color(0xFF448AFF);
+    final playerPaint = Paint()..color = bodyColor;
     canvas.drawCircle(center, 25 * scale, playerPaint);
     final outlinePaint = Paint()
       ..color = const Color(0xFFFFFFFF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2 * scale;
     canvas.drawCircle(center, 25 * scale, outlinePaint);
+    if (game.isSwinging) {
+      final glowPaint = Paint()
+        ..color = const Color(0x99FFC107)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4 * scale;
+      canvas.drawCircle(center, 32 * scale, glowPaint);
+    }
 
     final racketPaint = Paint()
       ..color = const Color(0xFFFFC107)

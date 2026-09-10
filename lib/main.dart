@@ -1,9 +1,9 @@
-import 'dart:math' as math;
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'game_input_adapter.dart';
 import 'game_simulation.dart';
 import 'match_state.dart';
 import 'pickleball_flame_game.dart';
@@ -12,22 +12,18 @@ void main() {
   runApp(
     const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MainMenu(), // The app now boots into the menu
+      home: MainMenu(),
     ),
   );
 }
 
-// The New Title Screen
 class MainMenu extends StatelessWidget {
   const MainMenu({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 1. Check if the screen is wider than it is tall
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
-
-    // 2. We separate the Logo into its own variable to keep the code clean
     final logoWidget = Container(
       width: 120,
       height: 120,
@@ -40,13 +36,11 @@ class MainMenu extends StatelessWidget {
       ),
       child: const Icon(Icons.sports_tennis, size: 80, color: Color(0xFF1E3A8A)),
     );
-
-    // 3. We separate the Text and Button into another variable
     final textAndButtonWidget = Column(
-      mainAxisSize: MainAxisSize.min, // Prevents it from taking up infinite vertical space
+      mainAxisSize: MainAxisSize.min,
       children: [
         const Text(
-          "PRO PICKLEBALL",
+          'PRO PICKLEBALL',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white,
@@ -57,7 +51,7 @@ class MainMenu extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const Text(
-          "Wii-Style Mechanics",
+          'Wii-Style Mechanics',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.amberAccent,
@@ -80,7 +74,7 @@ class MainMenu extends StatelessWidget {
             elevation: 8,
           ),
           child: const Text(
-            "PLAY NOW",
+            'PLAY NOW',
             style: TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.bold,
@@ -90,31 +84,20 @@ class MainMenu extends StatelessWidget {
         ),
       ],
     );
-
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A8A),
       body: Center(
-        // The scroll view saves us from overflow crashes on tiny screens
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
-            // 4. The Magic Layout Swap
             child: isLandscape
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      logoWidget,
-                      const SizedBox(width: 60),
-                      textAndButtonWidget,
-                    ],
+                    children: [logoWidget, const SizedBox(width: 60), textAndButtonWidget],
                   )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      logoWidget,
-                      const SizedBox(height: 40),
-                      textAndButtonWidget,
-                    ],
+                    children: [logoWidget, const SizedBox(height: 40), textAndButtonWidget],
                   ),
           ),
         ),
@@ -134,186 +117,90 @@ class _PickleballGameState extends State<PickleballGame> {
   final FocusNode _focusNode = FocusNode();
   final MatchState match = MatchState();
   final PickleballFlameGame flameGame;
+  final GameInputAdapter _input = GameInputAdapter();
 
   _PickleballGameState() : flameGame = PickleballFlameGame();
 
   GameSimulation get simulation => flameGame.simulation;
-
-  double get playerX => simulation.playerX;
-  double get playerY => simulation.playerY;
-  double get botX => simulation.botX;
-  double get botY => simulation.botY;
   double get ballZ => simulation.ball.z;
 
-  // Joystick state
-  double joystickX = 0.0;
-  double joystickY = 0.0;
-
-  bool lastHitByPlayer = false;
-  bool isSwinging = false;
   bool isPlaying = false;
-  
+  bool _isPaused = false;
+  String feedbackText = '';
+
   int get playerScore => match.playerScore;
   int get botScore => match.botScore;
-  String feedbackText = "";
 
   @override
   void initState() {
     super.initState();
     flameGame.onRallyEnd = _handleRallyEnd;
-    if (kIsWeb) {
-      BrowserContextMenu.disableContextMenu();
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
-    });
+    _input.onJoystickChanged = (x, y) {
+      setState(() {
+        flameGame.inputX = x;
+        flameGame.inputY = y;
+      });
+    };
+    if (kIsWeb) BrowserContextMenu.disableContextMenu();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
   }
 
-  void startGame() {
+  void _startGame() {
     setState(() {
-      if (match.isComplete) {
-        match.reset();
-      }
+      if (match.isComplete) match.reset();
       match.start();
       isPlaying = true;
+      _isPaused = false;
       simulation.resetRally();
-      lastHitByPlayer = simulation.lastHitByPlayer;
-      feedbackText = "";
+      feedbackText = '';
     });
     flameGame.start();
   }
 
+  void _togglePause() {
+    setState(() {
+      _isPaused = !_isPaused;
+      flameGame.isPlaying = !_isPaused;
+    });
+    if (!_isPaused) _focusNode.requestFocus();
+  }
+
   void _handleRallyEnd(RallyEnd rallyEnd) {
     if (!mounted) return;
-
     setState(() {
-      lastHitByPlayer = simulation.lastHitByPlayer;
       final previousPlayerScore = playerScore;
       final previousBotScore = botScore;
-      final faultSide = rallyEnd == RallyEnd.playerFault
-          ? MatchSide.player
-          : MatchSide.bot;
-      final pointWinner = faultSide == MatchSide.player
-          ? MatchSide.bot
-          : MatchSide.player;
+      final pointWinner =
+          rallyEnd == RallyEnd.playerFault ? MatchSide.bot : MatchSide.player;
       match.awardPointTo(pointWinner);
-
       if (match.isComplete) {
-        feedbackText = playerScore > botScore ? "YOU WIN!" : "CPU WINS";
+        feedbackText = playerScore > botScore ? 'YOU WIN!' : 'CPU WINS';
       } else if (playerScore > previousPlayerScore) {
-        feedbackText = "POINT FOR YOU!";
+        feedbackText = 'POINT FOR YOU!';
       } else if (botScore > previousBotScore) {
-        feedbackText = "POINT FOR CPU!";
+        feedbackText = 'POINT FOR CPU!';
       }
       isPlaying = false;
-      joystickX = 0;
-      joystickY = 0;
+      _isPaused = false;
+      _input.resetJoystick();
     });
   }
 
-  void stopGame() {
-    flameGame.stop();
-    isPlaying = false;
-    joystickX = 0.0;
-    joystickY = 0.0;
-  }
-
-  void executeSwing() {
-    if (!isPlaying) return;
-
-    setState(() {
-      isSwinging = true;
-      flameGame.isSwinging = true;
-    });
-
+  void _executeSwing() {
+    if (!isPlaying || _isPaused) return;
+    setState(() => flameGame.isSwinging = true);
     Future.delayed(const Duration(milliseconds: 150), () {
-      if (mounted) {
-        setState(() {
-          isSwinging = false;
-          flameGame.isSwinging = false;
-        });
-      }
+      if (mounted) setState(() => flameGame.isSwinging = false);
     });
-
     final wasHighBall = ballZ > 0.3;
     final swingResult = simulation.swing();
-    if (swingResult == SwingResult.hit) {
-      setState(() {
-        lastHitByPlayer = simulation.lastHitByPlayer;
-        if (wasHighBall) {
-          feedbackText = "SMASH!";
-        } else {
-          feedbackText = "GOOD HIT";
-        }
-      });
-    } else {
-      setState(() {
-        feedbackText = swingResult == SwingResult.kitchenFault
-            ? "KITCHEN FAULT"
-            : "MISS";
-      });
-    }
-  }
-
-  Widget _buildJoystick() {
-    return Semantics(
-      label: 'Move player',
-      child: GestureDetector(
-        onPanStart: (details) => _updateJoystick(details.localPosition),
-        onPanUpdate: (details) => _updateJoystick(details.localPosition),
-        onPanEnd: (details) {
-          setState(() {
-            joystickX = 0.0;
-            joystickY = 0.0;
-            flameGame.inputX = 0.0;
-            flameGame.inputY = 0.0;
-          });
-        },
-        child: Container(
-        width: 140,
-        height: 140,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white54, width: 2),
-        ),
-        child: Center(
-          child: Transform.translate(
-            offset: Offset(joystickX * 45, joystickY * 45),
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
-                shape: BoxShape.circle,
-                boxShadow: const [
-                  BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))
-                ],
-              ),
-            ),
-          ),
-        ),
-        ),
-      ),
-    );
-  }
-
-  void _updateJoystick(Offset localPosition) {
-    double dx = localPosition.dx - 70;
-    double dy = localPosition.dy - 70;
-    
-    double distance = math.sqrt(dx * dx + dy * dy);
-    
-    if (distance > 45) {
-      dx = (dx / distance) * 45;
-      dy = (dy / distance) * 45;
-    }
-    
     setState(() {
-      joystickX = dx / 45;
-      joystickY = dy / 45;
-      flameGame.inputX = joystickX;
-      flameGame.inputY = joystickY;
+      if (swingResult == SwingResult.hit) {
+        feedbackText = wasHighBall ? 'SMASH!' : 'GOOD HIT';
+      } else {
+        feedbackText =
+            swingResult == SwingResult.kitchenFault ? 'KITCHEN FAULT' : 'MISS';
+      }
     });
   }
 
@@ -327,7 +214,6 @@ class _PickleballGameState extends State<PickleballGame> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A8A),
       body: Focus(
@@ -335,7 +221,11 @@ class _PickleballGameState extends State<PickleballGame> {
         autofocus: true,
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
-            executeSwing();
+            _executeSwing();
+            return KeyEventResult.handled;
+          }
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+            if (isPlaying) _togglePause();
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -343,51 +233,69 @@ class _PickleballGameState extends State<PickleballGame> {
         child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
-            if (event.buttons == kSecondaryMouseButton) {
-              executeSwing();
-            }
+            if (event.buttons == kSecondaryMouseButton) _executeSwing();
           },
           child: Stack(
             children: [
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: GameWidget(game: flameGame),
-                ),
-              ),
-              Center(
-                child: AspectRatio(
-                  aspectRatio: 9 / 16,
-                  child: Container(
-                    margin: const EdgeInsets.all(12),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              // Flame game layer
+              Positioned.fill(child: IgnorePointer(child: GameWidget(game: flameGame))),
+              // HUD: back | CPU score | feedback | player score | pause
               SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Added a back button to quit the current game
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                          tooltip: 'Back to menu',
+                          onPressed: () => Navigator.pop(context),
+                        ),
                       ),
-                      Text("CPU: $botScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Semantics(
+                        liveRegion: true,
+                        container: true,
+                        label: 'CPU score $botScore',
+                        child: Text('CPU: $botScore',
+                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      ),
                       if (feedbackText.isNotEmpty)
-                        Text(feedbackText, style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w900)),
-                      Text("YOU: $playerScore", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 48), // Balances the layout opposite the back button
+                        Semantics(
+                          liveRegion: true,
+                          container: true,
+                          child: Text(feedbackText,
+                              style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w900)),
+                        ),
+                      Semantics(
+                        liveRegion: true,
+                        container: true,
+                        label: 'Your score $playerScore',
+                        child: Text('YOU: $playerScore',
+                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      ),
+                      if (isPlaying)
+                        SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white),
+                            tooltip: _isPaused ? 'Resume game' : 'Pause game',
+                            onPressed: _togglePause,
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 48),
                     ],
                   ),
                 ),
               ),
-              if (isPlaying)
+              // Controls
+              if (isPlaying && !_isPaused)
                 Positioned(
                   bottom: 24,
                   left: 20,
@@ -401,50 +309,159 @@ class _PickleballGameState extends State<PickleballGame> {
                         button: true,
                         label: 'Hit the ball',
                         child: GestureDetector(
-                          onTap: executeSwing,
+                          onTap: _executeSwing,
                           child: Container(
-                          width: 90,
-                          height: 90,
-                          decoration: BoxDecoration(
-                            color: Colors.amber,
-                            shape: BoxShape.circle,
-                            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
-                            border: Border.all(color: Colors.white, width: 3.5),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              "HIT",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 22,
-                                color: Colors.black,
-                                letterSpacing: 1.2,
-                              ),
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              shape: BoxShape.circle,
+                              boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
+                              border: Border.all(color: Colors.white, width: 3.5),
                             ),
-                          ),
+                            child: const Center(
+                              child: Text('HIT',
+                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              if (!isPlaying)
+              if (_isPaused) _buildPauseOverlay(),
+              if (match.isComplete) _buildMatchCompleteOverlay(),
+              if (!isPlaying && !match.isComplete)
                 Center(
                   child: ElevatedButton(
                     onPressed: () {
-                      startGame();
+                      _startGame();
                       _focusNode.requestFocus();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
                       padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
                     ),
-                    child: const Text(
-                      "TAP TO SERVE",
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
+                    child: const Text('TAP TO SERVE',
+                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
                 ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJoystick() {
+    return Semantics(
+      label: 'Move player',
+      child: GestureDetector(
+        onPanStart: (d) => _input.updateJoystick(d.localPosition),
+        onPanUpdate: (d) => _input.updateJoystick(d.localPosition),
+        onPanEnd: (_) => _input.resetJoystick(),
+        child: Container(
+          width: 140,
+          height: 140,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white54, width: 2),
+          ),
+          child: Center(
+            child: Transform.translate(
+              offset: Offset(_input.joystickX * 45, _input.joystickY * 45),
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  shape: BoxShape.circle,
+                  boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPauseOverlay() {
+    return Semantics(
+      label: 'Game paused',
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.55),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('PAUSED',
+                  style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 4)),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _togglePause,
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('RESUME'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('QUIT TO MENU', style: TextStyle(color: Colors.white70, fontSize: 16)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMatchCompleteOverlay() {
+    final playerWon = playerScore > botScore;
+    return Semantics(
+      label: playerWon ? 'You win!' : 'CPU wins',
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.70),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                playerWon ? 'YOU WIN!' : 'CPU WINS',
+                style: TextStyle(
+                    color: playerWon ? Colors.amberAccent : Colors.redAccent,
+                    fontSize: 44,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 3),
+              ),
+              const SizedBox(height: 12),
+              Text('$playerScore - $botScore',
+                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: () {
+                  _startGame();
+                  _focusNode.requestFocus();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+                child: const Text('PLAY AGAIN',
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 20)),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('BACK TO MENU', style: TextStyle(color: Colors.white70, fontSize: 16)),
+              ),
             ],
           ),
         ),
