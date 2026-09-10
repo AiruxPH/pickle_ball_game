@@ -143,6 +143,7 @@ void main() {
     final simulation = GameSimulation();
     final game = PickleballFlameGame(simulation: simulation);
     final initialY = simulation.ball.y;
+    game.start();
 
     game.update(PickleballFlameGame.fixedStep);
 

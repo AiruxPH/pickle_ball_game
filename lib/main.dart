@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'dart:math' as math;
+import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'game_simulation.dart';
 import 'game_renderers.dart';
 import 'match_state.dart';
+import 'pickleball_flame_game.dart';
 
 class CourtPainter extends CustomPainter {
   @override
@@ -197,15 +198,17 @@ class PickleballGame extends StatefulWidget {
 
 class _PickleballGameState extends State<PickleballGame> {
   final FocusNode _focusNode = FocusNode();
-  final GameSimulation simulation = GameSimulation();
   final MatchState match = MatchState();
+  final PickleballFlameGame flameGame;
+
+  _PickleballGameState() : flameGame = PickleballFlameGame();
+
+  GameSimulation get simulation => flameGame.simulation;
 
   double get playerX => simulation.playerX;
   double get playerY => simulation.playerY;
   double get botX => simulation.botX;
   double get botY => simulation.botY;
-  double get ballX => simulation.ball.x;
-  double get ballY => simulation.ball.y;
   double get ballZ => simulation.ball.z;
 
   // Joystick state
@@ -219,11 +222,11 @@ class _PickleballGameState extends State<PickleballGame> {
   int get playerScore => match.playerScore;
   int get botScore => match.botScore;
   String feedbackText = "";
-  Timer? gameTimer;
 
   @override
   void initState() {
     super.initState();
+    flameGame.onRallyEnd = _handleRallyEnd;
     if (kIsWeb) {
       BrowserContextMenu.disableContextMenu();
     }
@@ -243,64 +246,39 @@ class _PickleballGameState extends State<PickleballGame> {
       lastHitByPlayer = simulation.lastHitByPlayer;
       feedbackText = "";
     });
+    flameGame.start();
+  }
 
-    gameTimer?.cancel();
-    gameTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
-      setState(() {
-        final keyboard = HardwareKeyboard.instance;
-        var inputX = joystickX;
-        var inputY = joystickY;
-        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyA) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowLeft)) {
-          inputX -= 1;
-        }
-        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyD) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowRight)) {
-          inputX += 1;
-        }
-        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyW) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowUp)) {
-          inputY -= 1;
-        }
-        if (keyboard.isLogicalKeyPressed(LogicalKeyboardKey.keyS) ||
-            keyboard.isLogicalKeyPressed(LogicalKeyboardKey.arrowDown)) {
-          inputY += 1;
-        }
+  void _handleRallyEnd(RallyEnd rallyEnd) {
+    if (!mounted) return;
 
-        final rallyEnd = simulation.update(
-          joystickX: inputX.clamp(-1, 1),
-          joystickY: inputY.clamp(-1, 1),
-        );
-        lastHitByPlayer = simulation.lastHitByPlayer;
+    setState(() {
+      lastHitByPlayer = simulation.lastHitByPlayer;
+      final previousPlayerScore = playerScore;
+      final previousBotScore = botScore;
+      final faultSide = rallyEnd == RallyEnd.playerFault
+          ? MatchSide.player
+          : MatchSide.bot;
+      final pointWinner = faultSide == MatchSide.player
+          ? MatchSide.bot
+          : MatchSide.player;
+      match.awardPointTo(pointWinner);
 
-        if (rallyEnd != null) {
-          final previousPlayerScore = playerScore;
-          final previousBotScore = botScore;
-          final faultSide = rallyEnd == RallyEnd.playerFault
-              ? MatchSide.player
-              : MatchSide.bot;
-            final pointWinner = faultSide == MatchSide.player
-              ? MatchSide.bot
-              : MatchSide.player;
-            match.awardPointTo(pointWinner);
-
-          if (match.isComplete) {
-            feedbackText = playerScore > botScore ? "YOU WIN!" : "CPU WINS";
-          } else if (playerScore > previousPlayerScore) {
-            feedbackText = "POINT FOR YOU!";
-          } else if (botScore > previousBotScore) {
-            feedbackText = "POINT FOR CPU!";
-          } else {
-            feedbackText = "SIDE OUT";
-          }
-          stopGame();
-        }
-      });
+      if (match.isComplete) {
+        feedbackText = playerScore > botScore ? "YOU WIN!" : "CPU WINS";
+      } else if (playerScore > previousPlayerScore) {
+        feedbackText = "POINT FOR YOU!";
+      } else if (botScore > previousBotScore) {
+        feedbackText = "POINT FOR CPU!";
+      }
+      isPlaying = false;
+      joystickX = 0;
+      joystickY = 0;
     });
   }
 
   void stopGame() {
-    gameTimer?.cancel();
+    flameGame.stop();
     isPlaying = false;
     joystickX = 0.0;
     joystickY = 0.0;
@@ -347,6 +325,8 @@ class _PickleballGameState extends State<PickleballGame> {
           setState(() {
             joystickX = 0.0;
             joystickY = 0.0;
+            flameGame.inputX = 0.0;
+            flameGame.inputY = 0.0;
           });
         },
         child: Container(
@@ -392,13 +372,15 @@ class _PickleballGameState extends State<PickleballGame> {
     setState(() {
       joystickX = dx / 45;
       joystickY = dy / 45;
+      flameGame.inputX = joystickX;
+      flameGame.inputY = joystickY;
     });
   }
 
   @override
   void dispose() {
     if (kIsWeb) BrowserContextMenu.enableContextMenu();
-    gameTimer?.cancel();
+    flameGame.stop();
     _focusNode.dispose();
     super.dispose();
   }
@@ -410,20 +392,10 @@ class _PickleballGameState extends State<PickleballGame> {
     final projection = simulation.projection;
     final botPoint = projection.project(x: botX, y: botY);
     final playerPoint = projection.project(x: playerX, y: playerY);
-    final ballShadowPoint = projection.project(x: ballX, y: ballY);
-    final ballPoint = projection.project(
-      x: ballX,
-      y: ballY,
-      elevation: ballZ,
-    );
     final botAlignment = Alignment(botPoint.x, botPoint.y);
     final playerAlignment = Alignment(playerPoint.x, playerPoint.y);
-    final ballShadowAlignment = Alignment(ballShadowPoint.x, ballShadowPoint.y);
-    final ballAlignment = Alignment(ballPoint.x, ballPoint.y);
     final botScale = courtScale * projection.depthScaleAt(botY);
     final playerScale = courtScale * projection.depthScaleAt(playerY);
-    final ballVisualScale = courtScale * projection.depthScaleAt(ballY) * simulation.ballScale();
-    final ballShadowScale = courtScale * projection.depthScaleAt(ballY) * simulation.ballShadowScale();
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A8A),
@@ -446,6 +418,11 @@ class _PickleballGameState extends State<PickleballGame> {
           },
           child: Stack(
             children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: GameWidget(game: flameGame),
+                ),
+              ),
               Center(
                 child: AspectRatio(
                   aspectRatio: 9 / 16,
@@ -458,12 +435,6 @@ class _PickleballGameState extends State<PickleballGame> {
                           child: CustomPaint(painter: CourtPainter()),
                         ),
                         BotRenderer(alignment: botAlignment, scale: botScale),
-                        BallRenderer(
-                          shadowAlignment: ballShadowAlignment,
-                          ballAlignment: ballAlignment,
-                          shadowScale: ballShadowScale,
-                          ballScale: ballVisualScale,
-                        ),
                         PlayerRenderer(
                           alignment: playerAlignment,
                           scale: playerScale,
