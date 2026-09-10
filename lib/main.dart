@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'game_simulation.dart';
 import 'game_renderers.dart';
+import 'match_state.dart';
 
 class CourtPainter extends CustomPainter {
   @override
@@ -197,6 +198,7 @@ class PickleballGame extends StatefulWidget {
 class _PickleballGameState extends State<PickleballGame> {
   final FocusNode _focusNode = FocusNode();
   final GameSimulation simulation = GameSimulation();
+  final MatchState match = MatchState();
 
   double get playerX => simulation.playerX;
   double get playerY => simulation.playerY;
@@ -214,8 +216,8 @@ class _PickleballGameState extends State<PickleballGame> {
   bool isSwinging = false;
   bool isPlaying = false;
   
-  int playerScore = 0;
-  int botScore = 0;
+  int get playerScore => match.playerScore;
+  int get botScore => match.botScore;
   String feedbackText = "";
   Timer? gameTimer;
 
@@ -232,6 +234,10 @@ class _PickleballGameState extends State<PickleballGame> {
 
   void startGame() {
     setState(() {
+      if (match.isComplete) {
+        match.reset();
+      }
+      match.start();
       isPlaying = true;
       simulation.resetRally();
       lastHitByPlayer = simulation.lastHitByPlayer;
@@ -261,26 +267,31 @@ class _PickleballGameState extends State<PickleballGame> {
           inputY += 1;
         }
 
-        simulation.update(joystickX: inputX.clamp(-1, 1), joystickY: inputY.clamp(-1, 1));
+        final rallyEnd = simulation.update(
+          joystickX: inputX.clamp(-1, 1),
+          joystickY: inputY.clamp(-1, 1),
+        );
         lastHitByPlayer = simulation.lastHitByPlayer;
 
-        if (ballY > 1.15) {
-          if (lastHitByPlayer) {
-            botScore++;
-            feedbackText = "OUT! YOUR FAULT";
-          } else {
-            playerScore++;
+        if (rallyEnd != null) {
+          final previousPlayerScore = playerScore;
+          final previousBotScore = botScore;
+          final faultSide = rallyEnd == RallyEnd.playerFault
+              ? MatchSide.player
+              : MatchSide.bot;
+            final pointWinner = faultSide == MatchSide.player
+              ? MatchSide.bot
+              : MatchSide.player;
+            match.awardPointTo(pointWinner);
+
+          if (match.isComplete) {
+            feedbackText = playerScore > botScore ? "YOU WIN!" : "CPU WINS";
+          } else if (playerScore > previousPlayerScore) {
             feedbackText = "POINT FOR YOU!";
-          }
-          stopGame();
-        }
-        if (ballY < -1.15) {
-          if (lastHitByPlayer) {
-            playerScore++;
-            feedbackText = "POINT FOR YOU!";
+          } else if (botScore > previousBotScore) {
+            feedbackText = "POINT FOR CPU!";
           } else {
-            botScore++;
-            feedbackText = "OUT! BOT FAULT";
+            feedbackText = "SIDE OUT";
           }
           stopGame();
         }
@@ -307,7 +318,8 @@ class _PickleballGameState extends State<PickleballGame> {
     });
 
     final wasHighBall = ballZ > 0.3;
-    if (simulation.swing()) {
+    final swingResult = simulation.swing();
+    if (swingResult == SwingResult.hit) {
       setState(() {
         lastHitByPlayer = simulation.lastHitByPlayer;
         if (wasHighBall) {
@@ -316,20 +328,28 @@ class _PickleballGameState extends State<PickleballGame> {
           feedbackText = "GOOD HIT";
         }
       });
+    } else {
+      setState(() {
+        feedbackText = swingResult == SwingResult.kitchenFault
+            ? "KITCHEN FAULT"
+            : "MISS";
+      });
     }
   }
 
   Widget _buildJoystick() {
-    return GestureDetector(
-      onPanStart: (details) => _updateJoystick(details.localPosition),
-      onPanUpdate: (details) => _updateJoystick(details.localPosition),
-      onPanEnd: (details) {
-        setState(() {
-          joystickX = 0.0;
-          joystickY = 0.0;
-        });
-      },
-      child: Container(
+    return Semantics(
+      label: 'Move player',
+      child: GestureDetector(
+        onPanStart: (details) => _updateJoystick(details.localPosition),
+        onPanUpdate: (details) => _updateJoystick(details.localPosition),
+        onPanEnd: (details) {
+          setState(() {
+            joystickX = 0.0;
+            joystickY = 0.0;
+          });
+        },
+        child: Container(
         width: 140,
         height: 140,
         decoration: BoxDecoration(
@@ -352,6 +372,7 @@ class _PickleballGameState extends State<PickleballGame> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -483,9 +504,12 @@ class _PickleballGameState extends State<PickleballGame> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       _buildJoystick(),
-                      GestureDetector(
-                        onTap: executeSwing,
-                        child: Container(
+                      Semantics(
+                        button: true,
+                        label: 'Hit the ball',
+                        child: GestureDetector(
+                          onTap: executeSwing,
+                          child: Container(
                           width: 90,
                           height: 90,
                           decoration: BoxDecoration(
@@ -504,6 +528,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                 letterSpacing: 1.2,
                               ),
                             ),
+                          ),
                           ),
                         ),
                       ),

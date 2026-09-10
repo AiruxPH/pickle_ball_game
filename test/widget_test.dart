@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pickle_ball_game/game_simulation.dart';
 import 'package:pickle_ball_game/main.dart';
+import 'package:pickle_ball_game/match_state.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
 
 void main() {
@@ -81,8 +82,9 @@ void main() {
     simulation.resetRally();
     final initialY = simulation.ball.y;
 
-    simulation.update(joystickX: 1, joystickY: -1);
+    final rallyEnd = simulation.update(joystickX: 1, joystickY: -1);
 
+    expect(rallyEnd, isNull);
     expect(simulation.ball.y, greaterThan(initialY));
     expect(simulation.playerX, greaterThan(0));
     expect(simulation.playerY, lessThan(0.75));
@@ -94,6 +96,46 @@ void main() {
       lessThan(simulation.projection.depthScaleAt(GameSimulation.courtLength)),
     );
     expect(simulation.ballScale(), greaterThan(1));
+  });
+
+  test('simulation enforces bounce, kitchen, and net constraints', () {
+    final simulation = GameSimulation();
+    simulation.playerX = 0;
+    simulation.playerY = 0.2;
+    simulation.ball
+      ..x = 0
+      ..y = 0.2
+      ..z = 0.2
+      ..hasBounced = false;
+
+    expect(simulation.swing(), SwingResult.kitchenFault);
+
+    simulation.ball
+      ..y = -0.01
+      ..z = PickleballRules.netHeight - 0.01
+      ..velocityY = 0.02
+      ..velocityZ = 0;
+    expect(simulation.update(), RallyEnd.botFault);
+  });
+
+  test('match state handles side-outs and win-by-two scoring', () {
+    final match = MatchState(servingSide: MatchSide.player);
+    match.start();
+
+    match.applyFault(faultSide: MatchSide.player);
+    expect(match.playerScore, 0);
+    expect(match.botScore, 0);
+    expect(match.servingSide, MatchSide.bot);
+
+    match.applyFault(faultSide: MatchSide.player);
+    expect(match.botScore, 1);
+
+    match.playerScore = 10;
+    match.botScore = 10;
+    match.awardPointTo(MatchSide.player);
+    expect(match.isComplete, isFalse);
+    match.awardPointTo(MatchSide.player);
+    expect(match.isComplete, isTrue);
   });
 
   testWidgets('renders the pickleball game controls', (
