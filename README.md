@@ -22,6 +22,8 @@ game simulation, rules, and rendering can evolve independently.
 	is not interrupted by service rotation.
 - Swing outcomes now provide immediate `MISS`, `KITCHEN FAULT`, `GOOD HIT`, and
 	`SMASH` feedback, with semantic labels on touch controls.
+- Flame `^1.38.2` is installed with a fixed-step adapter ready for the game-loop
+	migration; the current Flutter screen is still the active renderer.
 
 ## Architecture
 
@@ -69,7 +71,7 @@ flutter test
 1. Define and test the pure Dart match rules. **Complete.**
 2. Connect live rally events to `MatchState`. **Complete.**
 3. Improve solo rally behavior, feedback, and court interaction. **In progress.**
-4. Add Flame for the game loop and scene components.
+4. Move the live simulation loop into the Flame adapter and add scene components.
 5. Return to full serve phases, serve-box legality, and side-out handling for
 	multiplayer or official-rule play.
 

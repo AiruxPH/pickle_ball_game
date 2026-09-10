@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pickle_ball_game/game_simulation.dart';
 import 'package:pickle_ball_game/main.dart';
 import 'package:pickle_ball_game/match_state.dart';
+import 'package:pickle_ball_game/pickleball_flame_game.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
 
 void main() {
@@ -136,6 +137,16 @@ void main() {
     expect(match.isComplete, isFalse);
     match.awardPointTo(MatchSide.player);
     expect(match.isComplete, isTrue);
+  });
+
+  test('Flame adapter advances simulation on a fixed step', () {
+    final simulation = GameSimulation();
+    final game = PickleballFlameGame(simulation: simulation);
+    final initialY = simulation.ball.y;
+
+    game.update(PickleballFlameGame.fixedStep);
+
+    expect(simulation.ball.y, greaterThan(initialY));
   });
 
   testWidgets('renders the pickleball game controls', (
