@@ -32,32 +32,26 @@ class MatchState {
     status = MatchStatus.ready;
   }
 
-  void applyFault({required MatchSide faultSide}) {
+  void resolveRally({required MatchSide rallyWinner}) {
     if (isComplete) return;
 
-    if (faultSide == servingSide) {
-      servingSide = _otherSide(servingSide);
+    if (rallyWinner == servingSide) {
+      _awardPointTo(servingSide);
     } else {
-      _awardPointTo(_otherSide(faultSide));
+      servingSide = rallyWinner;
     }
 
-    if (_hasWinningScore) {
-      status = MatchStatus.complete;
-    }
-  }
-
-  void awardPointTo(MatchSide side) {
-    if (isComplete) return;
-
-    _awardPointTo(side);
     if (_hasWinningScore) {
       status = MatchStatus.complete;
     }
   }
 
   bool get _hasWinningScore {
-    final highestScore = playerScore > botScore ? playerScore : botScore;
-    return highestScore >= winningScore && (playerScore - botScore).abs() >= 2;
+    final highestScore =
+        playerScore > botScore ? playerScore : botScore;
+
+    return highestScore >= winningScore &&
+        (playerScore - botScore).abs() >= 2;
   }
 
   void _awardPointTo(MatchSide side) {
@@ -66,9 +60,5 @@ class MatchState {
     } else {
       botScore++;
     }
-  }
-
-  MatchSide _otherSide(MatchSide side) {
-    return side == MatchSide.player ? MatchSide.bot : MatchSide.player;
   }
 }

@@ -172,7 +172,7 @@ class _PickleballGameState extends State<PickleballGame> {
       final previousBotScore = botScore;
       final pointWinner =
           rallyEnd == RallyEnd.playerFault ? MatchSide.bot : MatchSide.player;
-      match.awardPointTo(pointWinner);
+      match.resolveRally(rallyWinner: pointWinner);
       if (match.isComplete) {
         feedbackText = playerScore > botScore ? 'YOU WIN!' : 'CPU WINS';
       } else if (playerScore > previousPlayerScore) {
@@ -230,66 +230,104 @@ class _PickleballGameState extends State<PickleballGame> {
           }
           return KeyEventResult.ignored;
         },
-        child: Listener(
+                child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
             if (event.buttons == kSecondaryMouseButton) _executeSwing();
           },
-          child: Stack(
-            children: [
-              // Flame game layer
-              Positioned.fill(child: IgnorePointer(child: GameWidget(game: flameGame))),
-              // HUD: back | CPU score | feedback | player score | pause
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 9 / 16,
+              child: Stack(
+                children: [
+                  // Flame game layer
+                  Positioned.fill(child: IgnorePointer(child: GameWidget(game: flameGame))),
+              // HUD: back | scores | pause
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                          tooltip: 'Back to menu',
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ),
-                      Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: 'CPU score $botScore',
-                        child: Text('CPU: $botScore',
-                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Row(
+                        children: [
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                            tooltip: 'Back to menu',
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Semantics(
+                                        liveRegion: true,
+                                        label: 'CPU score $botScore',
+                                        child: Text('CPU: $botScore',
+                                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                      ),
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 6),
+                                        child: Text('-', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                                      ),
+                                      Semantics(
+                                        liveRegion: true,
+                                        label: 'Your score $playerScore',
+                                        child: Text('YOU: $playerScore',
+                                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isPlaying)
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 22),
+                              tooltip: _isPaused ? 'Resume game' : 'Pause game',
+                              onPressed: _togglePause,
+                            )
+                          else
+                            const SizedBox(width: 36),
+                        ],
                       ),
                       if (feedbackText.isNotEmpty)
-                        Semantics(
-                          liveRegion: true,
-                          container: true,
-                          child: Text(feedbackText,
-                              style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w900)),
-                        ),
-                      Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: 'Your score $playerScore',
-                        child: Text('YOU: $playerScore',
-                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                      ),
-                      if (isPlaying)
-                        SizedBox(
-                          width: 48,
-                          height: 48,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white),
-                            tooltip: _isPaused ? 'Resume game' : 'Pause game',
-                            onPressed: _togglePause,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                feedbackText,
+                                style: const TextStyle(
+                                  color: Colors.amberAccent,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ),
                           ),
-                        )
-                      else
-                        const SizedBox(width: 48),
+                        ),
                     ],
                   ),
                 ),
@@ -349,6 +387,8 @@ class _PickleballGameState extends State<PickleballGame> {
             ],
           ),
         ),
+      ),
+                ),
       ),
     );
   }

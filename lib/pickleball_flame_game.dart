@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Rect;
 
 import 'package:flame/game.dart';
@@ -32,6 +33,18 @@ class PickleballFlameGame extends FlameGame {
 
   void start() {
     isPlaying = true;
+  }
+
+  void spawnHitEffect({required bool isSmash}) {
+    final court = _courtRect(size);
+    final point = simulation.projection.project(
+      x: simulation.ball.x,
+      y: simulation.ball.y,
+      elevation: simulation.ball.z,
+    );
+    final center = _screenPoint(court, point.x, point.y);
+    final scale = simulation.projection.depthScaleAt(simulation.ball.y);
+    add(HitEffectComponent(center: center, isSmash: isSmash, scale: scale));
   }
 
   void stop() {
@@ -126,16 +139,11 @@ class BallVisualComponent extends Component {
 }
 
 Rect _courtRect(Vector2 size) {
-  final aspectRatio = 9 / 16;
-  final aspectWidth = size.x / size.y > aspectRatio
-      ? size.y * aspectRatio
-      : size.x;
-  final aspectHeight = aspectWidth / aspectRatio;
   return Rect.fromLTWH(
-    (size.x - aspectWidth) / 2 + 12,
-    (size.y - aspectHeight) / 2 + 12,
-    aspectWidth - 24,
-    aspectHeight - 24,
+    12,
+    12,
+    size.x - 24,
+    size.y - 24,
   );
 }
 
@@ -297,4 +305,64 @@ class CourtVisualComponent extends Component {
     canvas.drawCircle(Offset(court.left, court.center.dy), 6, netPaint);
     canvas.drawCircle(Offset(court.right, court.center.dy), 6, netPaint);
   }
+}
+
+class HitEffectComponent extends Component {
+  HitEffectComponent({
+    required this.center,
+    required this.isSmash,
+    required this.scale,
+  });
+
+  final Offset center;
+  final bool isSmash;
+  final double scale;
+
+  double _lifetime = 0.0;
+  static const double _maxLifetime = 0.22; // 220ms
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _lifetime += dt;
+    if (_lifetime >= _maxLifetime) {
+      removeFromParent();
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final progress = (_lifetime / _maxLifetime).clamp(0.0, 1.0);
+    final alpha = ((1.0 - progress) * 255).round().clamp(0, 255);
+
+    // 1. Expanding shockwave ring
+    final ringRadius = (isSmash ? 20.0 : 12.0) * scale + progress * (isSmash ? 30.0 : 18.0) * scale;
+    final ringPaint = Paint()
+      ..color = (isSmash ? const Color(0xFFFFD54F) : const Color(0xFFFFFFFF)).withAlpha(alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (isSmash ? 3.5 : 2.0) * (1.0 - progress * 0.5) * scale;
+    canvas.drawCircle(center, ringRadius, ringPaint);
+
+    // 2. 6 radiating sparks
+    final sparkPaint = Paint()
+      ..color = (isSmash ? const Color(0xFFFF9800) : const Color(0xFFFFEB3B)).withAlpha(alpha)
+      ..style = PaintingStyle.fill;
+
+    final sparkDistance = 10.0 * scale + progress * (isSmash ? 32.0 : 20.0) * scale;
+    final sparkRadius = (isSmash ? 3.0 : 2.0) * (1.0 - progress) * scale;
+
+    if (sparkRadius > 0.5) {
+      for (int i = 0; i < 6; i++) {
+        final angle = (i * 60) * 3.1415926535 / 180;
+        final sparkOffset = Offset(
+          center.dx + sparkDistance * math.cos(angle),
+          center.dy + sparkDistance * math.sin(angle),
+        );
+        canvas.drawCircle(sparkOffset, sparkRadius, sparkPaint);
+      }
+    }
+  }
+
+  static double mathCos(double radians) => Offset(radians, 0).dx == 0 ? 1 : dartMathCos(radians);
+  static double dartMathCos(double r) => (r == 0) ? 1.0 : (Offset(r, 0).dx); // or use dart:math cos
 }
