@@ -3,12 +3,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'game_input_adapter.dart';
 import 'game_simulation.dart';
 import 'match_state.dart';
 import 'pickleball_flame_game.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(
     const MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -230,7 +238,7 @@ class _PickleballGameState extends State<PickleballGame> {
           }
           return KeyEventResult.ignored;
         },
-                child: Listener(
+        child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
             if (event.buttons == kSecondaryMouseButton) _executeSwing();
@@ -240,155 +248,152 @@ class _PickleballGameState extends State<PickleballGame> {
               aspectRatio: 9 / 16,
               child: Stack(
                 children: [
-                  // Flame game layer
                   Positioned.fill(child: IgnorePointer(child: GameWidget(game: flameGame))),
-              // HUD: back | scores | pause
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                            tooltip: 'Back to menu',
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.45),
-                                  borderRadius: BorderRadius.circular(12),
+                          Row(
+                            children: [
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                                tooltip: 'Back to menu',
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.45),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Semantics(
+                                            liveRegion: true,
+                                            label: 'CPU score $botScore',
+                                            child: Text('CPU: $botScore',
+                                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                          ),
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 6),
+                                            child: Text('-', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                                          ),
+                                          Semantics(
+                                            liveRegion: true,
+                                            label: 'Your score $playerScore',
+                                            child: Text('YOU: $playerScore',
+                                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Semantics(
-                                        liveRegion: true,
-                                        label: 'CPU score $botScore',
-                                        child: Text('CPU: $botScore',
-                                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                                      ),
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 6),
-                                        child: Text('-', style: TextStyle(color: Colors.white54, fontSize: 14)),
-                                      ),
-                                      Semantics(
-                                        liveRegion: true,
-                                        label: 'Your score $playerScore',
-                                        child: Text('YOU: $playerScore',
-                                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                                      ),
-                                    ],
+                              ),
+                              if (isPlaying)
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 22),
+                                  tooltip: _isPaused ? 'Resume game' : 'Pause game',
+                                  onPressed: _togglePause,
+                                )
+                              else
+                                const SizedBox(width: 36),
+                            ],
+                          ),
+                          if (feedbackText.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    feedbackText,
+                                    style: const TextStyle(
+                                      color: Colors.amberAccent,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.0,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          if (isPlaying)
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                              icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 22),
-                              tooltip: _isPaused ? 'Resume game' : 'Pause game',
-                              onPressed: _togglePause,
-                            )
-                          else
-                            const SizedBox(width: 36),
                         ],
                       ),
-                      if (feedbackText.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                feedbackText,
-                                style: const TextStyle(
-                                  color: Colors.amberAccent,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.0,
+                    ),
+                  ),
+                  if (isPlaying && !_isPaused)
+                    Positioned(
+                      bottom: 24,
+                      left: 20,
+                      right: 20,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildJoystick(),
+                          Semantics(
+                            button: true,
+                            label: 'Hit the ball',
+                            child: GestureDetector(
+                              onTap: _executeSwing,
+                              child: Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  color: Colors.amber,
+                                  shape: BoxShape.circle,
+                                  boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
+                                  border: Border.all(color: Colors.white, width: 3.5),
+                                ),
+                                child: const Center(
+                                  child: Text('HIT',
+                                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              // Controls
-              if (isPlaying && !_isPaused)
-                Positioned(
-                  bottom: 24,
-                  left: 20,
-                  right: 20,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildJoystick(),
-                      Semantics(
-                        button: true,
-                        label: 'Hit the ball',
-                        child: GestureDetector(
-                          onTap: _executeSwing,
-                          child: Container(
-                            width: 90,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              color: Colors.amber,
-                              shape: BoxShape.circle,
-                              boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
-                              border: Border.all(color: Colors.white, width: 3.5),
-                            ),
-                            child: const Center(
-                              child: Text('HIT',
-                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
-                            ),
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              if (_isPaused) _buildPauseOverlay(),
-              if (match.isComplete) _buildMatchCompleteOverlay(),
-              if (!isPlaying && !match.isComplete)
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _startGame();
-                      _focusNode.requestFocus();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
                     ),
-                    child: const Text('TAP TO SERVE',
-                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
-                  ),
-                ),
-            ],
+                  if (_isPaused) _buildPauseOverlay(),
+                  if (match.isComplete) _buildMatchCompleteOverlay(),
+                  if (!isPlaying && !match.isComplete)
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _startGame();
+                          _focusNode.requestFocus();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
+                        ),
+                        child: const Text('TAP TO SERVE',
+                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-                ),
       ),
     );
   }

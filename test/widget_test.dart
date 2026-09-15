@@ -124,19 +124,26 @@ void main() {
     final match = MatchState(servingSide: MatchSide.player);
     match.start();
 
-    match.applyFault(faultSide: MatchSide.player);
+    // Player faults -> bot wins rally -> side-out (bot serves, 0-0)
+    match.resolveRally(rallyWinner: MatchSide.bot);
     expect(match.playerScore, 0);
     expect(match.botScore, 0);
     expect(match.servingSide, MatchSide.bot);
 
-    match.applyFault(faultSide: MatchSide.player);
+    // Player faults again -> bot wins rally -> bot was serving, gets point (0-1)
+    match.resolveRally(rallyWinner: MatchSide.bot);
     expect(match.botScore, 1);
 
     match.playerScore = 10;
     match.botScore = 10;
-    match.awardPointTo(MatchSide.player);
+    match.servingSide = MatchSide.player;
+    
+    // Player wins rally while serving -> 11-10 (not win by 2 yet)
+    match.resolveRally(rallyWinner: MatchSide.player);
     expect(match.isComplete, isFalse);
-    match.awardPointTo(MatchSide.player);
+
+    // Player wins rally again while serving -> 12-10 (game over)
+    match.resolveRally(rallyWinner: MatchSide.player);
     expect(match.isComplete, isTrue);
   });
 
