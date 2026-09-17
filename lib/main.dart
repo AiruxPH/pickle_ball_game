@@ -205,6 +205,8 @@ class _PickleballGameState extends State<PickleballGame> {
     setState(() {
       if (swingResult == SwingResult.hit) {
         feedbackText = wasHighBall ? 'SMASH!' : 'GOOD HIT';
+
+        flameGame.spawnHitEffect(isSmash: wasHighBall);
       } else {
         feedbackText =
             swingResult == SwingResult.kitchenFault ? 'KITCHEN FAULT' : 'MISS';

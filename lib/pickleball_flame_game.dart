@@ -362,7 +362,4 @@ class HitEffectComponent extends Component {
       }
     }
   }
-
-  static double mathCos(double radians) => Offset(radians, 0).dx == 0 ? 1 : dartMathCos(radians);
-  static double dartMathCos(double r) => (r == 0) ? 1.0 : (Offset(r, 0).dx); // or use dart:math cos
 }
