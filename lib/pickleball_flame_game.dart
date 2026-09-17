@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Rect;
+import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect;
 
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -36,15 +36,16 @@ class PickleballFlameGame extends FlameGame {
   }
 
   void spawnHitEffect({required bool isSmash}) {
-    final court = _courtRect(size);
-    final point = simulation.projection.project(
+    final point = simulation.camera.project(
       x: simulation.ball.x,
       y: simulation.ball.y,
       elevation: simulation.ball.z,
     );
-    final center = _screenPoint(court, point.x, point.y);
-    final scale = simulation.projection.depthScaleAt(simulation.ball.y);
-    add(HitEffectComponent(center: center, isSmash: isSmash, scale: scale));
+    final center = Offset(
+      (point.x + 1.0) / 2.0 * size.x,
+      (point.y + 1.0) / 2.0 * size.y,
+    );
+    add(HitEffectComponent(center: center, isSmash: isSmash, scale: point.scale));
   }
 
   void stop() {
@@ -55,6 +56,7 @@ class PickleballFlameGame extends FlameGame {
 
   @override
   void update(double dt) {
+    simulation.camera.updateSize(size.x, size.y);
     super.update(dt);
     if (!isPlaying) return;
 
@@ -102,19 +104,25 @@ class BallVisualComponent extends Component {
   @override
   void render(Canvas canvas) {
     final simulation = game.simulation;
-    final court = _courtRect(game.size);
-    final shadowPoint = simulation.projection.project(
+    final shadowPoint = simulation.camera.project(
       x: simulation.ball.x,
       y: simulation.ball.y,
     );
-    final ballPoint = simulation.projection.project(
+    final ballPoint = simulation.camera.project(
       x: simulation.ball.x,
       y: simulation.ball.y,
       elevation: simulation.ball.z,
     );
-    final shadowCenter = _screenPoint(court, shadowPoint.x, shadowPoint.y);
-    final ballCenter = _screenPoint(court, ballPoint.x, ballPoint.y);
-    final depthScale = simulation.projection.depthScaleAt(simulation.ball.y);
+    final shadowCenter = Offset(
+      (shadowPoint.x + 1.0) / 2.0 * game.size.x,
+      (shadowPoint.y + 1.0) / 2.0 * game.size.y,
+    );
+    final ballCenter = Offset(
+      (ballPoint.x + 1.0) / 2.0 * game.size.x,
+      (ballPoint.y + 1.0) / 2.0 * game.size.y,
+    );
+    
+    final depthScale = shadowPoint.scale; 
     final shadowScale = depthScale * simulation.ballShadowScale();
     final ballScale = depthScale * simulation.ballScale();
 
@@ -135,23 +143,6 @@ class BallVisualComponent extends Component {
       ..style = PaintingStyle.fill;
     canvas.drawCircle(ballCenter, 11 * ballScale, ballPaint);
   }
-
-}
-
-Rect _courtRect(Vector2 size) {
-  return Rect.fromLTWH(
-    12,
-    12,
-    size.x - 24,
-    size.y - 24,
-  );
-}
-
-Offset _screenPoint(Rect court, double x, double y) {
-  return Offset(
-    court.center.dx + x * court.width / 2,
-    court.center.dy + y * court.height / 2,
-  );
 }
 
 class BotVisualComponent extends Component {
@@ -162,19 +153,21 @@ class BotVisualComponent extends Component {
   @override
   void render(Canvas canvas) {
     final simulation = game.simulation;
-    final court = _courtRect(game.size);
-    final point = simulation.projection.project(
+    final point = simulation.camera.project(
       x: simulation.botX,
       y: simulation.botY,
     );
-    final scale = simulation.projection.depthScaleAt(simulation.botY);
-    final center = _screenPoint(court, point.x, point.y);
+    final scale = point.scale;
+    final center = Offset(
+      (point.x + 1.0) / 2.0 * game.size.x,
+      (point.y + 1.0) / 2.0 * game.size.y,
+    );
     final paint = Paint()..color = const Color(0xFFFF5252);
     canvas.drawCircle(center, 22.5 * scale, paint);
     final iconPaint = Paint()
       ..color = const Color(0xFFFFFFFF)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 3 * scale;
     canvas.drawCircle(center, 10 * scale, iconPaint);
   }
 }
@@ -187,13 +180,15 @@ class PlayerVisualComponent extends Component {
   @override
   void render(Canvas canvas) {
     final simulation = game.simulation;
-    final court = _courtRect(game.size);
-    final point = simulation.projection.project(
+    final point = simulation.camera.project(
       x: simulation.playerX,
       y: simulation.playerY,
     );
-    final scale = simulation.projection.depthScaleAt(simulation.playerY);
-    final center = _screenPoint(court, point.x, point.y);
+    final scale = point.scale;
+    final center = Offset(
+      (point.x + 1.0) / 2.0 * game.size.x,
+      (point.y + 1.0) / 2.0 * game.size.y,
+    );
         // Hit flash: brighter body + amber glow ring while swinging
     final bodyColor =
         game.isSwinging ? const Color(0xFF82B1FF) : const Color(0xFF448AFF);
@@ -235,75 +230,84 @@ class CourtVisualComponent extends Component {
 
   final PickleballFlameGame game;
 
+  Offset _proj(double x, double y, [double z = 0]) {
+    final p = game.simulation.camera.project(x: x, y: y, elevation: z);
+    return Offset((p.x + 1.0) / 2.0 * game.size.x, (p.y + 1.0) / 2.0 * game.size.y);
+  }
+
+  Path _quad(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) {
+    return Path()
+      ..moveTo(_proj(x1, y1).dx, _proj(x1, y1).dy)
+      ..lineTo(_proj(x2, y2).dx, _proj(x2, y2).dy)
+      ..lineTo(_proj(x3, y3).dx, _proj(x3, y3).dy)
+      ..lineTo(_proj(x4, y4).dx, _proj(x4, y4).dy)
+      ..close();
+  }
+
   @override
   void render(Canvas canvas) {
-    final court = _courtRect(game.size);
+    final width = GameSimulation.courtWidth;
+    final length = GameSimulation.courtLength;
+    final kDepth = 0.3; // Kitchen depth
+
+    // Draw grass (oversized floor)
+    final floorExtW = width * 2.5;
+    final floorExtL = length * 2.5;
     final grassPaint = Paint()..color = const Color(0xFF2E7D32);
-    canvas.drawRect(court, grassPaint);
+    canvas.drawPath(
+      _quad(-floorExtW, -floorExtL, floorExtW, -floorExtL, floorExtW, floorExtL, -floorExtW, floorExtL),
+      grassPaint,
+    );
 
-    final stripePaint = Paint()
-      ..color = const Color(0x52388E3C)
-      ..style = PaintingStyle.fill;
-    for (var index = 0; index < 10; index++) {
-      final stripe = Rect.fromLTWH(
-        court.left + court.width * index / 10,
-        court.top,
-        court.width / 20,
-        court.height,
-      );
-      canvas.drawRect(stripe, stripePaint);
-    }
-
-    final linePaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-    final centerX = court.center.dx;
-    final kitchenTop = court.top + court.height * 0.35;
-    final kitchenBottom = court.top + court.height * 0.65;
-
-    canvas.drawRect(court, linePaint);
-    canvas.drawLine(
-      Offset(court.left, kitchenTop),
-      Offset(court.right, kitchenTop),
+    // Court outline
+    final linePaint = Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 2.5..style = PaintingStyle.stroke;
+    canvas.drawPath(
+      _quad(-width, -length, width, -length, width, length, -width, length),
       linePaint,
     );
-    canvas.drawLine(
-      Offset(court.left, kitchenBottom),
-      Offset(court.right, kitchenBottom),
-      linePaint,
-    );
-    canvas.drawLine(Offset(centerX, court.top), Offset(centerX, kitchenTop), linePaint);
-    canvas.drawLine(Offset(centerX, kitchenBottom), Offset(centerX, court.bottom), linePaint);
 
-    final kitchenPaint = Paint()
-      ..color = const Color(0x1FFFD54F)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-      Rect.fromLTRB(court.left, kitchenTop, court.right, kitchenBottom),
+    // Center line (from baseline to kitchen line)
+    // Bot side (-length to -kDepth)
+    canvas.drawLine(_proj(0, -length), _proj(0, -kDepth), linePaint);
+    // Player side (kDepth to length)
+    canvas.drawLine(_proj(0, kDepth), _proj(0, length), linePaint);
+
+    // Kitchen lines
+    canvas.drawLine(_proj(-width, -kDepth), _proj(width, -kDepth), linePaint);
+    canvas.drawLine(_proj(-width, kDepth), _proj(width, kDepth), linePaint);
+
+    // Kitchen paint
+    final kitchenPaint = Paint()..color = const Color(0x1FFFD54F)..style = PaintingStyle.fill;
+    canvas.drawPath(
+      _quad(-width, -kDepth, width, -kDepth, width, kDepth, -width, kDepth),
       kitchenPaint,
     );
 
-    final netShadowPaint = Paint()
-      ..color = const Color(0x33000000)
-      ..strokeWidth = 10;
-    canvas.drawLine(
-      Offset(court.left, court.center.dy + 7),
-      Offset(court.right, court.center.dy + 7),
-      netShadowPaint,
-    );
+    // Net
+    final netShadowPaint = Paint()..color = const Color(0x33000000)..strokeWidth = 6;
+    // draw shadow at z=0, slightly offset
+    canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netShadowPaint);
 
-    final netPaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..strokeWidth = 5
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(
-      Offset(court.left, court.center.dy),
-      Offset(court.right, court.center.dy),
-      netPaint,
-    );
-    canvas.drawCircle(Offset(court.left, court.center.dy), 6, netPaint);
-    canvas.drawCircle(Offset(court.right, court.center.dy), 6, netPaint);
+    final netHeight = 0.18;
+    final netPaint = Paint()..color = const Color(0xDDFFFFFF)..strokeWidth = 3..style = PaintingStyle.stroke;
+    final netMeshPaint = Paint()..color = const Color(0x55FFFFFF)..style = PaintingStyle.fill;
+    
+    // Net mesh
+    final netPath = Path()
+      ..moveTo(_proj(-width * 1.1, 0, 0).dx, _proj(-width * 1.1, 0, 0).dy)
+      ..lineTo(_proj(width * 1.1, 0, 0).dx, _proj(width * 1.1, 0, 0).dy)
+      ..lineTo(_proj(width * 1.1, 0, netHeight).dx, _proj(width * 1.1, 0, netHeight).dy)
+      ..lineTo(_proj(-width * 1.1, 0, netHeight).dx, _proj(-width * 1.1, 0, netHeight).dy)
+      ..close();
+    canvas.drawPath(netPath, netMeshPaint);
+
+    // Bottom of net
+    canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netPaint);
+    // Top of net
+    canvas.drawLine(_proj(-width * 1.1, 0, netHeight), _proj(width * 1.1, 0, netHeight), netPaint);
+    // Posts
+    canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(-width * 1.1, 0, netHeight), netPaint);
+    canvas.drawLine(_proj(width * 1.1, 0, 0), _proj(width * 1.1, 0, netHeight), netPaint);
   }
 }
 

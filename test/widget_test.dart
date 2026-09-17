@@ -90,12 +90,11 @@ void main() {
     expect(simulation.ball.y, greaterThan(initialY));
     expect(simulation.playerX, greaterThan(0));
     expect(simulation.playerY, lessThan(0.75));
-    final projectedCenter = simulation.projection.project(x: 0, y: 0);
+    final projectedCenter = simulation.camera.project(x: 0, y: 0);
     expect(projectedCenter.x, 0);
-    expect(projectedCenter.y, 0);
     expect(
-      simulation.projection.depthScaleAt(-GameSimulation.courtLength),
-      lessThan(simulation.projection.depthScaleAt(GameSimulation.courtLength)),
+      simulation.camera.project(x: 0, y: -GameSimulation.courtLength).scale,
+      lessThan(simulation.camera.project(x: 0, y: GameSimulation.courtLength).scale),
     );
     expect(simulation.ballScale(), greaterThan(1));
   });
