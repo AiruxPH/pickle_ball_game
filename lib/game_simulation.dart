@@ -97,7 +97,7 @@ class GameSimulation {
 
     ball
       ..x = 0
-      ..y = -0.6
+      ..y = -0.75
       ..z = 0.4
       ..velocityX = 0.008
       ..velocityY = 0.022
@@ -108,7 +108,7 @@ class GameSimulation {
 
     ball
       ..x = 0
-      ..y = 0.6
+      ..y = 0.75
       ..z = 0.4
       ..velocityX = -0.008
       ..velocityY = -0.022
