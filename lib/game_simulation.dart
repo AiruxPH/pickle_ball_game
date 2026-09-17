@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'match_state.dart';
 import 'pickleball_rules.dart';
 
 class CourtPoint {
@@ -84,8 +85,16 @@ class GameSimulation {
   double botX = 0;
   double botY = -0.75;
   bool lastHitByPlayer = false;
+  MatchSide servingSide = MatchSide.bot;
+  RallyPhase rallyPhase = RallyPhase.botServe;
 
-  void resetRally() {
+  void resetRally({MatchSide servingSide = MatchSide.bot}) {
+  this.servingSide = servingSide;
+  lastHitByPlayer = servingSide == MatchSide.player;
+
+  if (servingSide == MatchSide.bot) {
+    rallyPhase = RallyPhase.botServe;
+
     ball
       ..x = 0
       ..y = -0.6
@@ -94,8 +103,19 @@ class GameSimulation {
       ..velocityY = 0.022
       ..velocityZ = 0.015
       ..hasBounced = false;
-    lastHitByPlayer = false;
+  } else {
+    rallyPhase = RallyPhase.playerServe;
+
+    ball
+      ..x = 0
+      ..y = 0.6
+      ..z = 0.4
+      ..velocityX = -0.008
+      ..velocityY = -0.022
+      ..velocityZ = 0.015
+      ..hasBounced = false;
   }
+}
 
   RallyEnd? update({double joystickX = 0, double joystickY = 0}) {
     final previousBallY = ball.y;

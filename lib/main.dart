@@ -159,7 +159,7 @@ class _PickleballGameState extends State<PickleballGame> {
       match.start();
       isPlaying = true;
       _isPaused = false;
-      simulation.resetRally();
+      simulation.resetRally(servingSide: match.servingSide);
       feedbackText = '';
     });
     flameGame.start();
