@@ -10,9 +10,18 @@ import 'game_input_adapter.dart';
 import 'game_simulation.dart';
 import 'match_state.dart';
 import 'pickleball_flame_game.dart';
+import 'screens/loading_screen.dart';
+import 'settings_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await SettingsManager().init();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -21,102 +30,14 @@ void main() async {
   runApp(
     const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MainMenu(),
+      home: LoadingScreen(),
     ),
   );
 }
 
-class MainMenu extends StatelessWidget {
-  const MainMenu({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isLandscape = size.width > size.height;
-    final logoWidget = Container(
-      width: 120,
-      height: 120,
-      decoration: const BoxDecoration(
-        color: Color(0xFFD4E157),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(color: Colors.black45, blurRadius: 15, offset: Offset(0, 5))
-        ],
-      ),
-      child: const Icon(Icons.sports_tennis, size: 80, color: Color(0xFF1E3A8A)),
-    );
-    final textAndButtonWidget = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text(
-          'PRO PICKLEBALL',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 36,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'Wii-Style Mechanics',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.amberAccent,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 40),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const PickleballGame()),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.amber,
-            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-            elevation: 8,
-          ),
-          child: const Text(
-            'PLAY NOW',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-            ),
-          ),
-        ),
-      ],
-    );
-    return Scaffold(
-      backgroundColor: const Color(0xFF1E3A8A),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: isLandscape
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [logoWidget, const SizedBox(width: 60), textAndButtonWidget],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [logoWidget, const SizedBox(height: 40), textAndButtonWidget],
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class PickleballGame extends StatefulWidget {
-  const PickleballGame({super.key});
+  final int gameMode; // 0 = PlayerVsBot, 1 = BotVsBot
+  const PickleballGame({super.key, this.gameMode = 0});
 
   @override
   State<PickleballGame> createState() => _PickleballGameState();
@@ -125,10 +46,10 @@ class PickleballGame extends StatefulWidget {
 class _PickleballGameState extends State<PickleballGame> {
   final FocusNode _focusNode = FocusNode();
   final MatchState match = MatchState();
-  final PickleballFlameGame flameGame;
   final GameInputAdapter _input = GameInputAdapter();
+  late final PickleballFlameGame flameGame;
 
-  _PickleballGameState() : flameGame = PickleballFlameGame();
+  _PickleballGameState();
 
   GameSimulation get simulation => flameGame.simulation;
   double get ballZ => simulation.ball.z;
@@ -144,6 +65,11 @@ class _PickleballGameState extends State<PickleballGame> {
   @override
   void initState() {
     super.initState();
+    flameGame = PickleballFlameGame(
+      simulation: GameSimulation(
+        gameMode: widget.gameMode == 1 ? GameMode.botVsBot : GameMode.playerVsBot,
+      ),
+    );
     flameGame.onRallyEnd = _handleRallyEnd;
     _input.onJoystickChanged = (x, y) {
       setState(() {
@@ -435,7 +361,43 @@ class _PickleballGameState extends State<PickleballGame> {
                         child: RefereePopupWidget(text: feedbackText),
                       ),
                     ),
-                  if (isPlaying && !_isPaused)
+                  if (isPlaying && !_isPaused && widget.gameMode == 0)
+                    Positioned(
+                      bottom: 24,
+                      left: 20,
+                      right: 20,
+                      child: ListenableBuilder(
+                        listenable: SettingsManager(),
+                        builder: (context, child) {
+                          final settings = SettingsManager();
+                          final joystick = _buildJoystick();
+                          final actionButtons = Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildDashButton(),
+                              const SizedBox(width: 16),
+                              _buildHitButton(),
+                            ],
+                          );
+                          
+                          return Opacity(
+                            opacity: settings.buttonOpacity,
+                            child: Transform.scale(
+                              scale: settings.buttonScale,
+                              alignment: Alignment.bottomCenter,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: settings.isLeftHanded
+                                    ? [actionButtons, joystick]
+                                    : [joystick, actionButtons],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  if (isPlaying && !_isPaused && widget.gameMode == 1)
                     Positioned(
                       bottom: 24,
                       left: 20,
@@ -444,14 +406,8 @@ class _PickleballGameState extends State<PickleballGame> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          _buildJoystick(),
-                          Row(
-                            children: [
-                              _buildDashButton(),
-                              const SizedBox(width: 16),
-                              _buildHitButton(),
-                            ],
-                          ),
+                          if (simulation.camera.mode == CameraMode.freeRoam) _buildJoystick() else const SizedBox(width: 80, height: 80),
+                          _buildCameraButton(),
                         ],
                       ),
                     ),
@@ -554,11 +510,36 @@ class _PickleballGameState extends State<PickleballGame> {
             color: Colors.blueAccent,
             shape: BoxShape.circle,
             boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4))],
-            border: Border.all(color: Colors.white, width: 2.5),
+            border: Border.all(color: Colors.white, width: 3.0),
           ),
           child: const Center(
-            child: Icon(Icons.bolt, color: Colors.white, size: 32),
+            child: Icon(Icons.bolt, color: Colors.white, size: 40),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCameraButton() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          final current = simulation.camera.mode.index;
+          final next = (current + 1) % CameraMode.values.length;
+          simulation.camera.mode = CameraMode.values[next];
+        });
+      },
+      child: Container(
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+          color: Colors.purpleAccent,
+          shape: BoxShape.circle,
+          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4))],
+          border: Border.all(color: Colors.white, width: 3.0),
+        ),
+        child: const Center(
+          child: Icon(Icons.videocam, color: Colors.white, size: 36),
         ),
       ),
     );
@@ -578,24 +559,81 @@ class _PickleballGameState extends State<PickleballGame> {
               const SizedBox(height: 32),
               ElevatedButton.icon(
                 onPressed: _togglePause,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('RESUME'),
+                icon: const Icon(Icons.play_arrow, color: Colors.black),
+                label: const Text('RESUME', style: TextStyle(color: Colors.black)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.amber,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 ),
               ),
               const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('QUIT TO MENU', style: TextStyle(color: Colors.white70, fontSize: 16)),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _showConfirmationDialog(
+                    title: 'Restart Match',
+                    content: 'Are you sure you want to restart the game? Your current score will be lost.',
+                    onConfirm: () {
+                      _startGame();
+                      _focusNode.requestFocus();
+                    },
+                  );
+                },
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                label: const Text('RESTART', style: TextStyle(color: Colors.white)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white70),
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _showConfirmationDialog(
+                    title: 'Quit Game',
+                    content: 'Are you sure you want to quit to the main menu?',
+                    onConfirm: () {
+                      Navigator.of(context).pop();
+                    },
+                  );
+                },
+                icon: const Icon(Icons.exit_to_app, color: Colors.white),
+                label: const Text('QUIT', style: TextStyle(color: Colors.white)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent),
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  void _showConfirmationDialog({required String title, required String content, required VoidCallback onConfirm}) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1F24),
+          title: Text(title, style: const TextStyle(color: Colors.white)),
+          content: Text(content, style: const TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('CANCEL', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                onConfirm();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent),
+              child: const Text('YES', style: TextStyle(color: Colors.black)),
+            ),
+          ],
+        );
+      },
     );
   }
 

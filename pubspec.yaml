@@ -38,6 +38,7 @@ dependencies:
   flame: ^1.38.2
   firebase_core: ^4.15.0
   vector_math: ^2.1.4
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

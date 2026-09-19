@@ -39,6 +39,8 @@ class BallState {
   bool hasBounced;
 }
 
+enum CameraMode { action, broadcast, freeRoam }
+
 enum RallyEnd { playerFault, botFault }
 
 enum SwingResult { hit, missed, kitchenFault }
@@ -48,6 +50,13 @@ class Camera3D {
     _updateMatrices();
   }
 
+  CameraMode mode = CameraMode.action;
+  
+  // Free roam controls (controlled by joystick in free roam mode)
+  double freeRoamX = 0.0;
+  double freeRoamY = 2.0;
+  double freeRoamZ = 4.0;
+  
   vmath.Matrix4 _viewProjection = vmath.Matrix4.identity();
   double screenWidth = 400;
   double screenHeight = 800;
@@ -97,9 +106,25 @@ class Camera3D {
       shakeY = (math.Random().nextDouble() * 2 - 1) * 0.08 * shakeIntensity;
     }
 
-    final eye = vmath.Vector3(eyeOffsetX + shakeX, 1.8 + shakeY, 1.0);
-    final target = vmath.Vector3(targetOffsetX, -0.2, 0.0);
+    vmath.Vector3 eye;
+    vmath.Vector3 target;
     final up = vmath.Vector3(0.0, 0.0, 1.0);
+
+    switch (mode) {
+      case CameraMode.action:
+        eye = vmath.Vector3(eyeOffsetX + shakeX, 1.8 + shakeY, 1.0);
+        target = vmath.Vector3(targetOffsetX, -0.2, 0.0);
+        break;
+      case CameraMode.broadcast:
+        eye = vmath.Vector3(2.5 + shakeX, 0.0 + shakeY, 1.5);
+        target = vmath.Vector3(targetOffsetX, 0.0, 0.0);
+        break;
+      case CameraMode.freeRoam:
+        eye = vmath.Vector3(freeRoamX + shakeX, freeRoamY + shakeY, freeRoamZ);
+        // Look roughly at the center of the court from free roam pos
+        target = vmath.Vector3(0.0, 0.0, 0.0);
+        break;
+    }
 
     final view = vmath.makeViewMatrix(eye, target, up);
     _viewProjection = projection * view;
@@ -127,8 +152,12 @@ class Camera3D {
 }
 
 enum MatchPlayPhase { waitingForServe, inRally, deadBall }
+enum GameMode { playerVsBot, botVsBot }
 
 class GameSimulation {
+  GameSimulation({this.gameMode = GameMode.playerVsBot});
+
+  final GameMode gameMode;
   static const double courtWidth = PickleballRules.courtWidth;
   static const double courtLength = PickleballRules.courtLength;
   static const double gravity = 0.0012;
@@ -141,6 +170,11 @@ class GameSimulation {
   double playerY = 0.75;
   double playerVelocityX = 0;
   double playerVelocityY = 0;
+  
+  double bot2ReactionTimer = 0;
+  double bot2TargetX = 0;
+  double bot2TargetY = 0.75;
+
   double botX = 0;
   double botY = -0.75;
   
@@ -267,9 +301,62 @@ class GameSimulation {
 
     final previousBallY = ball.y;
     
+    double jX = joystickX;
+    double jY = joystickY;
+
+    if (camera.mode == CameraMode.freeRoam) {
+      camera.freeRoamX += jX * 0.05;
+      camera.freeRoamY -= jY * 0.05; // -jY is up on joystick = go forward (closer to net)
+      camera._updateMatrices();
+      jX = 0;
+      jY = 0;
+    }
+
+    if (gameMode == GameMode.botVsBot) {
+      if (bot2ReactionTimer > 0) {
+        bot2ReactionTimer--;
+      } else {
+        bot2ReactionTimer = 15.0;
+        if (ball.velocityY > 0) {
+          // Ball is coming towards Bot2
+          bot2TargetX = ball.x + (math.Random().nextDouble() - 0.5) * 0.3;
+          bot2TargetY = ball.y > 0.4 ? ball.y : 0.75; // Stay back until it bounces
+        } else {
+          // Ball is going away
+          bot2TargetX = 0;
+          bot2TargetY = 0.75;
+        }
+      }
+
+      final dx = bot2TargetX - playerX;
+      final dy = bot2TargetY - playerY;
+      final dist = math.sqrt(dx*dx + dy*dy);
+      if (dist > 0.1) {
+        jX = dx / dist;
+        jY = dy / dist;
+      } else {
+        jX = 0;
+        jY = 0;
+      }
+
+      // Auto-hit
+      if (ball.velocityY > 0 &&
+          (ball.y - playerY).abs() <= playerHitRadiusY &&
+          (ball.x - playerX).abs() <= playerHitRadiusX &&
+          ball.z >= playerHitZMin &&
+          ball.z <= playerHitZMax &&
+          (ball.hasBounced || ball.y > courtLength * 0.5)) {
+        lastHitByPlayer = true;
+        ball.velocityY = -0.024;
+        ball.velocityZ = 0.022; // higher arc to clear the net!
+        ball.velocityX = (ball.x - playerX) * 0.12;
+        ball.hasBounced = false;
+      }
+    }
+
     // Smooth character movement (inertia/momentum)
-    final targetVelX = joystickX * moveSpeed;
-    final targetVelY = joystickY * moveSpeed;
+    final targetVelX = jX * moveSpeed;
+    final targetVelY = jY * moveSpeed;
     playerVelocityX += (targetVelX - playerVelocityX) * 0.15;
     playerVelocityY += (targetVelY - playerVelocityY) * 0.15;
     
