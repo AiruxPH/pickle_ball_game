@@ -366,12 +366,22 @@ class _PickleballGameState extends State<PickleballGame> {
                         children: [
                           Row(
                             children: [
+                              if (isPlaying)
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 22),
+                                  tooltip: _isPaused ? 'Resume game' : 'Pause game',
+                                  onPressed: _togglePause,
+                                )
+                              else
+                                const SizedBox(width: 36),
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                                tooltip: 'Back to menu',
-                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.bug_report, color: Colors.white70, size: 22),
+                                tooltip: 'Debug menu',
+                                onPressed: () => setState(() => _showDebugMenu = !_showDebugMenu),
                               ),
                               Expanded(
                                 child: Center(
@@ -408,16 +418,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                   ),
                                 ),
                               ),
-                              if (isPlaying)
-                                IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                  icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 22),
-                                  tooltip: _isPaused ? 'Resume game' : 'Pause game',
-                                  onPressed: _togglePause,
-                                )
-                              else
-                                const SizedBox(width: 36),
+                              const SizedBox(width: 36),
                             ],
                           ),
                           // Removed old feedbackText widget
@@ -444,26 +445,12 @@ class _PickleballGameState extends State<PickleballGame> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _buildJoystick(),
-                          Semantics(
-                            button: true,
-                            label: 'Hit the ball',
-                            child: GestureDetector(
-                              onTap: _executeSwing,
-                              child: Container(
-                                width: 90,
-                                height: 90,
-                                decoration: BoxDecoration(
-                                  color: Colors.amber,
-                                  shape: BoxShape.circle,
-                                  boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
-                                  border: Border.all(color: Colors.white, width: 3.5),
-                                ),
-                                child: const Center(
-                                  child: Text('HIT',
-                                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
-                                ),
-                              ),
-                            ),
+                          Row(
+                            children: [
+                              _buildDashButton(),
+                              const SizedBox(width: 16),
+                              _buildHitButton(),
+                            ],
                           ),
                         ],
                       ),
@@ -485,14 +472,7 @@ class _PickleballGameState extends State<PickleballGame> {
                             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
                       ),
                     ),
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: IconButton(
-                      icon: const Icon(Icons.bug_report, color: Colors.white70),
-                      onPressed: () => setState(() => _showDebugMenu = !_showDebugMenu),
-                    ),
-                  ),
+
                   if (_showDebugMenu) _buildDebugPanel(),
                 ],
               ),
@@ -529,6 +509,55 @@ class _PickleballGameState extends State<PickleballGame> {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHitButton() {
+    return Semantics(
+      button: true,
+      label: 'Hit the ball',
+      child: GestureDetector(
+        onTap: _executeSwing,
+        child: Container(
+          width: 90,
+          height: 90,
+          decoration: BoxDecoration(
+            color: Colors.amber,
+            shape: BoxShape.circle,
+            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
+            border: Border.all(color: Colors.white, width: 3.5),
+          ),
+          child: const Center(
+            child: Text('HIT',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashButton() {
+    return Semantics(
+      button: true,
+      label: 'Dash',
+      child: GestureDetector(
+        onTap: () {
+          flameGame.simulation.dashPlayer();
+        },
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.blueAccent,
+            shape: BoxShape.circle,
+            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4))],
+            border: Border.all(color: Colors.white, width: 2.5),
+          ),
+          child: const Center(
+            child: Icon(Icons.bolt, color: Colors.white, size: 32),
           ),
         ),
       ),

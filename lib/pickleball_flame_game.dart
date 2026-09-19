@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect, Gradient, RRect, Radius;
+import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect, Gradient, RRect, Radius, MaskFilter, BlurStyle;
 
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -123,6 +123,39 @@ class BallVisualComponent extends Component {
   BallVisualComponent(this.game);
 
   final PickleballFlameGame game;
+  final List<Offset> _trail = [];
+  final List<double> _trailScales = [];
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    
+    final simulation = game.simulation;
+    final ballPoint = simulation.camera.project(
+      x: simulation.ball.x,
+      y: simulation.ball.y,
+      elevation: simulation.ball.z,
+    );
+    final ballCenter = Offset(
+      (ballPoint.x + 1.0) / 2.0 * game.size.x,
+      (ballPoint.y + 1.0) / 2.0 * game.size.y,
+    );
+    
+    // Only add to trail if ball is moving fast enough
+    if (simulation.ball.velocityX.abs() > 0.005 || simulation.ball.velocityY.abs() > 0.005) {
+      _trail.add(ballCenter);
+      _trailScales.add(ballPoint.scale * simulation.ballScale());
+      if (_trail.length > 8) {
+        _trail.removeAt(0);
+        _trailScales.removeAt(0);
+      }
+    } else {
+      if (_trail.isNotEmpty) {
+        _trail.removeAt(0);
+        _trailScales.removeAt(0);
+      }
+    }
+  }
 
   @override
   void render(Canvas canvas) {
@@ -149,9 +182,11 @@ class BallVisualComponent extends Component {
     final shadowScale = depthScale * simulation.ballShadowScale();
     final ballScale = depthScale * simulation.ballScale();
 
+    // Draw shadow
     final shadowPaint = Paint()
-      ..color = const Color(0x59000000)
-      ..style = PaintingStyle.fill;
+      ..color = const Color(0x99000000)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
     canvas.drawOval(
       Rect.fromCenter(
         center: shadowCenter,
@@ -160,6 +195,17 @@ class BallVisualComponent extends Component {
       ),
       shadowPaint,
     );
+
+    // Draw trail
+    for (int i = 0; i < _trail.length; i++) {
+      final progress = (i + 1) / _trail.length;
+      final opacity = progress * 0.4;
+      final sizeMult = progress; 
+      final trailPaint = Paint()
+        ..color = Color.fromRGBO(255, 255, 0, opacity)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(_trail[i], 22.5 * _trailScales[i] * sizeMult, trailPaint);
+    }
 
     final ballPaint = Paint()
       ..shader = Gradient.radial(

@@ -143,6 +143,26 @@ class GameSimulation {
   double playerVelocityY = 0;
   double botX = 0;
   double botY = -0.75;
+  
+  void dashPlayer() {
+    if (playPhase != MatchPlayPhase.inRally && playPhase != MatchPlayPhase.waitingForServe) return;
+    
+    // Add a strong impulse based on the current movement direction.
+    // If standing still, dash forward towards the net.
+    if (playerVelocityX.abs() < 0.005 && playerVelocityY.abs() < 0.005) {
+      playerVelocityY = -0.15;
+    } else {
+      playerVelocityX *= 3.5;
+      playerVelocityY *= 3.5;
+      
+      // Cap maximum dash velocity
+      final speed = math.sqrt(playerVelocityX * playerVelocityX + playerVelocityY * playerVelocityY);
+      if (speed > 0.25) {
+        playerVelocityX = (playerVelocityX / speed) * 0.25;
+        playerVelocityY = (playerVelocityY / speed) * 0.25;
+      }
+    }
+  }
 
   // Adjustable Hitboxes
   double playerHitRadiusX = 0.2;
