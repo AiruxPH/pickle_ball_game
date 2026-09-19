@@ -1,10 +1,11 @@
 import 'dart:math' as math;
-import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect;
+import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect, Gradient, RRect, Radius;
 
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/services.dart';
 
+import 'game_debug_config.dart';
 import 'game_simulation.dart';
 
 class PickleballFlameGame extends FlameGame {
@@ -22,6 +23,7 @@ class PickleballFlameGame extends FlameGame {
   double _timeAccumulator = 0;
   bool isPlaying = false;
   bool isSwinging = false;
+  bool isBotSwinging = false;
 
   @override
   Future<void> onLoad() async {
@@ -46,6 +48,13 @@ class PickleballFlameGame extends FlameGame {
       (point.y + 1.0) / 2.0 * size.y,
     );
     add(HitEffectComponent(center: center, isSmash: isSmash, scale: point.scale));
+    
+    // Add camera shake for impact
+    if (isSmash) {
+      simulation.camera.addShake(1.0);
+    } else {
+      simulation.camera.addShake(0.3);
+    }
   }
 
   void stop() {
@@ -60,7 +69,7 @@ class PickleballFlameGame extends FlameGame {
     super.update(dt);
     if (!isPlaying) return;
 
-    _timeAccumulator += dt.clamp(0, 0.1);
+    _timeAccumulator += (dt.clamp(0, 0.1) * GameDebugConfig.gameSpeed);
     final keyboard = HardwareKeyboard.instance;
     var currentInputX = inputX;
     var currentInputY = inputY;
@@ -81,19 +90,33 @@ class PickleballFlameGame extends FlameGame {
       currentInputY += 1;
     }
 
+    final prevVy = simulation.ball.velocityY;
+
     while (_timeAccumulator >= fixedStep) {
       final rallyEnd = simulation.update(
         joystickX: currentInputX.clamp(-1, 1),
         joystickY: currentInputY.clamp(-1, 1),
       );
       _timeAccumulator -= fixedStep;
+      
+      if (prevVy < 0 && simulation.ball.velocityY > 0) {
+        isBotSwinging = true;
+        botSwingTimer = 0.15;
+        simulation.camera.addShake(0.4); // Bot hit impact
+      }
+      
       if (rallyEnd != null) {
-        stop();
         onRallyEnd?.call(rallyEnd);
-        break;
       }
     }
+    
+    if (botSwingTimer > 0) {
+      botSwingTimer -= dt;
+      if (botSwingTimer <= 0) isBotSwinging = false;
+    }
   }
+
+  double botSwingTimer = 0;
 }
 
 class BallVisualComponent extends Component {
@@ -139,7 +162,12 @@ class BallVisualComponent extends Component {
     );
 
     final ballPaint = Paint()
-      ..color = const Color(0xFFD4E157)
+      ..shader = Gradient.radial(
+        ballCenter.translate(-3 * ballScale, -3 * ballScale),
+        11 * ballScale,
+        [const Color(0xFFF4FF81), const Color(0xFFD4E157), const Color(0xFF9E9D24)],
+        [0.0, 0.5, 1.0],
+      )
       ..style = PaintingStyle.fill;
     canvas.drawCircle(ballCenter, 11 * ballScale, ballPaint);
   }
@@ -162,13 +190,90 @@ class BotVisualComponent extends Component {
       (point.x + 1.0) / 2.0 * game.size.x,
       (point.y + 1.0) / 2.0 * game.size.y,
     );
-    final paint = Paint()..color = const Color(0xFFFF5252);
+    final shadowPaint = Paint()..color = const Color(0x40000000)..style = PaintingStyle.fill;
+    canvas.drawOval(
+      Rect.fromCenter(center: center.translate(0, 10 * scale), width: 40 * scale, height: 16 * scale),
+      shadowPaint,
+    );
+
+    final paint = Paint()
+      ..shader = Gradient.radial(
+        center.translate(-5 * scale, -5 * scale),
+        22.5 * scale,
+        [const Color(0xFFFF8A80), const Color(0xFFFF5252), const Color(0xFFC62828)],
+        [0.0, 0.5, 1.0],
+      );
     canvas.drawCircle(center, 22.5 * scale, paint);
     final iconPaint = Paint()
       ..color = const Color(0xFFFFFFFF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3 * scale;
     canvas.drawCircle(center, 10 * scale, iconPaint);
+
+    final racketPaint = Paint()
+      ..color = const Color(0xFFE91E63) // Pink paddle for the bot
+      ..style = PaintingStyle.fill;
+      
+    final handOffset = Offset(-24 * scale, 5 * scale);
+    
+    canvas.save();
+    canvas.translate(center.dx + handOffset.dx, center.dy + handOffset.dy);
+    
+    // Rotate paddle positively if swinging (since they are facing us)
+    if (game.isBotSwinging) {
+      canvas.rotate(0.78);
+    }
+    
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(0, -12 * scale), width: 14 * scale, height: 32 * scale),
+        const Radius.circular(6),
+      ),
+      racketPaint,
+    );
+    canvas.restore();
+
+    if (GameDebugConfig.showHitboxes) _drawHitbox(canvas, simulation);
+  }
+
+  void _drawHitbox(Canvas canvas, GameSimulation sim) {
+    Offset proj(double x, double y, double z) {
+      final p = sim.camera.project(x: x, y: y, elevation: z);
+      return Offset((p.x + 1.0) / 2.0 * game.size.x, (p.y + 1.0) / 2.0 * game.size.y);
+    }
+
+    final pX = sim.botX;
+    final pY = sim.botY;
+    final rX = sim.botHitRadiusX;
+    final rY = sim.botHitRadiusY;
+    final zMin = sim.botHitZMin;
+    final zMax = sim.botHitZMax;
+
+    final pathMin = Path()
+      ..moveTo(proj(pX - rX, pY - rY, zMin).dx, proj(pX - rX, pY - rY, zMin).dy)
+      ..lineTo(proj(pX + rX, pY - rY, zMin).dx, proj(pX + rX, pY - rY, zMin).dy)
+      ..lineTo(proj(pX + rX, pY + rY, zMin).dx, proj(pX + rX, pY + rY, zMin).dy)
+      ..lineTo(proj(pX - rX, pY + rY, zMin).dx, proj(pX - rX, pY + rY, zMin).dy)
+      ..close();
+    
+    final pathMax = Path()
+      ..moveTo(proj(pX - rX, pY - rY, zMax).dx, proj(pX - rX, pY - rY, zMax).dy)
+      ..lineTo(proj(pX + rX, pY - rY, zMax).dx, proj(pX + rX, pY - rY, zMax).dy)
+      ..lineTo(proj(pX + rX, pY + rY, zMax).dx, proj(pX + rX, pY + rY, zMax).dy)
+      ..lineTo(proj(pX - rX, pY + rY, zMax).dx, proj(pX - rX, pY + rY, zMax).dy)
+      ..close();
+
+    final paint = Paint()..color = const Color(0xAA00FF00)..style = PaintingStyle.stroke..strokeWidth = 2;
+    final fillPaint = Paint()..color = const Color(0x2200FF00)..style = PaintingStyle.fill;
+    
+    canvas.drawPath(pathMin, paint);
+    canvas.drawPath(pathMax, paint);
+    canvas.drawPath(pathMax, fillPaint);
+
+    canvas.drawLine(proj(pX - rX, pY - rY, zMin), proj(pX - rX, pY - rY, zMax), paint);
+    canvas.drawLine(proj(pX + rX, pY - rY, zMin), proj(pX + rX, pY - rY, zMax), paint);
+    canvas.drawLine(proj(pX + rX, pY + rY, zMin), proj(pX + rX, pY + rY, zMax), paint);
+    canvas.drawLine(proj(pX - rX, pY + rY, zMin), proj(pX - rX, pY + rY, zMax), paint);
   }
 }
 
@@ -192,7 +297,24 @@ class PlayerVisualComponent extends Component {
         // Hit flash: brighter body + amber glow ring while swinging
     final bodyColor =
         game.isSwinging ? const Color(0xFF82B1FF) : const Color(0xFF448AFF);
-    final playerPaint = Paint()..color = bodyColor;
+    final highlightColor =
+        game.isSwinging ? const Color(0xFFB3E5FC) : const Color(0xFF82B1FF);
+    final shadowColor =
+        game.isSwinging ? const Color(0xFF1976D2) : const Color(0xFF0D47A1);
+
+    final shadowPaintFloor = Paint()..color = const Color(0x40000000)..style = PaintingStyle.fill;
+    canvas.drawOval(
+      Rect.fromCenter(center: center.translate(0, 10 * scale), width: 45 * scale, height: 18 * scale),
+      shadowPaintFloor,
+    );
+
+    final playerPaint = Paint()
+      ..shader = Gradient.radial(
+        center.translate(-6 * scale, -6 * scale),
+        25 * scale,
+        [highlightColor, bodyColor, shadowColor],
+        [0.0, 0.5, 1.0],
+      );
     canvas.drawCircle(center, 25 * scale, playerPaint);
     final outlinePaint = Paint()
       ..color = const Color(0xFFFFFFFF)
@@ -210,18 +332,69 @@ class PlayerVisualComponent extends Component {
     final racketPaint = Paint()
       ..color = const Color(0xFFFFC107)
       ..style = PaintingStyle.fill;
-    final racketCenter = center.translate(
-      24 * scale,
-      (game.isSwinging ? -10 : 2) * scale,
-    );
-    canvas.drawRect(
-      Rect.fromCenter(
-        center: racketCenter,
-        width: 14 * scale,
-        height: 32 * scale,
+      
+    // The player's hand offset relative to the character center
+    final handOffset = Offset(24 * scale, 5 * scale);
+    
+    canvas.save();
+    canvas.translate(center.dx + handOffset.dx, center.dy + handOffset.dy);
+    
+    // Rotate the paddle by -45 degrees (-0.78 rad) if swinging
+    if (game.isSwinging) {
+      canvas.rotate(-0.78);
+    }
+    
+    // Draw paddle centered around its handle
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(0, -12 * scale), width: 14 * scale, height: 32 * scale),
+        const Radius.circular(6),
       ),
       racketPaint,
     );
+    canvas.restore();
+
+    if (GameDebugConfig.showHitboxes) _drawHitbox(canvas, simulation);
+  }
+
+  void _drawHitbox(Canvas canvas, GameSimulation sim) {
+    Offset proj(double x, double y, double z) {
+      final p = sim.camera.project(x: x, y: y, elevation: z);
+      return Offset((p.x + 1.0) / 2.0 * game.size.x, (p.y + 1.0) / 2.0 * game.size.y);
+    }
+
+    final pX = sim.playerX;
+    final pY = sim.playerY;
+    final rX = sim.playerHitRadiusX;
+    final rY = sim.playerHitRadiusY;
+    final zMin = sim.playerHitZMin;
+    final zMax = sim.playerHitZMax;
+
+    final pathMin = Path()
+      ..moveTo(proj(pX - rX, pY - rY, zMin).dx, proj(pX - rX, pY - rY, zMin).dy)
+      ..lineTo(proj(pX + rX, pY - rY, zMin).dx, proj(pX + rX, pY - rY, zMin).dy)
+      ..lineTo(proj(pX + rX, pY + rY, zMin).dx, proj(pX + rX, pY + rY, zMin).dy)
+      ..lineTo(proj(pX - rX, pY + rY, zMin).dx, proj(pX - rX, pY + rY, zMin).dy)
+      ..close();
+    
+    final pathMax = Path()
+      ..moveTo(proj(pX - rX, pY - rY, zMax).dx, proj(pX - rX, pY - rY, zMax).dy)
+      ..lineTo(proj(pX + rX, pY - rY, zMax).dx, proj(pX + rX, pY - rY, zMax).dy)
+      ..lineTo(proj(pX + rX, pY + rY, zMax).dx, proj(pX + rX, pY + rY, zMax).dy)
+      ..lineTo(proj(pX - rX, pY + rY, zMax).dx, proj(pX - rX, pY + rY, zMax).dy)
+      ..close();
+
+    final paint = Paint()..color = const Color(0xAAFF0000)..style = PaintingStyle.stroke..strokeWidth = 2;
+    final fillPaint = Paint()..color = const Color(0x22FF0000)..style = PaintingStyle.fill;
+    
+    canvas.drawPath(pathMin, paint);
+    canvas.drawPath(pathMax, paint);
+    canvas.drawPath(pathMax, fillPaint);
+
+    canvas.drawLine(proj(pX - rX, pY - rY, zMin), proj(pX - rX, pY - rY, zMax), paint);
+    canvas.drawLine(proj(pX + rX, pY - rY, zMin), proj(pX + rX, pY - rY, zMax), paint);
+    canvas.drawLine(proj(pX + rX, pY + rY, zMin), proj(pX + rX, pY + rY, zMax), paint);
+    canvas.drawLine(proj(pX - rX, pY + rY, zMin), proj(pX - rX, pY + rY, zMax), paint);
   }
 }
 
@@ -246,17 +419,37 @@ class CourtVisualComponent extends Component {
 
   @override
   void render(Canvas canvas) {
+    // Sky
+    final skyPaint = Paint()..color = const Color(0xFF64B5F6);
+    canvas.drawRect(Rect.fromLTWH(0, 0, game.size.x, game.size.y), skyPaint);
+
     final width = GameSimulation.courtWidth;
     final length = GameSimulation.courtLength;
     final kDepth = 0.3; // Kitchen depth
 
     // Draw grass (oversized floor)
-    final floorExtW = width * 2.5;
-    final floorExtL = length * 2.5;
+    // Camera is at y = 1.8, so front edge must be < 1.8 to avoid clipping
+    final floorBack = -length * 6.0;
+    final floorFront = 1.75; 
+    final floorW = width * 6.0;
     final grassPaint = Paint()..color = const Color(0xFF2E7D32);
     canvas.drawPath(
-      _quad(-floorExtW, -floorExtL, floorExtW, -floorExtL, floorExtW, floorExtL, -floorExtW, floorExtL),
+      _quad(-floorW, floorBack, floorW, floorBack, floorW, floorFront, -floorW, floorFront),
       grassPaint,
+    );
+
+    // Court floor
+    final courtFloorPaint = Paint()..color = const Color(0xFF1565C0)..style = PaintingStyle.fill;
+    canvas.drawPath(
+      _quad(-width, -length, width, -length, width, length, -width, length),
+      courtFloorPaint,
+    );
+
+    // Kitchen floor
+    final kitchenFloorPaint = Paint()..color = const Color(0xFF00ACC1)..style = PaintingStyle.fill;
+    canvas.drawPath(
+      _quad(-width, -kDepth, width, -kDepth, width, kDepth, -width, kDepth),
+      kitchenFloorPaint,
     );
 
     // Court outline
@@ -275,13 +468,6 @@ class CourtVisualComponent extends Component {
     // Kitchen lines
     canvas.drawLine(_proj(-width, -kDepth), _proj(width, -kDepth), linePaint);
     canvas.drawLine(_proj(-width, kDepth), _proj(width, kDepth), linePaint);
-
-    // Kitchen paint
-    final kitchenPaint = Paint()..color = const Color(0x1FFFD54F)..style = PaintingStyle.fill;
-    canvas.drawPath(
-      _quad(-width, -kDepth, width, -kDepth, width, kDepth, -width, kDepth),
-      kitchenPaint,
-    );
 
     // Net
     final netShadowPaint = Paint()..color = const Color(0x33000000)..strokeWidth = 6;
@@ -303,8 +489,9 @@ class CourtVisualComponent extends Component {
 
     // Bottom of net
     canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netPaint);
-    // Top of net
-    canvas.drawLine(_proj(-width * 1.1, 0, netHeight), _proj(width * 1.1, 0, netHeight), netPaint);
+    // Top of net (White tape)
+    final netTapePaint = Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 6..style = PaintingStyle.stroke;
+    canvas.drawLine(_proj(-width * 1.1, 0, netHeight), _proj(width * 1.1, 0, netHeight), netTapePaint);
     // Posts
     canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(-width * 1.1, 0, netHeight), netPaint);
     canvas.drawLine(_proj(width * 1.1, 0, 0), _proj(width * 1.1, 0, netHeight), netPaint);

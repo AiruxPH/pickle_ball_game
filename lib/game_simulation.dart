@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:vector_math/vector_math_64.dart' as vmath;
 
+import 'game_debug_config.dart';
 import 'match_state.dart';
 import 'pickleball_rules.dart';
 
@@ -51,6 +52,10 @@ class Camera3D {
   double screenWidth = 400;
   double screenHeight = 800;
 
+  double targetOffsetX = 0.0;
+  double eyeOffsetX = 0.0;
+  double shakeTrauma = 0.0;
+
   void updateSize(double width, double height) {
     if (screenWidth == width && screenHeight == height) return;
     screenWidth = width;
@@ -58,16 +63,43 @@ class Camera3D {
     _updateMatrices();
   }
 
+  void updateDynamics({required double dt, required double ballX}) {
+    // Smoothly track the ball X position slightly
+    final targetEyeX = ballX * 0.15;
+    final targetLookX = ballX * 0.05;
+
+    eyeOffsetX += (targetEyeX - eyeOffsetX) * dt * 3.0;
+    targetOffsetX += (targetLookX - targetOffsetX) * dt * 4.0;
+
+    if (shakeTrauma > 0) {
+      shakeTrauma -= dt * 2.5;
+      if (shakeTrauma < 0) shakeTrauma = 0;
+    }
+
+    _updateMatrices();
+  }
+
+  void addShake(double amount) {
+    shakeTrauma += amount;
+    if (shakeTrauma > 1.0) shakeTrauma = 1.0;
+  }
+
   void _updateMatrices() {
     final aspect = screenWidth / screenHeight;
     final fovY = vmath.radians(60.0);
     final projection = vmath.makePerspectiveMatrix(fovY, aspect, 0.1, 10.0);
 
-    // Position camera behind the player (y = 1.6), at height z = 1.0
-    // Look slightly past the net (y = -0.2)
-    final eye = vmath.Vector3(0.0, 1.8, 1.0);
-    final target = vmath.Vector3(0.0, -0.2, 0.0);
-    final up = vmath.Vector3(0.0, 0.0, 1.0); // Z is up
+    double shakeX = 0;
+    double shakeY = 0;
+    if (shakeTrauma > 0) {
+      final shakeIntensity = shakeTrauma * shakeTrauma;
+      shakeX = (math.Random().nextDouble() * 2 - 1) * 0.08 * shakeIntensity;
+      shakeY = (math.Random().nextDouble() * 2 - 1) * 0.08 * shakeIntensity;
+    }
+
+    final eye = vmath.Vector3(eyeOffsetX + shakeX, 1.8 + shakeY, 1.0);
+    final target = vmath.Vector3(targetOffsetX, -0.2, 0.0);
+    final up = vmath.Vector3(0.0, 0.0, 1.0);
 
     final view = vmath.makeViewMatrix(eye, target, up);
     _viewProjection = projection * view;
@@ -81,11 +113,11 @@ class Camera3D {
     final v = vmath.Vector4(x, y, elevation, 1.0);
     v.applyMatrix4(_viewProjection);
 
-    if (v.w <= 0.0) {
-      return const ProjectedPoint(0, 0, 0);
+    if (v.w <= 0.001) {
+      v.w = 0.001; // Avoid divide by zero, and keep it going outwards
     }
 
-    final ndcX = v.x / v.w;
+    final ndcX = -v.x / v.w; // Inverted so +X is right, -X is left
     final ndcY = v.y / v.w;
     
     // In NDC, Y is up, X is right.
@@ -93,6 +125,8 @@ class Camera3D {
     return ProjectedPoint(ndcX, -ndcY, 1.2 / v.w); 
   }
 }
+
+enum MatchPlayPhase { waitingForServe, inRally, deadBall }
 
 class GameSimulation {
   static const double courtWidth = PickleballRules.courtWidth;
@@ -105,45 +139,122 @@ class GameSimulation {
 
   double playerX = 0;
   double playerY = 0.75;
+  double playerVelocityX = 0;
+  double playerVelocityY = 0;
   double botX = 0;
   double botY = -0.75;
+
+  // Adjustable Hitboxes
+  double playerHitRadiusX = 0.2;
+  double playerHitRadiusY = 0.2;
+  double playerHitZMin = 0.05;
+  double playerHitZMax = 0.6;
+  
+  double botHitRadiusX = 0.2;
+  double botHitRadiusY = 0.2;
+  double botHitZMin = 0.0;
+  double botHitZMax = 0.4;
+  
   bool lastHitByPlayer = false;
   MatchSide servingSide = MatchSide.bot;
-  RallyPhase rallyPhase = RallyPhase.botServe;
+  MatchPlayPhase playPhase = MatchPlayPhase.deadBall;
+  int currentServerScore = 0;
 
-  void resetRally({MatchSide servingSide = MatchSide.bot}) {
-  this.servingSide = servingSide;
-  lastHitByPlayer = servingSide == MatchSide.player;
-
-  if (servingSide == MatchSide.bot) {
-    rallyPhase = RallyPhase.botServe;
-
-    ball
-      ..x = 0
-      ..y = -0.75
-      ..z = 0.4
-      ..velocityX = 0.008
-      ..velocityY = 0.022
-      ..velocityZ = 0.015
-      ..hasBounced = false;
-  } else {
-    rallyPhase = RallyPhase.playerServe;
-
-    ball
-      ..x = 0
-      ..y = 0.75
-      ..z = 0.4
-      ..velocityX = -0.008
-      ..velocityY = -0.022
-      ..velocityZ = 0.015
-      ..hasBounced = false;
+  void resetRally({MatchSide servingSide = MatchSide.bot, int serverScore = 0}) {
+    this.servingSide = servingSide;
+    this.currentServerScore = serverScore;
+    lastHitByPlayer = servingSide == MatchSide.player;
+    playPhase = MatchPlayPhase.waitingForServe;
+    
+    ball.velocityZ = 0;
+    ball.velocityY = 0;
+    ball.velocityX = 0;
+    ball.hasBounced = false;
+    botServeTimer = 60.0;
+    playerVelocityX = 0;
+    playerVelocityY = 0;
   }
-}
+
+  double botServeTimer = 0.0;
+  double botTargetX = 0.0;
+  double botReactionTimer = 0.0;
+
+  void triggerServe() {
+    if (playPhase != MatchPlayPhase.waitingForServe) return;
+    playPhase = MatchPlayPhase.inRally;
+    
+    if (servingSide == MatchSide.player) {
+      ball.velocityX = (currentServerScore % 2 == 0) ? -0.015 : 0.015; // Aim cross court
+      ball.velocityY = -0.024;
+      ball.velocityZ = 0.016;
+      lastHitByPlayer = true;
+    } else {
+      ball.velocityX = (currentServerScore % 2 == 0) ? -0.015 : 0.015;
+      ball.velocityY = 0.024;
+      ball.velocityZ = 0.016;
+      lastHitByPlayer = false;
+    }
+  }
 
   RallyEnd? update({double joystickX = 0, double joystickY = 0}) {
+    if (playPhase == MatchPlayPhase.waitingForServe) {
+      final isEven = currentServerScore % 2 == 0;
+      final serveX = isEven ? 0.4 : -0.4;
+      
+      if (servingSide == MatchSide.player) {
+        // Smoothly walk to serve position
+        playerX += (serveX - playerX) * 0.1;
+        playerY += (0.85 - playerY) * 0.1;
+        botX += (0 - botX) * 0.1;
+        botY += (-0.75 - botY) * 0.1; // Bot returns to center
+        
+        ball.x = playerX;
+        ball.y = playerY - 0.1;
+        ball.z = 0.4;
+      } else {
+        botX += (serveX - botX) * 0.1;
+        botY += (-0.85 - botY) * 0.1; // Behind baseline
+        playerX += (0 - playerX) * 0.1;
+        playerY += (0.75 - playerY) * 0.1; // Player returns to center
+        
+        ball.x = botX;
+        ball.y = botY + 0.1;
+        ball.z = 0.4;
+        
+        if (botServeTimer > 0) {
+          botServeTimer--;
+        } else {
+          triggerServe();
+        }
+      }
+      return null;
+    }
+
+    if (playPhase == MatchPlayPhase.deadBall) {
+      ball.x += ball.velocityX * 0.5;
+      ball.y += ball.velocityY * 0.5;
+      ball.z += ball.velocityZ;
+      if (ball.z > 0) ball.velocityZ -= gravity;
+      if (ball.z <= 0) {
+        ball.z = 0;
+        ball.velocityZ = ball.velocityZ.abs() * 0.5;
+        ball.velocityX *= 0.8;
+        ball.velocityY *= 0.8;
+      }
+      camera.updateDynamics(dt: 0.025, ballX: ball.x);
+      return null;
+    }
+
     final previousBallY = ball.y;
-    playerX = (playerX + joystickX * moveSpeed).clamp(-courtWidth, courtWidth);
-    playerY = (playerY + joystickY * moveSpeed).clamp(0.05, courtLength);
+    
+    // Smooth character movement (inertia/momentum)
+    final targetVelX = joystickX * moveSpeed;
+    final targetVelY = joystickY * moveSpeed;
+    playerVelocityX += (targetVelX - playerVelocityX) * 0.15;
+    playerVelocityY += (targetVelY - playerVelocityY) * 0.15;
+    
+    playerX = (playerX + playerVelocityX).clamp(-courtWidth, courtWidth);
+    playerY = (playerY + playerVelocityY).clamp(0.05, courtLength);
 
     ball.x += ball.velocityX;
     ball.y += ball.velocityY;
@@ -153,9 +264,11 @@ class GameSimulation {
     if (ball.z <= 0) {
       if (!ball.hasBounced) {
         if (!PickleballRules.isInsideCourt(ball.x, ball.y)) {
+          playPhase = MatchPlayPhase.deadBall;
           return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
         }
       } else {
+        playPhase = MatchPlayPhase.deadBall;
         return lastHitByPlayer ? RallyEnd.botFault : RallyEnd.playerFault;
       }
       ball.z = 0;
@@ -164,28 +277,45 @@ class GameSimulation {
     }
 
     if (previousBallY < 0 && ball.y >= 0 && ball.z < PickleballRules.netHeight) {
+      playPhase = MatchPlayPhase.deadBall;
       return RallyEnd.botFault;
     }
     if (previousBallY > 0 && ball.y <= 0 && ball.z < PickleballRules.netHeight) {
+      playPhase = MatchPlayPhase.deadBall;
       return RallyEnd.playerFault;
     }
 
     if (!ball.hasBounced && (ball.y.abs() > courtLength * 1.5 || ball.x.abs() > courtWidth * 1.5)) {
+      playPhase = MatchPlayPhase.deadBall;
       return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
     }
 
-    if (ball.velocityY < 0) {
-      final targetX = ball.x;
-      if ((botX - targetX).abs() > 0.08) {
-        botX += botX < targetX ? 0.012 : -0.012; // slightly faster bot
+    if (!GameDebugConfig.freezeAI) {
+      if (botReactionTimer > 0) {
+        botReactionTimer--;
+      } else {
+        botReactionTimer = 15.0;
+        if (ball.velocityY < 0) {
+          // Approaching -> track ball with human error
+          botTargetX = ball.x + (math.Random().nextDouble() - 0.5) * 0.3;
+        } else {
+          // Returning -> go to center
+          botTargetX = 0;
+        }
       }
+      
+      final dist = botTargetX - botX;
+      if (dist.abs() > 0.02) {
+        botX += dist.sign * 0.015;
+      }
+      botX = botX.clamp(-courtWidth, courtWidth);
     }
-    botX = botX.clamp(-courtWidth, courtWidth);
 
     if (ball.velocityY < 0 &&
-        (ball.y - botY).abs() < 0.20 &&
-        (ball.x - botX).abs() < 0.25 &&
-        ball.z < 0.4 &&
+        (ball.y - botY).abs() <= botHitRadiusY &&
+        (ball.x - botX).abs() <= botHitRadiusX &&
+        ball.z >= botHitZMin &&
+        ball.z <= botHitZMax &&
         ball.hasBounced) {
       lastHitByPlayer = false;
       ball.velocityY = 0.024;
@@ -194,18 +324,25 @@ class GameSimulation {
       ball.hasBounced = false;
     }
 
+    camera.updateDynamics(dt: 0.025, ballX: ball.x);
     return null;
   }
 
   SwingResult swing() {
-    final distance = (ball.x - playerX).abs() + (ball.y - playerY).abs();
-    if (PickleballRules.isKitchenVolley(
+    if (playPhase == MatchPlayPhase.waitingForServe) {
+      triggerServe();
+      return SwingResult.hit;
+    }
+    if (!GameDebugConfig.bypassKitchenRules && PickleballRules.isKitchenVolley(
       playerY: playerY,
       ballHasBounced: ball.hasBounced,
     )) {
       return SwingResult.kitchenFault;
     }
-    if (distance >= 0.35 || ball.z <= 0.05 || ball.z >= 0.6) {
+    if ((ball.x - playerX).abs() > playerHitRadiusX || 
+        (ball.y - playerY).abs() > playerHitRadiusY || 
+        ball.z < playerHitZMin || 
+        ball.z > playerHitZMax) {
       return SwingResult.missed;
     }
 

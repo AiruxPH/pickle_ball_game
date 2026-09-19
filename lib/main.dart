@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'game_debug_config.dart';
 import 'game_input_adapter.dart';
 import 'game_simulation.dart';
 import 'match_state.dart';
@@ -134,6 +135,7 @@ class _PickleballGameState extends State<PickleballGame> {
 
   bool isPlaying = false;
   bool _isPaused = false;
+  bool _showDebugMenu = false;
   String feedbackText = '';
 
   int get playerScore => match.playerScore;
@@ -159,7 +161,10 @@ class _PickleballGameState extends State<PickleballGame> {
       match.start();
       isPlaying = true;
       _isPaused = false;
-      simulation.resetRally(servingSide: match.servingSide);
+      simulation.resetRally(
+        servingSide: match.servingSide,
+        serverScore: match.servingSide == MatchSide.player ? match.playerScore : match.botScore,
+      );
       feedbackText = '';
     });
     flameGame.start();
@@ -187,8 +192,28 @@ class _PickleballGameState extends State<PickleballGame> {
         feedbackText = 'POINT FOR YOU!';
       } else if (botScore > previousBotScore) {
         feedbackText = 'POINT FOR CPU!';
+      } else {
+        feedbackText = 'SIDE OUT!';
       }
-      isPlaying = false;
+      
+      if (!match.isComplete) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            if (feedbackText == 'POINT FOR YOU!' || feedbackText == 'POINT FOR CPU!' || feedbackText == 'SIDE OUT!') {
+              setState(() => feedbackText = '');
+            }
+            setState(() {
+              simulation.resetRally(
+                servingSide: match.servingSide,
+                serverScore: match.servingSide == MatchSide.player ? match.playerScore : match.botScore,
+              );
+            });
+          }
+        });
+      } else {
+        isPlaying = false;
+      }
+      
       _isPaused = false;
       _input.resetJoystick();
     });
@@ -205,21 +230,97 @@ class _PickleballGameState extends State<PickleballGame> {
     setState(() {
       if (swingResult == SwingResult.hit) {
         feedbackText = wasHighBall ? 'SMASH!' : 'GOOD HIT';
-
         flameGame.spawnHitEffect(isSmash: wasHighBall);
-      } else {
-        feedbackText =
-            swingResult == SwingResult.kitchenFault ? 'KITCHEN FAULT' : 'MISS';
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted && (feedbackText == 'SMASH!' || feedbackText == 'GOOD HIT')) {
+            setState(() => feedbackText = '');
+          }
+        });
+      } else if (swingResult == SwingResult.kitchenFault) {
+        feedbackText = 'KITCHEN FAULT';
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted && feedbackText == 'KITCHEN FAULT') {
+            setState(() => feedbackText = '');
+          }
+        });
       }
     });
   }
 
   @override
   void dispose() {
-    if (kIsWeb) BrowserContextMenu.enableContextMenu();
     flameGame.stop();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  Widget _buildDebugPanel() {
+    return Positioned(
+      top: 60,
+      left: 8,
+      child: Container(
+        width: 250,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'SANDBOX CONTROLS',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show Hitboxes', style: TextStyle(color: Colors.white)),
+              value: GameDebugConfig.showHitboxes,
+              onChanged: (val) => setState(() => GameDebugConfig.showHitboxes = val),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Freeze AI', style: TextStyle(color: Colors.white)),
+              value: GameDebugConfig.freezeAI,
+              onChanged: (val) => setState(() => GameDebugConfig.freezeAI = val),
+            ),
+            Text('Speed: ${GameDebugConfig.gameSpeed.toStringAsFixed(1)}x',
+                style: const TextStyle(color: Colors.white70)),
+            Slider(
+              min: 0.0,
+              max: 2.0,
+              divisions: 20,
+              value: GameDebugConfig.gameSpeed,
+              onChanged: (val) => setState(() => GameDebugConfig.gameSpeed = val),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Bypass Kitchen Rules', style: TextStyle(color: Colors.white, fontSize: 12)),
+              value: GameDebugConfig.bypassKitchenRules,
+              onChanged: (val) => setState(() => GameDebugConfig.bypassKitchenRules = val),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    match.playerScore = 10;
+                    match.botScore = 10;
+                    simulation.currentServerScore = 10;
+                  });
+                },
+                child: const Text('Fast Forward (10-10)'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -245,13 +346,19 @@ class _PickleballGameState extends State<PickleballGame> {
           onPointerDown: (event) {
             if (event.buttons == kSecondaryMouseButton) _executeSwing();
           },
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: 9 / 16,
-              child: Stack(
-                children: [
-                  Positioned.fill(child: IgnorePointer(child: GameWidget(game: flameGame))),
-                  SafeArea(
+          child: Stack(
+            children: [
+              // 1. The Game rendering (centered with 9:16 aspect ratio)
+              Center(
+                child: AspectRatio(
+                  aspectRatio: 9 / 16,
+                  child: IgnorePointer(child: GameWidget(game: flameGame)),
+                ),
+              ),
+              
+              // 2. The full-screen UI overlay
+              Positioned.fill(
+                child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       child: Column(
@@ -313,33 +420,20 @@ class _PickleballGameState extends State<PickleballGame> {
                                 const SizedBox(width: 36),
                             ],
                           ),
-                          if (feedbackText.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    feedbackText,
-                                    style: const TextStyle(
-                                      color: Colors.amberAccent,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                          // Removed old feedbackText widget
                         ],
                       ),
                     ),
                   ),
+                  ),
+                  if (feedbackText.isNotEmpty)
+                    Positioned(
+                      bottom: 120, // above the joystick and hit button
+                      left: 16,
+                      child: IgnorePointer(
+                        child: RefereePopupWidget(text: feedbackText),
+                      ),
+                    ),
                   if (isPlaying && !_isPaused)
                     Positioned(
                       bottom: 24,
@@ -391,10 +485,17 @@ class _PickleballGameState extends State<PickleballGame> {
                             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
                       ),
                     ),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: IconButton(
+                      icon: const Icon(Icons.bug_report, color: Colors.white70),
+                      onPressed: () => setState(() => _showDebugMenu = !_showDebugMenu),
+                    ),
+                  ),
+                  if (_showDebugMenu) _buildDebugPanel(),
                 ],
               ),
-            ),
-          ),
         ),
       ),
     );
@@ -513,6 +614,85 @@ class _PickleballGameState extends State<PickleballGame> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class RefereePopupWidget extends StatefulWidget {
+  final String text;
+  const RefereePopupWidget({Key? key, required this.text}) : super(key: key);
+
+  @override
+  State<RefereePopupWidget> createState() => _RefereePopupWidgetState();
+}
+
+class _RefereePopupWidgetState extends State<RefereePopupWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    
+    if (widget.text.isNotEmpty) {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(RefereePopupWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.text != oldWidget.text) {
+      if (widget.text.isNotEmpty) {
+        _controller.forward(from: 0.0);
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.text.isEmpty) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _opacityAnimation.value,
+          child: Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amberAccent, width: 2),
+                boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10)],
+              ),
+              child: Text(
+                widget.text,
+                textAlign: TextAlign.left,
+                style: const TextStyle(
+                  color: Colors.amberAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
