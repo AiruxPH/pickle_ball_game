@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'game_debug_config.dart';
@@ -58,6 +59,7 @@ class _PickleballGameState extends State<PickleballGame> {
   bool _isPaused = false;
   bool _showDebugMenu = false;
   String feedbackText = '';
+  double _initialZoomZ = 4.0;
 
   int get playerScore => match.playerScore;
   int get botScore => match.botScore;
@@ -65,12 +67,25 @@ class _PickleballGameState extends State<PickleballGame> {
   @override
   void initState() {
     super.initState();
+    GameMode mode = GameMode.playerVsBot;
+    MapType map = MapType.stadium;
+    if (widget.gameMode == 1) {
+      mode = GameMode.botVsBot;
+    } else if (widget.gameMode == 2) {
+      mode = GameMode.freeRoamPractice;
+      map = MapType.practiceFacility;
+    }
+    
     flameGame = PickleballFlameGame(
       simulation: GameSimulation(
-        gameMode: widget.gameMode == 1 ? GameMode.botVsBot : GameMode.playerVsBot,
+        gameMode: mode,
+        mapType: map,
       ),
     );
     flameGame.onRallyEnd = _handleRallyEnd;
+    flameGame.simulation.onPlayerDash = (x, y) {
+      flameGame.spawnDashEffect(x: x, y: y, isPlayer: true);
+    };
     _input.onJoystickChanged = (x, y) {
       setState(() {
         flameGame.inputX = x;
@@ -78,7 +93,10 @@ class _PickleballGameState extends State<PickleballGame> {
       });
     };
     if (kIsWeb) BrowserContextMenu.disableContextMenu();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+      _startGame();
+    });
   }
 
   void _startGame() {
@@ -141,7 +159,6 @@ class _PickleballGameState extends State<PickleballGame> {
       }
       
       _isPaused = false;
-      _input.resetJoystick();
     });
   }
 
@@ -265,6 +282,10 @@ class _PickleballGameState extends State<PickleballGame> {
             if (isPlaying) _togglePause();
             return KeyEventResult.handled;
           }
+          if (event is KeyDownEvent && (event.logicalKey == LogicalKeyboardKey.shiftLeft || event.logicalKey == LogicalKeyboardKey.shiftRight)) {
+            flameGame.simulation.dashPlayer();
+            return KeyEventResult.handled;
+          }
           return KeyEventResult.ignored;
         },
         child: Listener(
@@ -278,7 +299,25 @@ class _PickleballGameState extends State<PickleballGame> {
               Center(
                 child: AspectRatio(
                   aspectRatio: 9 / 16,
-                  child: IgnorePointer(child: GameWidget(game: flameGame)),
+                  child: GestureDetector(
+                    onScaleStart: (details) {
+                       _initialZoomZ = simulation.camera.freeRoamZ;
+                    },
+                    onScaleUpdate: (details) {
+                      if (widget.gameMode == 1 && simulation.camera.mode == CameraMode.freeRoam) {
+                        setState(() {
+                          if (details.scale != 1.0) {
+                             simulation.camera.freeRoamZ = (_initialZoomZ / details.scale).clamp(1.0, 10.0);
+                          }
+                          // Handle panning
+                          simulation.camera.freeRoamYaw -= details.focalPointDelta.dx * 0.01;
+                          simulation.camera.freeRoamPitch -= details.focalPointDelta.dy * 0.01;
+                          simulation.camera.freeRoamPitch = simulation.camera.freeRoamPitch.clamp(-math.pi / 2.1, math.pi / 2.1);
+                        });
+                      }
+                    },
+                    child: GameWidget(game: flameGame),
+                  ),
                 ),
               ),
               
@@ -309,7 +348,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                 tooltip: 'Debug menu',
                                 onPressed: () => setState(() => _showDebugMenu = !_showDebugMenu),
                               ),
-                              Expanded(
+                              if (widget.gameMode != 2) Expanded(
                                 child: Center(
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -343,7 +382,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                     ),
                                   ),
                                 ),
-                              ),
+                              ) else const Spacer(),
                               const SizedBox(width: 36),
                             ],
                           ),
@@ -361,7 +400,7 @@ class _PickleballGameState extends State<PickleballGame> {
                         child: RefereePopupWidget(text: feedbackText),
                       ),
                     ),
-                  if (isPlaying && !_isPaused && widget.gameMode == 0)
+                  if (isPlaying && !_isPaused && (widget.gameMode == 0 || widget.gameMode == 2))
                     Positioned(
                       bottom: 24,
                       left: 20,
@@ -399,6 +438,12 @@ class _PickleballGameState extends State<PickleballGame> {
                     ),
                   if (isPlaying && !_isPaused && widget.gameMode == 1)
                     Positioned(
+                      top: 16,
+                      right: 16,
+                      child: _buildSpectatorStatsOverlay(),
+                    ),
+                  if (isPlaying && !_isPaused && widget.gameMode == 1)
+                    Positioned(
                       bottom: 24,
                       left: 20,
                       right: 20,
@@ -407,28 +452,18 @@ class _PickleballGameState extends State<PickleballGame> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           if (simulation.camera.mode == CameraMode.freeRoam) _buildJoystick() else const SizedBox(width: 80, height: 80),
-                          _buildCameraButton(),
+                          Row(
+                            children: [
+                              if (simulation.camera.mode == CameraMode.freeRoam) _buildAltitudeSlider(),
+                              const SizedBox(width: 16),
+                              _buildCameraButton(),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   if (_isPaused) _buildPauseOverlay(),
                   if (match.isComplete) _buildMatchCompleteOverlay(),
-                  if (!isPlaying && !match.isComplete)
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _startGame();
-                          _focusNode.requestFocus();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.amber,
-                          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
-                        ),
-                        child: const Text('TAP TO SERVE',
-                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
-                      ),
-                    ),
-
                   if (_showDebugMenu) _buildDebugPanel(),
                 ],
               ),
@@ -440,10 +475,23 @@ class _PickleballGameState extends State<PickleballGame> {
   Widget _buildJoystick() {
     return Semantics(
       label: 'Move player',
-      child: GestureDetector(
-        onPanStart: (d) => _input.updateJoystick(d.localPosition),
-        onPanUpdate: (d) => _input.updateJoystick(d.localPosition),
-        onPanEnd: (_) => _input.resetJoystick(),
+      child: Listener(
+        onPointerDown: (e) {
+          _input.onPointerDown(e);
+          setState(() {});
+        },
+        onPointerMove: (e) {
+          _input.onPointerMove(e);
+          setState(() {});
+        },
+        onPointerUp: (e) {
+          _input.onPointerUp(e);
+          setState(() {});
+        },
+        onPointerCancel: (e) {
+          _input.onPointerCancel(e);
+          setState(() {});
+        },
         child: Container(
           width: 140,
           height: 140,
@@ -454,7 +502,7 @@ class _PickleballGameState extends State<PickleballGame> {
           ),
           child: Center(
             child: Transform.translate(
-              offset: Offset(_input.joystickX * 45, _input.joystickY * 45),
+              offset: _input.knobOffset,
               child: Container(
                 width: 50,
                 height: 50,
@@ -472,23 +520,27 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   Widget _buildHitButton() {
+    final isPlayerServing = simulation.playPhase == MatchPlayPhase.waitingForServe && simulation.servingSide == MatchSide.player;
+    final buttonText = isPlayerServing ? 'SERVE' : 'HIT';
+    final buttonColor = isPlayerServing ? Colors.deepOrangeAccent : Colors.amber;
+
     return Semantics(
       button: true,
-      label: 'Hit the ball',
+      label: isPlayerServing ? 'Serve the ball' : 'Hit the ball',
       child: GestureDetector(
         onTap: _executeSwing,
         child: Container(
           width: 90,
           height: 90,
           decoration: BoxDecoration(
-            color: Colors.amber,
+            color: buttonColor,
             shape: BoxShape.circle,
             boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
             border: Border.all(color: Colors.white, width: 3.5),
           ),
-          child: const Center(
-            child: Text('HIT',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
+          child: Center(
+            child: Text(buttonText,
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
           ),
         ),
       ),
@@ -540,6 +592,53 @@ class _PickleballGameState extends State<PickleballGame> {
         ),
         child: const Center(
           child: Icon(Icons.videocam, color: Colors.white, size: 36),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpectatorStatsOverlay() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('LIVE BROADCAST', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(height: 4),
+          Text('RALLY: ${simulation.rallyLength}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+          Text('BALL SPEED: ${simulation.ballSpeed.toStringAsFixed(0)} MPH', style: const TextStyle(color: Colors.cyanAccent, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAltitudeSlider() {
+    return RotatedBox(
+      quarterTurns: 3, // Vertical slider
+      child: Container(
+        width: 150,
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Slider(
+          min: 1.0,
+          max: 10.0,
+          activeColor: Colors.purpleAccent,
+          inactiveColor: Colors.white24,
+          value: simulation.camera.freeRoamZ,
+          onChanged: (val) {
+            setState(() {
+              simulation.camera.freeRoamZ = val;
+            });
+          },
         ),
       ),
     );

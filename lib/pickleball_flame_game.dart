@@ -24,6 +24,21 @@ class PickleballFlameGame extends FlameGame {
   bool isPlaying = false;
   bool isSwinging = false;
   bool isBotSwinging = false;
+  bool isDashing = false;  // Player dash VFX state
+  double _dashVfxTimer = 0.0;
+
+  void spawnDashEffect({required double x, required double y, required bool isPlayer}) {
+    final point = simulation.camera.project(x: x, y: y);
+    final center = Offset(
+      (point.x + 1.0) / 2.0 * size.x,
+      (point.y + 1.0) / 2.0 * size.y,
+    );
+    add(DashEffectComponent(center: center, scale: point.scale, isPlayer: isPlayer));
+    if (isPlayer) {
+      isDashing = true;
+      _dashVfxTimer = 0.25;
+    }
+  }
 
   @override
   Future<void> onLoad() async {
@@ -113,6 +128,10 @@ class PickleballFlameGame extends FlameGame {
     if (botSwingTimer > 0) {
       botSwingTimer -= dt;
       if (botSwingTimer <= 0) isBotSwinging = false;
+    }
+    if (_dashVfxTimer > 0) {
+      _dashVfxTimer -= dt;
+      if (_dashVfxTimer <= 0) isDashing = false;
     }
   }
 
@@ -227,9 +246,11 @@ class BotVisualComponent extends Component {
   @override
   void render(Canvas canvas) {
     final simulation = game.simulation;
+    final isPractice = simulation.gameMode == GameMode.freeRoamPractice;
+    
     final point = simulation.camera.project(
-      x: simulation.botX,
-      y: simulation.botY,
+      x: isPractice ? 0.0 : simulation.botX,
+      y: isPractice ? -GameSimulation.courtLength : simulation.botY,
     );
     final scale = point.scale;
     final center = Offset(
@@ -242,44 +263,62 @@ class BotVisualComponent extends Component {
       shadowPaint,
     );
 
-    final paint = Paint()
-      ..shader = Gradient.radial(
-        center.translate(-5 * scale, -5 * scale),
-        22.5 * scale,
-        [const Color(0xFFFF8A80), const Color(0xFFFF5252), const Color(0xFFC62828)],
-        [0.0, 0.5, 1.0],
+    if (isPractice) {
+      // Draw ball machine
+      final machinePaint = Paint()..color = const Color(0xFF455A64)..style = PaintingStyle.fill;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: center.translate(0, -10 * scale), width: 30 * scale, height: 40 * scale),
+          const Radius.circular(8),
+        ),
+        machinePaint,
       );
-    canvas.drawCircle(center, 22.5 * scale, paint);
-    final iconPaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3 * scale;
-    canvas.drawCircle(center, 10 * scale, iconPaint);
-
-    final racketPaint = Paint()
-      ..color = const Color(0xFFE91E63) // Pink paddle for the bot
-      ..style = PaintingStyle.fill;
       
-    final handOffset = Offset(-24 * scale, 5 * scale);
-    
-    canvas.save();
-    canvas.translate(center.dx + handOffset.dx, center.dy + handOffset.dy);
-    
-    // Rotate paddle positively if swinging (since they are facing us)
-    if (game.isBotSwinging) {
-      canvas.rotate(0.78);
-    }
-    
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(0, -12 * scale), width: 14 * scale, height: 32 * scale),
-        const Radius.circular(6),
-      ),
-      racketPaint,
-    );
-    canvas.restore();
+      // Draw nozzle
+      final nozzlePaint = Paint()..color = const Color(0xFF212121)..style = PaintingStyle.fill;
+      canvas.drawCircle(center.translate(0, -15 * scale), 12 * scale, nozzlePaint);
+      
+      final indicatorPaint = Paint()..color = (simulation.ballMachineTimer < 30) ? const Color(0xFFFF5252) : const Color(0xFF69F0AE)..style = PaintingStyle.fill;
+      canvas.drawCircle(center.translate(0, -15 * scale), 6 * scale, indicatorPaint);
+    } else {
+      final paint = Paint()
+        ..shader = Gradient.radial(
+          center.translate(-5 * scale, -5 * scale),
+          22.5 * scale,
+          [const Color(0xFFFF8A80), const Color(0xFFFF5252), const Color(0xFFC62828)],
+          [0.0, 0.5, 1.0],
+        );
+      canvas.drawCircle(center, 22.5 * scale, paint);
+      final iconPaint = Paint()
+        ..color = const Color(0xFFFFFFFF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3 * scale;
+      canvas.drawCircle(center, 10 * scale, iconPaint);
 
-    if (GameDebugConfig.showHitboxes) _drawHitbox(canvas, simulation);
+      final racketPaint = Paint()
+        ..color = const Color(0xFFE91E63) // Pink paddle for the bot
+        ..style = PaintingStyle.fill;
+        
+      final handOffset = Offset(-24 * scale, 5 * scale);
+      
+      canvas.save();
+      canvas.translate(center.dx + handOffset.dx, center.dy + handOffset.dy);
+      
+      if (game.isBotSwinging) {
+        canvas.rotate(0.78);
+      }
+      
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(0, -12 * scale), width: 14 * scale, height: 32 * scale),
+          const Radius.circular(6),
+        ),
+        racketPaint,
+      );
+      canvas.restore();
+    }
+
+    if (!isPractice && GameDebugConfig.showHitboxes) _drawHitbox(canvas, simulation);
   }
 
   void _drawHitbox(Canvas canvas, GameSimulation sim) {
@@ -373,6 +412,13 @@ class PlayerVisualComponent extends Component {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4 * scale;
       canvas.drawCircle(center, 32 * scale, glowPaint);
+    }
+    if (game.isDashing) {
+      final dashGlowPaint = Paint()
+        ..color = const Color(0xBB00B0FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3 * scale;
+      canvas.drawCircle(center, 34 * scale, dashGlowPaint);
     }
 
     final racketPaint = Paint()
@@ -473,11 +519,27 @@ class CourtVisualComponent extends Component {
     final length = GameSimulation.courtLength;
     final kDepth = 0.3; // Kitchen depth
 
-    // Draw grass (oversized floor)
-    // Camera is at y = 1.8, so front edge must be < 1.8 to avoid clipping
+    // Draw floor
     final floorBack = -length * 6.0;
     final floorFront = 1.75; 
     final floorW = width * 6.0;
+    
+    if (game.simulation.mapType == MapType.practiceFacility) {
+      final concretePaint = Paint()..color = const Color(0xFF616161);
+      canvas.drawPath(
+        _quad(-floorW, floorBack, floorW, floorBack, floorW, floorFront, -floorW, floorFront),
+        concretePaint,
+      );
+      
+      // Draw practice target circles on the wall/floor
+      final targetPaint = Paint()..color = const Color(0x33FF0000)..style = PaintingStyle.fill;
+      canvas.drawCircle(_proj(-0.3, -length + 0.2), 30, targetPaint);
+      canvas.drawCircle(_proj(0.3, -length + 0.2), 30, targetPaint);
+      
+      return; // No net or kitchen for practice facility
+    }
+
+    // Draw grass (oversized floor) for stadium
     final grassPaint = Paint()..color = const Color(0xFF2E7D32);
     canvas.drawPath(
       _quad(-floorW, floorBack, floorW, floorBack, floorW, floorFront, -floorW, floorFront),
@@ -597,6 +659,59 @@ class HitEffectComponent extends Component {
         );
         canvas.drawCircle(sparkOffset, sparkRadius, sparkPaint);
       }
+    }
+  }
+}
+
+class DashEffectComponent extends Component {
+  DashEffectComponent({
+    required this.center,
+    required this.scale,
+    required this.isPlayer,
+  });
+
+  final Offset center;
+  final double scale;
+  final bool isPlayer;
+
+  double _lifetime = 0.0;
+  static const double _maxLifetime = 0.30;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _lifetime += dt;
+    if (_lifetime >= _maxLifetime) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final progress = (_lifetime / _maxLifetime).clamp(0.0, 1.0);
+    final alpha = ((1.0 - progress) * 200).round().clamp(0, 255);
+    final color = isPlayer ? const Color(0xFF00B0FF) : const Color(0xFFFF5252);
+
+    // Expanding ring
+    final ringRadius = 22.0 * scale + progress * 38.0 * scale;
+    final ringPaint = Paint()
+      ..color = color.withAlpha(alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0 * (1.0 - progress) * scale;
+    canvas.drawCircle(center, ringRadius, ringPaint);
+
+    // Speed streaks
+    final streakPaint = Paint()
+      ..color = color.withAlpha((alpha * 0.6).round())
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5 * scale;
+
+    for (int i = 0; i < 4; i++) {
+      final angle = (i * 90 + 20) * math.pi / 180;
+      final len = (20.0 + i * 8.0) * scale * (1.0 - progress * 0.5);
+      canvas.drawLine(
+        Offset(center.dx + math.cos(angle) * 20 * scale, center.dy + math.sin(angle) * 20 * scale),
+        Offset(center.dx + math.cos(angle) * (20 * scale + len), center.dy + math.sin(angle) * (20 * scale + len)),
+        streakPaint,
+      );
     }
   }
 }

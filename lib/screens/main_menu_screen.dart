@@ -17,6 +17,7 @@ class MainMenuScreen extends StatelessWidget {
           Image.asset(
             'assets/menu_bg.jpg',
             fit: BoxFit.cover,
+            cacheWidth: 1200,
           ),
           // Dark Gradient Overlay
           Container(
@@ -180,39 +181,76 @@ class MainMenuScreen extends StatelessWidget {
   Widget _buildStartMatchButton(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        showModalBottomSheet(
+        showDialog(
           context: context,
-          backgroundColor: const Color(0xFF1A1F24),
           builder: (ctx) {
-            return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('SELECT GAME MODE', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.person, color: Colors.cyanAccent),
-                    title: const Text('Player vs Bot', style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 0)), // 0 = playerVsBot
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.smart_display, color: Colors.cyanAccent),
-                    title: const Text('Spectate (Bot vs Bot)', style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 1)), // 1 = botVsBot
-                      );
-                    },
-                  ),
-                ],
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
+                width: 320,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1F24),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.cyanAccent.withValues(alpha: 0.1),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                      ),
+                      child: const Text(
+                        'SELECT GAME MODE',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildModeOption(
+                      icon: Icons.person,
+                      title: 'Player vs Bot',
+                      subtitle: 'Classic gameplay',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 0)),
+                        );
+                      },
+                    ),
+                    const Divider(color: Colors.white12, height: 1),
+                    _buildModeOption(
+                      icon: Icons.smart_display,
+                      title: 'Spectate',
+                      subtitle: 'Bot vs Bot',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 1)),
+                        );
+                      },
+                    ),
+                    const Divider(color: Colors.white12, height: 1),
+                    _buildModeOption(
+                      icon: Icons.directions_run,
+                      title: 'Practice Facility',
+                      subtitle: 'Free Roam & Ball Machine',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 2)),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             );
           }
@@ -240,6 +278,40 @@ class MainMenuScreen extends StatelessWidget {
             fontWeight: FontWeight.w900,
             letterSpacing: 1.5,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.cyanAccent.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.cyanAccent, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 13)),
+              ],
+            ),
+          ],
         ),
       ),
     );

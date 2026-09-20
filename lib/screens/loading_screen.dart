@@ -12,14 +12,32 @@ class _LoadingScreenState extends State<LoadingScreen> {
   @override
   void initState() {
     super.initState();
-    // Simulate loading time, then navigate to main menu
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainMenuScreen()),
-        );
-      }
-    });
+    _loadImagesAndNavigate();
+  }
+
+  Future<void> _loadImagesAndNavigate() async {
+    // Wait for context to be fully available
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
+
+    try {
+      // Precache the menu background image
+      await precacheImage(
+        ResizeImage(const AssetImage('assets/menu_bg.jpg'), width: 1200),
+        context,
+      );
+    } catch (e) {
+      debugPrint('Failed to precache menu_bg.jpg: $e');
+    }
+
+    // Give it a brief moment so the loading screen is visible
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainMenuScreen()),
+      );
+    }
   }
 
   @override
@@ -32,6 +50,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
           Image.asset(
             'assets/loading_bg.jpg',
             fit: BoxFit.cover,
+            cacheWidth: 1200,
           ),
           // Dark overlay to make text pop
           Container(
