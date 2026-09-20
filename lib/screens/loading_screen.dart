@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main_menu_screen.dart';
+import '../widgets/background_painter.dart';
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
@@ -20,16 +21,6 @@ class _LoadingScreenState extends State<LoadingScreen> {
     await Future.delayed(Duration.zero);
     if (!mounted) return;
 
-    try {
-      // Precache the menu background image
-      await precacheImage(
-        ResizeImage(const AssetImage('assets/menu_bg.jpg'), width: 1200),
-        context,
-      );
-    } catch (e) {
-      debugPrint('Failed to precache menu_bg.jpg: $e');
-    }
-
     // Give it a brief moment so the loading screen is visible
     await Future.delayed(const Duration(seconds: 1));
 
@@ -46,16 +37,9 @@ class _LoadingScreenState extends State<LoadingScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background image
-          Image.asset(
-            'assets/loading_bg.jpg',
-            fit: BoxFit.cover,
-            cacheWidth: 1200,
-          ),
-          // Dark overlay to make text pop
-          Container(
-            color: Colors.black.withValues(alpha: 0.6),
-          ),
+          // Background layer
+          const AnimatedBackground(),
+          
           // Text Content
           Column(
             mainAxisAlignment: MainAxisAlignment.center,

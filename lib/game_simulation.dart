@@ -64,7 +64,9 @@ class Camera3D {
   double screenHeight = 800;
 
   double targetOffsetX = 0.0;
+  double targetOffsetY = 0.0;
   double eyeOffsetX = 0.0;
+  double eyeOffsetY = 0.0;
   double shakeTrauma = 0.0;
 
   void updateSize(double width, double height) {
@@ -74,13 +76,29 @@ class Camera3D {
     _updateMatrices();
   }
 
-  void updateDynamics({required double dt, required double ballX}) {
-    // Smoothly track the ball X position slightly
-    final targetEyeX = ballX * 0.15;
-    final targetLookX = ballX * 0.05;
+  void updateDynamics({required double dt, required double ballX, required double playerX, required double playerY, required GameMode gameMode}) {
+    double targetEyeX;
+    double targetLookX;
+    double targetEyeY = 0.0;
+    double targetLookY = 0.0;
+
+    if (gameMode == GameMode.freeRoamPractice) {
+      // Subtly follow the player more closely in practice mode
+      targetEyeX = playerX * 0.4;
+      targetLookX = playerX * 0.2;
+      targetEyeY = (playerY - 1.8) * 0.4;
+      targetLookY = (playerY - 1.8) * 0.2;
+    } else {
+      // Smoothly track the ball X position slightly for normal match
+      targetEyeX = ballX * 0.15;
+      targetLookX = ballX * 0.05;
+    }
 
     eyeOffsetX += (targetEyeX - eyeOffsetX) * dt * 3.0;
     targetOffsetX += (targetLookX - targetOffsetX) * dt * 4.0;
+    
+    eyeOffsetY += (targetEyeY - eyeOffsetY) * dt * 3.0;
+    targetOffsetY += (targetLookY - targetOffsetY) * dt * 4.0;
 
     if (shakeTrauma > 0) {
       shakeTrauma -= dt * 2.5;
@@ -114,8 +132,8 @@ class Camera3D {
 
     switch (mode) {
       case CameraMode.action:
-        eye = vmath.Vector3(eyeOffsetX + shakeX, 1.8 + shakeY, 1.0);
-        target = vmath.Vector3(targetOffsetX, -0.2, 0.0);
+        eye = vmath.Vector3(eyeOffsetX + shakeX, 1.8 + eyeOffsetY + shakeY, 1.0);
+        target = vmath.Vector3(targetOffsetX, -0.2 + targetOffsetY, 0.0);
         break;
       case CameraMode.broadcast:
         eye = vmath.Vector3(2.5 + shakeX, 0.0 + shakeY, 1.5);
@@ -362,7 +380,13 @@ class GameSimulation {
         ball.velocityX *= 0.8;
         ball.velocityY *= 0.8;
       }
-      camera.updateDynamics(dt: 0.025, ballX: ball.x);
+      camera.updateDynamics(
+        dt: 0.025, 
+        ballX: ball.x,
+        playerX: playerX,
+        playerY: playerY,
+        gameMode: gameMode,
+      );
       
       // Let the player keep moving during dead ball!
       if (gameMode == GameMode.playerVsBot) {
@@ -611,7 +635,13 @@ class GameSimulation {
       ball.hasBounced = false;
     }
 
-    camera.updateDynamics(dt: 0.025, ballX: ball.x);
+    camera.updateDynamics(
+      dt: 0.025, 
+      ballX: ball.x,
+      playerX: playerX,
+      playerY: playerY,
+      gameMode: gameMode,
+    );
     return null;
   }
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show PickleballGame; // To navigate to the game
 import 'profile_screen.dart';
-import 'mail_screen.dart';
 import 'settings_screen.dart';
+import '../widgets/background_painter.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
@@ -13,26 +13,8 @@ class MainMenuScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background Image
-          Image.asset(
-            'assets/menu_bg.jpg',
-            fit: BoxFit.cover,
-            cacheWidth: 1200,
-          ),
-          // Dark Gradient Overlay
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.black.withValues(alpha: 0.7),
-                  Colors.black.withValues(alpha: 0.3),
-                  Colors.black.withValues(alpha: 0.8),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
+          // Background layer
+          const AnimatedBackground(),
           
           // SafeArea for UI elements
           SafeArea(
@@ -52,10 +34,6 @@ class MainMenuScreen extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildCurrencyPill(),
-                          const SizedBox(width: 12),
-                          _buildIconButton(Icons.mail_outline, () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const MailScreen()));
-                          }),
                           const SizedBox(width: 12),
                           _buildIconButton(Icons.settings, () {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
