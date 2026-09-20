@@ -351,10 +351,11 @@ class _PickleballGameState extends State<PickleballGame> {
                               if (widget.gameMode != 2) Expanded(
                                 child: Center(
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.45),
+                                      color: const Color(0xFF1A1F24).withValues(alpha: 0.75),
                                       borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.2)),
                                     ),
                                     child: FittedBox(
                                       fit: BoxFit.scaleDown,
@@ -365,17 +366,17 @@ class _PickleballGameState extends State<PickleballGame> {
                                             liveRegion: true,
                                             label: 'CPU score $botScore',
                                             child: Text('CPU: $botScore',
-                                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                                style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold)),
                                           ),
                                           const Padding(
-                                            padding: EdgeInsets.symmetric(horizontal: 6),
-                                            child: Text('-', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                                            padding: EdgeInsets.symmetric(horizontal: 8),
+                                            child: Text('•', style: TextStyle(color: Colors.white24, fontSize: 14)),
                                           ),
                                           Semantics(
                                             liveRegion: true,
                                             label: 'Your score $playerScore',
                                             child: Text('YOU: $playerScore',
-                                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                                style: const TextStyle(color: Colors.cyanAccent, fontSize: 14, fontWeight: FontWeight.bold)),
                                           ),
                                         ],
                                       ),
@@ -496,9 +497,9 @@ class _PickleballGameState extends State<PickleballGame> {
           width: 140,
           height: 140,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+            color: const Color(0xFF1A1F24).withValues(alpha: 0.6),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white54, width: 2),
+            border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.4), width: 2),
           ),
           child: Center(
             child: Transform.translate(
@@ -507,9 +508,12 @@ class _PickleballGameState extends State<PickleballGame> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: Colors.cyanAccent.withValues(alpha: 0.85),
                   shape: BoxShape.circle,
-                  boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(color: Colors.cyanAccent.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 2),
+                    const BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2)),
+                  ],
                 ),
               ),
             ),
@@ -522,7 +526,8 @@ class _PickleballGameState extends State<PickleballGame> {
   Widget _buildHitButton() {
     final isPlayerServing = simulation.playPhase == MatchPlayPhase.waitingForServe && simulation.servingSide == MatchSide.player;
     final buttonText = isPlayerServing ? 'SERVE' : 'HIT';
-    final buttonColor = isPlayerServing ? Colors.deepOrangeAccent : Colors.amber;
+    final buttonColor = isPlayerServing ? const Color(0xFFFF6D00) : Colors.cyanAccent;
+    final textColor = isPlayerServing ? Colors.white : Colors.black;
 
     return Semantics(
       button: true,
@@ -535,12 +540,15 @@ class _PickleballGameState extends State<PickleballGame> {
           decoration: BoxDecoration(
             color: buttonColor,
             shape: BoxShape.circle,
-            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
-            border: Border.all(color: Colors.white, width: 3.5),
+            boxShadow: [
+              BoxShadow(color: buttonColor.withValues(alpha: 0.5), blurRadius: 15, spreadRadius: 3),
+              const BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+            ],
+            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2.5),
           ),
           child: Center(
             child: Text(buttonText,
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black, letterSpacing: 1.2)),
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: textColor, letterSpacing: 1.2)),
           ),
         ),
       ),
@@ -559,13 +567,16 @@ class _PickleballGameState extends State<PickleballGame> {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: Colors.blueAccent,
+            color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
             shape: BoxShape.circle,
-            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4))],
-            border: Border.all(color: Colors.white, width: 3.0),
+            boxShadow: [
+              BoxShadow(color: Colors.tealAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
+              const BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
+            ],
+            border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.6), width: 2.0),
           ),
           child: const Center(
-            child: Icon(Icons.bolt, color: Colors.white, size: 40),
+            child: Icon(Icons.bolt, color: Colors.tealAccent, size: 36),
           ),
         ),
       ),
@@ -585,13 +596,16 @@ class _PickleballGameState extends State<PickleballGame> {
         width: 70,
         height: 70,
         decoration: BoxDecoration(
-          color: Colors.purpleAccent,
+          color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
           shape: BoxShape.circle,
-          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4))],
-          border: Border.all(color: Colors.white, width: 3.0),
+          boxShadow: [
+            BoxShadow(color: Colors.cyanAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
+            const BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
+          ],
+          border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.5), width: 2.0),
         ),
         child: const Center(
-          child: Icon(Icons.videocam, color: Colors.white, size: 36),
+          child: Icon(Icons.videocam, color: Colors.cyanAccent, size: 36),
         ),
       ),
     );
@@ -625,14 +639,15 @@ class _PickleballGameState extends State<PickleballGame> {
         width: 150,
         height: 50,
         decoration: BoxDecoration(
-          color: Colors.black54,
+          color: const Color(0xFF1A1F24).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.2)),
         ),
         child: Slider(
           min: 1.0,
           max: 10.0,
-          activeColor: Colors.purpleAccent,
-          inactiveColor: Colors.white24,
+          activeColor: Colors.cyanAccent,
+          inactiveColor: Colors.white12,
           value: simulation.camera.freeRoamZ,
           onChanged: (val) {
             setState(() {
@@ -648,62 +663,101 @@ class _PickleballGameState extends State<PickleballGame> {
     return Semantics(
       label: 'Game paused',
       child: Container(
-        color: Colors.black.withValues(alpha: 0.55),
+        color: Colors.black.withValues(alpha: 0.65),
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('PAUSED',
-                  style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 4)),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _togglePause,
-                icon: const Icon(Icons.play_arrow, color: Colors.black),
-                label: const Text('RESUME', style: TextStyle(color: Colors.black)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          child: Container(
+            width: 280,
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1F24),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1.5),
+              boxShadow: [
+                BoxShadow(color: Colors.cyanAccent.withValues(alpha: 0.15), blurRadius: 30, spreadRadius: 5),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('PAUSED',
+                    style: TextStyle(color: Colors.cyanAccent, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 4)),
+                const SizedBox(height: 32),
+                _buildPauseButton(
+                  icon: Icons.play_arrow,
+                  label: 'RESUME',
+                  color: Colors.cyanAccent,
+                  textColor: Colors.black,
+                  onTap: _togglePause,
                 ),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: () {
-                  _showConfirmationDialog(
-                    title: 'Restart Match',
-                    content: 'Are you sure you want to restart the game? Your current score will be lost.',
-                    onConfirm: () {
-                      _startGame();
-                      _focusNode.requestFocus();
-                    },
-                  );
-                },
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                label: const Text('RESTART', style: TextStyle(color: Colors.white)),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white70),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                const SizedBox(height: 12),
+                _buildPauseButton(
+                  icon: Icons.refresh,
+                  label: 'RESTART',
+                  color: Colors.transparent,
+                  textColor: Colors.white,
+                  borderColor: Colors.white54,
+                  onTap: () {
+                    _showConfirmationDialog(
+                      title: 'Restart Match',
+                      content: 'Are you sure you want to restart? Your current score will be lost.',
+                      onConfirm: () {
+                        _startGame();
+                        _focusNode.requestFocus();
+                      },
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: () {
-                  _showConfirmationDialog(
-                    title: 'Quit Game',
-                    content: 'Are you sure you want to quit to the main menu?',
-                    onConfirm: () {
-                      Navigator.of(context).pop();
-                    },
-                  );
-                },
-                icon: const Icon(Icons.exit_to_app, color: Colors.white),
-                label: const Text('QUIT', style: TextStyle(color: Colors.white)),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.redAccent),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                const SizedBox(height: 12),
+                _buildPauseButton(
+                  icon: Icons.exit_to_app,
+                  label: 'QUIT',
+                  color: Colors.transparent,
+                  textColor: Colors.redAccent,
+                  borderColor: Colors.redAccent.withValues(alpha: 0.5),
+                  onTap: () {
+                    _showConfirmationDialog(
+                      title: 'Quit Game',
+                      content: 'Are you sure you want to quit to the main menu?',
+                      onConfirm: () {
+                        Navigator.of(context).pop();
+                      },
+                    );
+                  },
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPauseButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color textColor,
+    required VoidCallback onTap,
+    Color? borderColor,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+          border: borderColor != null ? Border.all(color: borderColor, width: 1.5) : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: textColor, size: 22),
+            const SizedBox(width: 10),
+            Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: 1)),
+          ],
         ),
       ),
     );
@@ -713,24 +767,59 @@ class _PickleballGameState extends State<PickleballGame> {
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1A1F24),
-          title: Text(title, style: const TextStyle(color: Colors.white)),
-          content: Text(content, style: const TextStyle(color: Colors.white70)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('CANCEL', style: TextStyle(color: Colors.white54)),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 300,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1F24),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1.5),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+              ],
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                onConfirm();
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent),
-              child: const Text('YES', style: TextStyle(color: Colors.black)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title.toUpperCase(), style: const TextStyle(color: Colors.cyanAccent, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                const SizedBox(height: 16),
+                Text(content, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Text('CANCEL', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        onConfirm();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.cyanAccent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('YES', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -741,42 +830,78 @@ class _PickleballGameState extends State<PickleballGame> {
     return Semantics(
       label: playerWon ? 'You win!' : 'CPU wins',
       child: Container(
-        color: Colors.black.withValues(alpha: 0.70),
+        color: Colors.black.withValues(alpha: 0.75),
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                playerWon ? 'YOU WIN!' : 'CPU WINS',
-                style: TextStyle(
-                    color: playerWon ? Colors.amberAccent : Colors.redAccent,
-                    fontSize: 44,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 3),
+          child: Container(
+            width: 320,
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1F24),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: playerWon ? Colors.cyanAccent.withValues(alpha: 0.4) : Colors.redAccent.withValues(alpha: 0.4),
+                width: 1.5,
               ),
-              const SizedBox(height: 12),
-              Text('$playerScore - $botScore',
-                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: () {
-                  _startGame();
-                  _focusNode.requestFocus();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              boxShadow: [
+                BoxShadow(
+                  color: playerWon ? Colors.cyanAccent.withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
+                  blurRadius: 30,
+                  spreadRadius: 5,
                 ),
-                child: const Text('PLAY AGAIN',
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 20)),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('BACK TO MENU', style: TextStyle(color: Colors.white70, fontSize: 16)),
-              ),
-            ],
+                BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  playerWon ? '🏆 VICTORY' : 'DEFEAT',
+                  style: TextStyle(
+                      color: playerWon ? Colors.cyanAccent : Colors.redAccent,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 3),
+                ),
+                const SizedBox(height: 16),
+                Text('$playerScore - $botScore',
+                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 36),
+                GestureDetector(
+                  onTap: () {
+                    _startGame();
+                    _focusNode.requestFocus();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.cyanAccent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Center(
+                      child: Text('PLAY AGAIN',
+                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 1)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white24, width: 1.5),
+                    ),
+                    child: const Center(
+                      child: Text('BACK TO MENU',
+                          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
