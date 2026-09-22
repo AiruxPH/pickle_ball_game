@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import 'package:vector_math/vector_math_64.dart' as vmath;
 
@@ -205,6 +207,7 @@ class GameSimulation {
   final BallState ball = BallState();
   final Camera3D camera = Camera3D();
 
+  double _telemetryTimer = 0.0;
   double playerX = 0;
   double playerY = 0.75;
   double playerVelocityX = 0;
@@ -311,6 +314,26 @@ class GameSimulation {
   }
 
   RallyEnd? update({double joystickX = 0, double joystickY = 0}) {
+    _telemetryTimer += 0.025;
+    if (_telemetryTimer >= 0.5) {
+      _telemetryTimer = 0.0;
+      final telemetryData = {
+        'type': 'telemetry',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'bot': {'x': double.parse(botX.toStringAsFixed(3)), 'y': double.parse(botY.toStringAsFixed(3))},
+        'botTarget': {'x': double.parse(botTargetX.toStringAsFixed(3)), 'y': double.parse(botTargetY.toStringAsFixed(3))},
+        'ball': {
+          'x': double.parse(ball.x.toStringAsFixed(3)), 
+          'y': double.parse(ball.y.toStringAsFixed(3)), 
+          'z': double.parse(ball.z.toStringAsFixed(3)),
+          'vx': double.parse(ball.velocityX.toStringAsFixed(4)),
+          'vy': double.parse(ball.velocityY.toStringAsFixed(4)),
+          'vz': double.parse(ball.velocityZ.toStringAsFixed(4)),
+        },
+        'rallyLength': rallyLength,
+      };
+      debugPrint('[DATA] ${jsonEncode(telemetryData)}');
+    }
     double jX = joystickX;
     double jY = joystickY;
 
@@ -479,8 +502,9 @@ class GameSimulation {
     // Smooth character movement (inertia/momentum)
     final targetVelX = jX * moveSpeed;
     final targetVelY = jY * moveSpeed;
-    playerVelocityX += (targetVelX - playerVelocityX) * 0.15;
-    playerVelocityY += (targetVelY - playerVelocityY) * 0.15;
+    final friction = gameMode == GameMode.freeRoamPractice ? 0.05 : 0.15;
+    playerVelocityX += (targetVelX - playerVelocityX) * friction;
+    playerVelocityY += (targetVelY - playerVelocityY) * friction;
     
     if (gameMode == GameMode.freeRoamPractice) {
       playerX = (playerX + playerVelocityX).clamp(-courtWidth * 5.0, courtWidth * 5.0);
@@ -597,6 +621,7 @@ class GameSimulation {
       // Trigger dash only when: ball is coming, we are far, and cooldown is expired
       final ballComingToBot = ball.velocityY < 0;
       if (ballComingToBot && dist > 0.6 && botDashCooldown <= 0 && botDashTimer <= 0) {
+        debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'dash', 'bot': {'x': botX, 'y': botY}, 'target': {'x': botTargetX, 'y': botTargetY}, 'distance': dist})}');
         botDashTimer = 12.0;           // dash lasts 12 ticks
         botDashCooldown = 80.0;        // cannot dash again for 2 seconds (80 * 25ms)
       }
@@ -625,6 +650,8 @@ class GameSimulation {
         
         final isAggressiveHit = math.Random().nextDouble() < bot1Aggression;
         final isError = math.Random().nextDouble() < 0.05; // 5% error rate
+        
+        debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'swing', 'aggressive': isAggressiveHit, 'error': isError, 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
         
         ball.velocityY = isAggressiveHit ? 0.03 : 0.024;
         
@@ -680,6 +707,9 @@ class GameSimulation {
 
     rallyLength++;
     lastHitByPlayer = true;
+    
+    debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'player_swing', 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
+    
     if (ball.z > 0.3) {
       ball.velocityY = -0.032;
       ball.velocityZ = 0.01;

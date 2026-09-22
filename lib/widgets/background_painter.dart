@@ -39,7 +39,7 @@ class AbstractBlobPainter extends CustomPainter {
 }
 
 class AnimatedBackground extends StatefulWidget {
-  const AnimatedBackground({Key? key}) : super(key: key);
+  const AnimatedBackground({super.key});
 
   @override
   State<AnimatedBackground> createState() => _AnimatedBackgroundState();

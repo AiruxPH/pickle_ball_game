@@ -8,11 +8,11 @@ class GameScaffold extends StatelessWidget {
   final bool showBackButton;
 
   const GameScaffold({
-    Key? key,
+    super.key,
     required this.child,
     this.title = '',
     this.showBackButton = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

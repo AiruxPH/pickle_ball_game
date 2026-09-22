@@ -73,7 +73,7 @@ class MainMenuScreen extends StatelessWidget {
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
-              colors: [const Color(0xFFF59E0B), Colors.teal],
+              colors: [Color(0xFFF59E0B), Colors.teal],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

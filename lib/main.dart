@@ -207,12 +207,14 @@ class _PickleballGameState extends State<PickleballGame> {
     return Positioned(
       top: 60,
       left: 8,
-      child: Container(
-        width: 250,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Container(
+          width: 250,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(8),
+          ),
         padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -269,6 +271,7 @@ class _PickleballGameState extends State<PickleballGame> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -310,16 +313,15 @@ class _PickleballGameState extends State<PickleballGame> {
                        _initialZoomZ = simulation.camera.freeRoamZ;
                     },
                     onScaleUpdate: (details) {
-                      if (widget.gameMode == 1 && simulation.camera.mode == CameraMode.freeRoam) {
-                        setState(() {
-                          if (details.scale != 1.0) {
-                             simulation.camera.freeRoamZ = (_initialZoomZ / details.scale).clamp(1.0, 10.0);
-                          }
-                          // Handle panning
-                          simulation.camera.freeRoamYaw -= details.focalPointDelta.dx * 0.01;
-                          simulation.camera.freeRoamPitch -= details.focalPointDelta.dy * 0.01;
-                          simulation.camera.freeRoamPitch = simulation.camera.freeRoamPitch.clamp(-math.pi / 2.1, math.pi / 2.1);
-                        });
+                      if (simulation.camera.mode == CameraMode.freeRoam) {
+                        if (details.scale != 1.0) {
+                           simulation.camera.freeRoamZ = (_initialZoomZ / details.scale).clamp(1.0, 10.0);
+                        }
+                        // Handle panning directly without triggering a Flutter rebuild.
+                        // The Flame game loop will naturally pick up these changes.
+                        simulation.camera.freeRoamYaw -= details.focalPointDelta.dx * 0.01;
+                        simulation.camera.freeRoamPitch -= details.focalPointDelta.dy * 0.01;
+                        simulation.camera.freeRoamPitch = simulation.camera.freeRoamPitch.clamp(-math.pi / 2.1, math.pi / 2.1);
                       }
                     },
                     child: GameWidget(game: flameGame),
@@ -372,7 +374,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                             liveRegion: true,
                                             label: 'CPU score $botScore',
                                             child: Text('CPU: $botScore',
-                                                style: const TextStyle(color: const Color(0xFFE11D48), fontSize: 14, fontWeight: FontWeight.bold)),
+                                                style: const TextStyle(color: Color(0xFFE11D48), fontSize: 14, fontWeight: FontWeight.bold)),
                                           ),
                                           const Padding(
                                             padding: EdgeInsets.symmetric(horizontal: 8),
@@ -382,7 +384,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                             liveRegion: true,
                                             label: 'Your score $playerScore',
                                             child: Text('YOU: $playerScore',
-                                                style: const TextStyle(color: const Color(0xFFF59E0B), fontSize: 14, fontWeight: FontWeight.bold)),
+                                                style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 14, fontWeight: FontWeight.bold)),
                                           ),
                                         ],
                                       ),
@@ -582,7 +584,7 @@ class _PickleballGameState extends State<PickleballGame> {
             border: Border.all(color: const Color(0xFFFB923C).withValues(alpha: 0.6), width: 2.0),
           ),
           child: const Center(
-            child: Icon(Icons.bolt, color: const Color(0xFFFB923C), size: 36),
+            child: Icon(Icons.bolt, color: Color(0xFFFB923C), size: 36),
           ),
         ),
       ),
@@ -611,7 +613,7 @@ class _PickleballGameState extends State<PickleballGame> {
           border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 2.0),
         ),
         child: const Center(
-          child: Icon(Icons.videocam, color: const Color(0xFFF59E0B), size: 36),
+          child: Icon(Icons.videocam, color: Color(0xFFF59E0B), size: 36),
         ),
       ),
     );
@@ -629,10 +631,10 @@ class _PickleballGameState extends State<PickleballGame> {
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('LIVE BROADCAST', style: TextStyle(color: const Color(0xFFE11D48), fontWeight: FontWeight.bold, fontSize: 12)),
+          const Text('LIVE BROADCAST', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold, fontSize: 12)),
           const SizedBox(height: 4),
           Text('RALLY: ${simulation.rallyLength}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
-          Text('BALL SPEED: ${simulation.ballSpeed.toStringAsFixed(0)} MPH', style: const TextStyle(color: const Color(0xFFF59E0B), fontSize: 14)),
+          Text('BALL SPEED: ${simulation.ballSpeed.toStringAsFixed(0)} MPH', style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 14)),
         ],
       ),
     );
@@ -687,7 +689,7 @@ class _PickleballGameState extends State<PickleballGame> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('PAUSED',
-                    style: TextStyle(color: const Color(0xFFF59E0B), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 4)),
+                    style: TextStyle(color: Color(0xFFF59E0B), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 4)),
                 const SizedBox(height: 32),
                 _buildPauseButton(
                   icon: Icons.play_arrow,
@@ -789,7 +791,7 @@ class _PickleballGameState extends State<PickleballGame> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title.toUpperCase(), style: const TextStyle(color: const Color(0xFFF59E0B), fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                Text(title.toUpperCase(), style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1)),
                 const SizedBox(height: 16),
                 Text(content, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
                 const SizedBox(height: 24),
@@ -917,7 +919,7 @@ class _PickleballGameState extends State<PickleballGame> {
 
 class RefereePopupWidget extends StatefulWidget {
   final String text;
-  const RefereePopupWidget({Key? key, required this.text}) : super(key: key);
+  const RefereePopupWidget({super.key, required this.text});
 
   @override
   State<RefereePopupWidget> createState() => _RefereePopupWidgetState();

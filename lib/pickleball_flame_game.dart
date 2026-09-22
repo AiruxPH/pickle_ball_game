@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect, Gradient, RRect, Radius, MaskFilter, BlurStyle;
+import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect, Gradient, RRect, Radius, MaskFilter, BlurStyle, Image;
 
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -17,6 +17,8 @@ class PickleballFlameGame extends FlameGame {
   static const double fixedStep = 0.025;
 
   final GameSimulation simulation;
+  late final Image benchSprite;
+  late final Image bleacherSprite;
   void Function(RallyEnd event)? onRallyEnd;
   double inputX = 0;
   double inputY = 0;
@@ -42,6 +44,10 @@ class PickleballFlameGame extends FlameGame {
 
   @override
   Future<void> onLoad() async {
+    // Load external sprite assets (transparent PNGs)
+    benchSprite = await images.load('stadium_bench-removebg-preview.png');
+    bleacherSprite = await images.load('stadium_bleachers-removebg-preview.png');
+    
     await add(CourtVisualComponent(this));
     await add(BallVisualComponent(this));
     await add(BotVisualComponent(this));
@@ -509,7 +515,21 @@ class CourtVisualComponent extends Component {
       ..close();
   }
 
-  void _drawBench(Canvas canvas, double x, double y, double width, double length, double height, Paint paint) {
+  void _drawBench(Canvas canvas, double x, double y, double width, double length, double height, Paint paint, {Image? sprite}) {
+    if (sprite != null) {
+      final centerOffset = _proj(x, y, 0);
+      final rawProj = game.simulation.camera.project(x: x, y: y);
+      
+      final drawWidth = sprite.width * 0.15 * rawProj.scale;
+      final drawHeight = sprite.height * 0.15 * rawProj.scale;
+      
+      final src = Rect.fromLTWH(0, 0, sprite.width.toDouble(), sprite.height.toDouble());
+      final dst = Rect.fromCenter(center: centerOffset, width: drawWidth, height: drawHeight);
+      
+      canvas.drawImageRect(sprite, src, dst, Paint());
+      return;
+    }
+    
     // Top surface
     final p1 = _proj(x - width / 2, y - length / 2, height);
     final p2 = _proj(x + width / 2, y - length / 2, height);
@@ -670,11 +690,11 @@ class CourtVisualComponent extends Component {
     // Benches for stadium (Championship Gold)
     final sBenchPaint = Paint()..color = const Color(0xFFF59E0B);
     // Left side benches
-    _drawBench(canvas, -width * 2.2, -length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
-    _drawBench(canvas, -width * 2.2, length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
+    _drawBench(canvas, -width * 2.2, -length * 0.5, 0.4, 2.5, 0.2, sBenchPaint, sprite: game.benchSprite);
+    _drawBench(canvas, -width * 2.2, length * 0.5, 0.4, 2.5, 0.2, sBenchPaint, sprite: game.bleacherSprite);
     // Right side benches
-    _drawBench(canvas, width * 2.2, -length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
-    _drawBench(canvas, width * 2.2, length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
+    _drawBench(canvas, width * 2.2, -length * 0.5, 0.4, 2.5, 0.2, sBenchPaint, sprite: game.benchSprite);
+    _drawBench(canvas, width * 2.2, length * 0.5, 0.4, 2.5, 0.2, sBenchPaint, sprite: game.bleacherSprite);
   }
 }
 
