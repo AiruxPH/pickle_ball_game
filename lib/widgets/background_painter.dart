@@ -8,7 +8,7 @@ class AbstractBlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Fill background
-    final bgPaint = Paint()..color = const Color(0xFF0D1117);
+    final bgPaint = Paint()..color = const Color(0xFF0B132B);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
     // Draw some glowing abstract blobs

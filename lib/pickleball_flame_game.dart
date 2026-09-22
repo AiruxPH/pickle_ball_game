@@ -509,12 +509,61 @@ class CourtVisualComponent extends Component {
       ..close();
   }
 
+  void _drawBench(Canvas canvas, double x, double y, double width, double length, double height, Paint paint) {
+    // Top surface
+    final p1 = _proj(x - width / 2, y - length / 2, height);
+    final p2 = _proj(x + width / 2, y - length / 2, height);
+    final p3 = _proj(x + width / 2, y + length / 2, height);
+    final p4 = _proj(x - width / 2, y + length / 2, height);
+    
+    final topPath = Path()
+      ..moveTo(p1.dx, p1.dy)
+      ..lineTo(p2.dx, p2.dy)
+      ..lineTo(p3.dx, p3.dy)
+      ..lineTo(p4.dx, p4.dy)
+      ..close();
+    canvas.drawPath(topPath, paint);
+
+    // Front face (if visible)
+    final p5 = _proj(x - width / 2, y + length / 2, 0);
+    final p6 = _proj(x + width / 2, y + length / 2, 0);
+    if (p5.dy > p1.dy) {
+      final frontPaint = Paint()..color = paint.color.withValues(alpha: 0.7);
+      final frontPath = Path()
+        ..moveTo(p4.dx, p4.dy)
+        ..lineTo(p3.dx, p3.dy)
+        ..lineTo(p6.dx, p6.dy)
+        ..lineTo(p5.dx, p5.dy)
+        ..close();
+      canvas.drawPath(frontPath, frontPaint);
+    }
+    
+    // Side face
+    if (x > 0) { // Right side bench
+      final sidePaint = Paint()..color = paint.color.withValues(alpha: 0.5);
+      final p7 = _proj(x - width / 2, y - length / 2, 0);
+      final sidePath = Path()
+        ..moveTo(p1.dx, p1.dy)
+        ..lineTo(p4.dx, p4.dy)
+        ..lineTo(p5.dx, p5.dy)
+        ..lineTo(p7.dx, p7.dy)
+        ..close();
+      canvas.drawPath(sidePath, sidePaint);
+    } else { // Left side bench
+      final sidePaint = Paint()..color = paint.color.withValues(alpha: 0.5);
+      final p8 = _proj(x + width / 2, y - length / 2, 0);
+      final sidePath = Path()
+        ..moveTo(p2.dx, p2.dy)
+        ..lineTo(p3.dx, p3.dy)
+        ..lineTo(p6.dx, p6.dy)
+        ..lineTo(p8.dx, p8.dy)
+        ..close();
+      canvas.drawPath(sidePath, sidePaint);
+    }
+  }
+
   @override
   void render(Canvas canvas) {
-    // Sky
-    final skyPaint = Paint()..color = const Color(0xFF64B5F6);
-    canvas.drawRect(Rect.fromLTWH(0, 0, game.size.x, game.size.y), skyPaint);
-
     final width = GameSimulation.courtWidth;
     final length = GameSimulation.courtLength;
     final kDepth = 0.3; // Kitchen depth
@@ -525,52 +574,67 @@ class CourtVisualComponent extends Component {
     final floorW = width * 6.0;
     
     if (game.simulation.mapType == MapType.practiceFacility) {
-      final concretePaint = Paint()..color = const Color(0xFF616161);
+      // Dark high-tech concrete floor
+      final concretePaint = Paint()..color = const Color(0xFF1E2630);
       canvas.drawPath(
         _quad(-floorW, floorBack, floorW, floorBack, floorW, floorFront, -floorW, floorFront),
         concretePaint,
       );
       
-      // Draw practice target circles on the wall/floor
-      final targetPaint = Paint()..color = const Color(0x33FF0000)..style = PaintingStyle.fill;
-      canvas.drawCircle(_proj(-0.3, -length + 0.2), 30, targetPaint);
-      canvas.drawCircle(_proj(0.3, -length + 0.2), 30, targetPaint);
+      // Draw practice target circles on the wall/floor (Neon Teal - #18FFFF)
+      final targetPaint = Paint()..color = const Color(0x1A18FFFF)..style = PaintingStyle.fill;
+      final targetBorder = Paint()..color = const Color(0x8018FFFF)..style = PaintingStyle.stroke..strokeWidth = 2;
+      
+      canvas.drawCircle(_proj(-0.3, -length + 0.2), 35, targetPaint);
+      canvas.drawCircle(_proj(-0.3, -length + 0.2), 35, targetBorder);
+      
+      canvas.drawCircle(_proj(0.3, -length + 0.2), 35, targetPaint);
+      canvas.drawCircle(_proj(0.3, -length + 0.2), 35, targetBorder);
+      
+      // Benches for practice area (Neon Teal)
+      final pBenchPaint = Paint()..color = const Color(0xFF00ACC1);
+      _drawBench(canvas, -width * 2.5, 0.0, 0.3, 1.0, 0.15, pBenchPaint);
+      _drawBench(canvas, -width * 2.5, -0.5, 0.3, 1.0, 0.15, pBenchPaint);
       
       return; // No net or kitchen for practice facility
     }
 
-    // Draw grass (oversized floor) for stadium
-    final grassPaint = Paint()..color = const Color(0xFF2E7D32);
+    // --- STADIUM MAP ---
+    
+    // Outer bounds (Tournament slate outer run-off)
+    final outerFloorPaint = Paint()..color = const Color(0xFF162544);
     canvas.drawPath(
       _quad(-floorW, floorBack, floorW, floorBack, floorW, floorFront, -floorW, floorFront),
-      grassPaint,
+      outerFloorPaint,
     );
 
-    // Court floor
-    final courtFloorPaint = Paint()..color = const Color(0xFF1565C0)..style = PaintingStyle.fill;
+    // Court floor (Pacific Blue)
+    final courtFloorPaint = Paint()..color = const Color(0xFF0284C7)..style = PaintingStyle.fill;
     canvas.drawPath(
       _quad(-width, -length, width, -length, width, length, -width, length),
       courtFloorPaint,
     );
 
-    // Kitchen floor
-    final kitchenFloorPaint = Paint()..color = const Color(0xFF00ACC1)..style = PaintingStyle.fill;
+    // Kitchen floor (Precision Kitchen Teal)
+    final kitchenFloorPaint = Paint()..color = const Color(0xFF0369A1)..style = PaintingStyle.fill;
     canvas.drawPath(
       _quad(-width, -kDepth, width, -kDepth, width, kDepth, -width, kDepth),
       kitchenFloorPaint,
     );
 
-    // Court outline
-    final linePaint = Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 2.5..style = PaintingStyle.stroke;
-    canvas.drawPath(
-      _quad(-width, -length, width, -length, width, length, -width, length),
-      linePaint,
-    );
+    // Court outline & lines (Crisp regulation white)
+    final linePaint = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke;
 
-    // Center line (from baseline to kitchen line)
-    // Bot side (-length to -kDepth)
+    final courtPath = _quad(-width, -length, width, -length, width, length, -width, length);
+    canvas.drawPath(courtPath, linePaint);
+
+    // Center line
+    // Bot side
     canvas.drawLine(_proj(0, -length), _proj(0, -kDepth), linePaint);
-    // Player side (kDepth to length)
+    // Player side
     canvas.drawLine(_proj(0, kDepth), _proj(0, length), linePaint);
 
     // Kitchen lines
@@ -578,14 +642,14 @@ class CourtVisualComponent extends Component {
     canvas.drawLine(_proj(-width, kDepth), _proj(width, kDepth), linePaint);
 
     // Net
-    final netShadowPaint = Paint()..color = const Color(0x33000000)..strokeWidth = 6;
-    // draw shadow at z=0, slightly offset
+    final netShadowPaint = Paint()..color = const Color(0x66000000)..strokeWidth = 8;
     canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netShadowPaint);
 
     final netHeight = 0.18;
-    final netPaint = Paint()..color = const Color(0xDDFFFFFF)..strokeWidth = 3..style = PaintingStyle.stroke;
-    final netMeshPaint = Paint()..color = const Color(0x55FFFFFF)..style = PaintingStyle.fill;
-    
+    final netPaint = Paint()..color = const Color(0xFFF8FAFC)..strokeWidth = 3..style = PaintingStyle.stroke;
+    final netTapePaint = Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 4..style = PaintingStyle.stroke;
+    final netMeshPaint = Paint()..color = const Color(0x44FFFFFF)..style = PaintingStyle.fill;
+        
     // Net mesh
     final netPath = Path()
       ..moveTo(_proj(-width * 1.1, 0, 0).dx, _proj(-width * 1.1, 0, 0).dy)
@@ -596,13 +660,21 @@ class CourtVisualComponent extends Component {
     canvas.drawPath(netPath, netMeshPaint);
 
     // Bottom of net
-    canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netPaint);
+    canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netTapePaint);
     // Top of net (White tape)
-    final netTapePaint = Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 6..style = PaintingStyle.stroke;
     canvas.drawLine(_proj(-width * 1.1, 0, netHeight), _proj(width * 1.1, 0, netHeight), netTapePaint);
     // Posts
     canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(-width * 1.1, 0, netHeight), netPaint);
     canvas.drawLine(_proj(width * 1.1, 0, 0), _proj(width * 1.1, 0, netHeight), netPaint);
+
+    // Benches for stadium (Championship Gold)
+    final sBenchPaint = Paint()..color = const Color(0xFFF59E0B);
+    // Left side benches
+    _drawBench(canvas, -width * 2.2, -length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
+    _drawBench(canvas, -width * 2.2, length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
+    // Right side benches
+    _drawBench(canvas, width * 2.2, -length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
+    _drawBench(canvas, width * 2.2, length * 0.5, 0.4, 2.5, 0.2, sBenchPaint);
   }
 }
 

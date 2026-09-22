@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Colors
-  static const Color bgDark = Color(0xFF0D1117);
+  static const Color bgDark = Color(0xFF0B132B);
   static const Color surfaceDark = Color(0xFF1A1F24);
   static const Color accentCyan = Colors.cyanAccent;
   static const Color accentTeal = Colors.teal;

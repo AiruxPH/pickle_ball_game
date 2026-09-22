@@ -179,10 +179,16 @@ class _PickleballGameState extends State<PickleballGame> {
             setState(() => feedbackText = '');
           }
         });
+      } else if (swingResult == SwingResult.twoBounceFault) {
+        feedbackText = 'TWO-BOUNCE FAULT!';
+        _handleRallyEnd(RallyEnd.playerFault);
       } else if (swingResult == SwingResult.kitchenFault) {
-        feedbackText = 'KITCHEN FAULT';
+        feedbackText = 'KITCHEN FAULT!';
+        _handleRallyEnd(RallyEnd.playerFault);
+      } else {
+        feedbackText = 'MISSED!';
         Future.delayed(const Duration(milliseconds: 1000), () {
-          if (mounted && feedbackText == 'KITCHEN FAULT') {
+          if (mounted && feedbackText == 'MISSED!') {
             setState(() => feedbackText = '');
           }
         });
@@ -355,7 +361,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF1A1F24).withValues(alpha: 0.75),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.2)),
+                                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
                                     ),
                                     child: FittedBox(
                                       fit: BoxFit.scaleDown,
@@ -366,7 +372,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                             liveRegion: true,
                                             label: 'CPU score $botScore',
                                             child: Text('CPU: $botScore',
-                                                style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                                                style: const TextStyle(color: const Color(0xFFE11D48), fontSize: 14, fontWeight: FontWeight.bold)),
                                           ),
                                           const Padding(
                                             padding: EdgeInsets.symmetric(horizontal: 8),
@@ -376,7 +382,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                             liveRegion: true,
                                             label: 'Your score $playerScore',
                                             child: Text('YOU: $playerScore',
-                                                style: const TextStyle(color: Colors.cyanAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                                                style: const TextStyle(color: const Color(0xFFF59E0B), fontSize: 14, fontWeight: FontWeight.bold)),
                                           ),
                                         ],
                                       ),
@@ -499,7 +505,7 @@ class _PickleballGameState extends State<PickleballGame> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A1F24).withValues(alpha: 0.6),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.4), width: 2),
+            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), width: 2),
           ),
           child: Center(
             child: Transform.translate(
@@ -508,10 +514,10 @@ class _PickleballGameState extends State<PickleballGame> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.cyanAccent.withValues(alpha: 0.85),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.85),
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Colors.cyanAccent.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 2),
+                    BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 2),
                     const BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2)),
                   ],
                 ),
@@ -526,7 +532,7 @@ class _PickleballGameState extends State<PickleballGame> {
   Widget _buildHitButton() {
     final isPlayerServing = simulation.playPhase == MatchPlayPhase.waitingForServe && simulation.servingSide == MatchSide.player;
     final buttonText = isPlayerServing ? 'SERVE' : 'HIT';
-    final buttonColor = isPlayerServing ? const Color(0xFFFF6D00) : Colors.cyanAccent;
+    final buttonColor = isPlayerServing ? const Color(0xFFFF6D00) : const Color(0xFFF59E0B);
     final textColor = isPlayerServing ? Colors.white : Colors.black;
 
     return Semantics(
@@ -570,13 +576,13 @@ class _PickleballGameState extends State<PickleballGame> {
             color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: Colors.tealAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
+              BoxShadow(color: const Color(0xFFFB923C).withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
               const BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
             ],
-            border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.6), width: 2.0),
+            border: Border.all(color: const Color(0xFFFB923C).withValues(alpha: 0.6), width: 2.0),
           ),
           child: const Center(
-            child: Icon(Icons.bolt, color: Colors.tealAccent, size: 36),
+            child: Icon(Icons.bolt, color: const Color(0xFFFB923C), size: 36),
           ),
         ),
       ),
@@ -599,13 +605,13 @@ class _PickleballGameState extends State<PickleballGame> {
           color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: Colors.cyanAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
+            BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
             const BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
           ],
-          border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.5), width: 2.0),
+          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 2.0),
         ),
         child: const Center(
-          child: Icon(Icons.videocam, color: Colors.cyanAccent, size: 36),
+          child: Icon(Icons.videocam, color: const Color(0xFFF59E0B), size: 36),
         ),
       ),
     );
@@ -617,16 +623,16 @@ class _PickleballGameState extends State<PickleballGame> {
       decoration: BoxDecoration(
         color: Colors.black87,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('LIVE BROADCAST', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+          const Text('LIVE BROADCAST', style: TextStyle(color: const Color(0xFFE11D48), fontWeight: FontWeight.bold, fontSize: 12)),
           const SizedBox(height: 4),
           Text('RALLY: ${simulation.rallyLength}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
-          Text('BALL SPEED: ${simulation.ballSpeed.toStringAsFixed(0)} MPH', style: const TextStyle(color: Colors.cyanAccent, fontSize: 14)),
+          Text('BALL SPEED: ${simulation.ballSpeed.toStringAsFixed(0)} MPH', style: const TextStyle(color: const Color(0xFFF59E0B), fontSize: 14)),
         ],
       ),
     );
@@ -641,12 +647,12 @@ class _PickleballGameState extends State<PickleballGame> {
         decoration: BoxDecoration(
           color: const Color(0xFF1A1F24).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.2)),
+          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
         ),
         child: Slider(
           min: 1.0,
           max: 10.0,
-          activeColor: Colors.cyanAccent,
+          activeColor: const Color(0xFFF59E0B),
           inactiveColor: Colors.white12,
           value: simulation.camera.freeRoamZ,
           onChanged: (val) {
@@ -671,9 +677,9 @@ class _PickleballGameState extends State<PickleballGame> {
             decoration: BoxDecoration(
               color: const Color(0xFF1A1F24),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1.5),
+              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 1.5),
               boxShadow: [
-                BoxShadow(color: Colors.cyanAccent.withValues(alpha: 0.15), blurRadius: 30, spreadRadius: 5),
+                BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.15), blurRadius: 30, spreadRadius: 5),
                 BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
               ],
             ),
@@ -681,12 +687,12 @@ class _PickleballGameState extends State<PickleballGame> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('PAUSED',
-                    style: TextStyle(color: Colors.cyanAccent, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 4)),
+                    style: TextStyle(color: const Color(0xFFF59E0B), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 4)),
                 const SizedBox(height: 32),
                 _buildPauseButton(
                   icon: Icons.play_arrow,
                   label: 'RESUME',
-                  color: Colors.cyanAccent,
+                  color: const Color(0xFFF59E0B),
                   textColor: Colors.black,
                   onTap: _togglePause,
                 ),
@@ -713,8 +719,8 @@ class _PickleballGameState extends State<PickleballGame> {
                   icon: Icons.exit_to_app,
                   label: 'QUIT',
                   color: Colors.transparent,
-                  textColor: Colors.redAccent,
-                  borderColor: Colors.redAccent.withValues(alpha: 0.5),
+                  textColor: const Color(0xFFE11D48),
+                  borderColor: const Color(0xFFE11D48).withValues(alpha: 0.5),
                   onTap: () {
                     _showConfirmationDialog(
                       title: 'Quit Game',
@@ -775,7 +781,7 @@ class _PickleballGameState extends State<PickleballGame> {
             decoration: BoxDecoration(
               color: const Color(0xFF1A1F24),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1.5),
+              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 1.5),
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
               ],
@@ -783,7 +789,7 @@ class _PickleballGameState extends State<PickleballGame> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title.toUpperCase(), style: const TextStyle(color: Colors.cyanAccent, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                Text(title.toUpperCase(), style: const TextStyle(color: const Color(0xFFF59E0B), fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1)),
                 const SizedBox(height: 16),
                 Text(content, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
                 const SizedBox(height: 24),
@@ -809,7 +815,7 @@ class _PickleballGameState extends State<PickleballGame> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.cyanAccent,
+                          color: const Color(0xFFF59E0B),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text('YES', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
@@ -839,12 +845,12 @@ class _PickleballGameState extends State<PickleballGame> {
               color: const Color(0xFF1A1F24),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: playerWon ? Colors.cyanAccent.withValues(alpha: 0.4) : Colors.redAccent.withValues(alpha: 0.4),
+                color: playerWon ? const Color(0xFFF59E0B).withValues(alpha: 0.4) : const Color(0xFFE11D48).withValues(alpha: 0.4),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: playerWon ? Colors.cyanAccent.withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
+                  color: playerWon ? const Color(0xFFF59E0B).withValues(alpha: 0.2) : const Color(0xFFE11D48).withValues(alpha: 0.2),
                   blurRadius: 30,
                   spreadRadius: 5,
                 ),
@@ -857,7 +863,7 @@ class _PickleballGameState extends State<PickleballGame> {
                 Text(
                   playerWon ? '🏆 VICTORY' : 'DEFEAT',
                   style: TextStyle(
-                      color: playerWon ? Colors.cyanAccent : Colors.redAccent,
+                      color: playerWon ? const Color(0xFFF59E0B) : const Color(0xFFE11D48),
                       fontSize: 36,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 3),
@@ -875,7 +881,7 @@ class _PickleballGameState extends State<PickleballGame> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: Colors.cyanAccent,
+                      color: const Color(0xFFF59E0B),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Center(

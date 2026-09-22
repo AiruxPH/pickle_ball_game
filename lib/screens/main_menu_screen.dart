@@ -73,7 +73,7 @@ class MainMenuScreen extends StatelessWidget {
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
-              colors: [Colors.cyanAccent, Colors.teal],
+              colors: [const Color(0xFFF59E0B), Colors.teal],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -151,7 +151,7 @@ class MainMenuScreen extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white12),
         ),
-        child: Icon(icon, color: Colors.cyanAccent, size: 22),
+        child: Icon(icon, color: const Color(0xFFF59E0B), size: 22),
       ),
     );
   }
@@ -169,7 +169,7 @@ class MainMenuScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1F24),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1.5),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 1.5),
                   boxShadow: [
                     BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
                   ],
@@ -181,7 +181,7 @@ class MainMenuScreen extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        color: Colors.cyanAccent.withValues(alpha: 0.1),
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                       ),
                       child: const Text(
@@ -239,10 +239,10 @@ class MainMenuScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black87,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.5), width: 2),
+          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.cyanAccent.withValues(alpha: 0.4),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
               blurRadius: 15,
               spreadRadius: 2,
             ),
@@ -276,10 +276,10 @@ class MainMenuScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.cyanAccent.withValues(alpha: 0.1),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.cyanAccent, size: 28),
+              child: Icon(icon, color: const Color(0xFFF59E0B), size: 28),
             ),
             const SizedBox(width: 16),
             Column(

@@ -43,7 +43,7 @@ enum CameraMode { action, broadcast, freeRoam, topDown }
 
 enum RallyEnd { playerFault, botFault }
 
-enum SwingResult { hit, missed, kitchenFault }
+enum SwingResult { hit, missed, kitchenFault, twoBounceFault }
 
 class Camera3D {
   Camera3D() {
@@ -615,24 +615,28 @@ class GameSimulation {
         (ball.y - botY).abs() <= botHitRadiusY &&
         (ball.x - botX).abs() <= botHitRadiusX &&
         ball.z >= botHitZMin &&
-        ball.z <= botHitZMax &&
-        ball.hasBounced) {
-      rallyLength++;
-      lastHitByPlayer = false;
+        ball.z <= botHitZMax) {
       
-      final isAggressiveHit = math.Random().nextDouble() < bot1Aggression;
-      final isError = math.Random().nextDouble() < 0.05; // 5% error rate
-      
-      ball.velocityY = isAggressiveHit ? 0.03 : 0.024;
-      
-      if (isError) {
-         ball.velocityZ = 0.005; // Hit the net!
-         ball.velocityX = (ball.x - botX) * 0.12 + 0.02; // Or hit out of bounds
+      if (rallyLength < 3 && !ball.hasBounced) {
+        // Wait for bounce
       } else {
-         ball.velocityZ = isAggressiveHit ? 0.015 : 0.022; // Hard hit is lower arc
-         ball.velocityX = (ball.x - botX) * 0.12;
+        rallyLength++;
+        lastHitByPlayer = false;
+        
+        final isAggressiveHit = math.Random().nextDouble() < bot1Aggression;
+        final isError = math.Random().nextDouble() < 0.05; // 5% error rate
+        
+        ball.velocityY = isAggressiveHit ? 0.03 : 0.024;
+        
+        if (isError) {
+           ball.velocityZ = 0.005; // Hit the net!
+           ball.velocityX = (ball.x - botX) * 0.12 + 0.02; // Or hit out of bounds
+        } else {
+           ball.velocityZ = isAggressiveHit ? 0.015 : 0.022; // Hard hit is lower arc
+           ball.velocityX = (ball.x - botX) * 0.12;
+        }
+        ball.hasBounced = false;
       }
-      ball.hasBounced = false;
     }
 
     camera.updateDynamics(
@@ -653,17 +657,25 @@ class GameSimulation {
       }
       return SwingResult.missed;
     }
-    if (gameMode != GameMode.freeRoamPractice && !GameDebugConfig.bypassKitchenRules && PickleballRules.isKitchenVolley(
-      playerY: playerY,
-      ballHasBounced: ball.hasBounced,
-    )) {
-      return SwingResult.kitchenFault;
-    }
+    
+    // Check hit radius first
     if ((ball.x - playerX).abs() > playerHitRadiusX || 
         (ball.y - playerY).abs() > playerHitRadiusY || 
         ball.z < playerHitZMin || 
         ball.z > playerHitZMax) {
       return SwingResult.missed;
+    }
+
+    if (gameMode != GameMode.freeRoamPractice && !GameDebugConfig.bypassKitchenRules) {
+      if (rallyLength < 3 && !ball.hasBounced) {
+        return SwingResult.twoBounceFault;
+      }
+      if (PickleballRules.isKitchenVolley(
+        playerY: playerY,
+        ballHasBounced: ball.hasBounced,
+      )) {
+        return SwingResult.kitchenFault;
+      }
     }
 
     rallyLength++;
