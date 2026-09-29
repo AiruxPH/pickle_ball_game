@@ -39,6 +39,7 @@ dependencies:
   firebase_core: ^4.15.0
   vector_math: ^2.1.4
   shared_preferences: ^2.5.5
+  model_viewer_plus: ^1.10.0
 
 dev_dependencies:
   flutter_test:

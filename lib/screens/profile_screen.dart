@@ -1,9 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 import '../theme/app_theme.dart';
 import '../widgets/game_scaffold.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  /// Which 3D model is currently shown in the viewer.
+  int _selectedModelIndex = 0;
+
+  static const List<_ModelEntry> _models = [
+    _ModelEntry(
+      label: 'Pickleball',
+      path: 'assets/models/pickleball.glb',
+      icon: Icons.sports_tennis,
+    ),
+    _ModelEntry(
+      label: 'Racket',
+      path: 'assets/models/racket_for_pickleball.glb',
+      icon: Icons.sports_handball,
+    ),
+    _ModelEntry(
+      label: 'Bleachers',
+      path: 'assets/models/sports_bleachers.glb',
+      icon: Icons.stadium,
+    ),
+    _ModelEntry(
+      label: 'Arena',
+      path: 'assets/models/low_poly_stadiumsports_arena_seats.glb',
+      icon: Icons.account_balance,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -11,17 +43,16 @@ class ProfileScreen extends StatelessWidget {
       title: 'Player Profile',
       child: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: 900),
           child: ListView(
             padding: const EdgeInsets.only(bottom: 24.0),
             children: [
-              // Header profile card
+              // ── Header card ──────────────────────────────────────────
               Container(
                 decoration: AppTheme.glassPanel,
                 padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
-                    // Avatar
                     Container(
                       width: 80,
                       height: 80,
@@ -36,7 +67,6 @@ class ProfileScreen extends StatelessWidget {
                       child: const Icon(Icons.person, size: 48, color: Colors.white),
                     ),
                     const SizedBox(width: 24),
-                    // Name and Level
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,10 +80,10 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
-              // Stats
+
+              // ── Stats row ─────────────────────────────────────────────
               Row(
                 children: [
                   Expanded(child: _buildStatCard('MATCHES', '0', Icons.sports_tennis)),
@@ -62,6 +92,108 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(child: _buildStatCard('LONGEST RALLY', '0', Icons.timeline)),
                 ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── 3D Equipment Viewer ───────────────────────────────────
+              Container(
+                decoration: AppTheme.glassPanel,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('EQUIPMENT SHOWCASE', style: AppTheme.headingStyle),
+                    const SizedBox(height: 12),
+
+                    // Model selector tabs
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(_models.length, (i) {
+                          final selected = i == _selectedModelIndex;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedModelIndex = i),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? AppTheme.accentCyan.withValues(alpha: 0.25)
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: selected
+                                        ? AppTheme.accentCyan
+                                        : Colors.white24,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _models[i].icon,
+                                      size: 16,
+                                      color: selected
+                                          ? AppTheme.accentCyan
+                                          : Colors.white54,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _models[i].label,
+                                      style: TextStyle(
+                                        color: selected
+                                            ? AppTheme.accentCyan
+                                            : Colors.white54,
+                                        fontWeight: selected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 3D model viewer
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 300,
+                        child: ModelViewer(
+                          key: ValueKey(_selectedModelIndex),
+                          src: _models[_selectedModelIndex].path,
+                          alt: _models[_selectedModelIndex].label,
+                          autoRotate: true,
+                          cameraControls: true,
+                          backgroundColor: const Color(0xFF0B1A2E),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        'Drag to rotate • Pinch to zoom',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -85,4 +217,16 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ModelEntry {
+  final String label;
+  final String path;
+  final IconData icon;
+
+  const _ModelEntry({
+    required this.label,
+    required this.path,
+    required this.icon,
+  });
 }
