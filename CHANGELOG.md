@@ -4,6 +4,44 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-01 19:35:00 +08:00] - Refine Bot vs Bot POVs: Zoom In Side/Top Views, Eliminate Black Floor Clipping, and Enforce Stadium Bounds in Free Roam
+
+### 1. Zoom In on Side View (Broadcast Camera) & Smooth Rally Tracking
+- **Reason of Change**:
+  - Bring the broadcast camera closer to the court so spectators can clearly see player animations, paddle contact, and ball bounces without distant pixelation.
+  - Implemented:
+    - Shifted `CameraMode.broadcast` camera position from distant $X = 2.5, Z = 1.5$ to tournament sideline elevation $X = 1.35, Z = 0.78$.
+    - Added subtle $Y$-axis camera panning in `updateDynamics` (`targetLookY = ballY * 0.20`), smoothly tracking the rally action between the top and bottom bot.
+
+### 2. Zoom In on Top-Down View
+- **Reason of Change**:
+  - In top-down mode, the court was excessively small in the center with over 50% of the screen wasted on empty navy blue void.
+  - Implemented:
+    - Lowered top-down altitude from $Z = 3.5$ to $Z = 2.15$, framing the court, baselines, and both bots from top to bottom.
+
+### 3. Eliminate Broadcast Floor Clipping & Black Voids
+- **Cause of Error**:
+  - In `lib/pickleball_flame_game.dart`, the stadium floor was restricted to `boundsW = 1.232` and `floorFront = 1.75`. Because the previous broadcast camera was placed at $X = 2.5$, it was floating outside the arena geometry looking across unpainted space, creating a large black void at the bottom edge.
+- **Reason of Change**:
+  - Ensure the arena floor is seamless and solid from every camera perspective.
+- **Changes**:
+  - In `CourtVisualComponent.render`, rendered `stadiumBaseFloorPaint` covering the full foundation floor ($X \in [-floorW, floorW], Y \in [-floorBack, floorFront]$).
+  - Extended `floorFront` from $1.75$ to `length * 6.0`.
+  - Expanded stadium walls to `boundsW = width * 3.4` ($\approx 1.50$) so the sideline camera sits inside the arena.
+
+### 4. Limit Free Roam Mode Strictly Inside the Stadium
+- **Cause of Error**:
+  - `freeRoamX`, `freeRoamY`, and `freeRoamZ` had no bounding constraints, allowing the camera to float into the dark abyss beyond the stadium walls or zoom out to $Z = 10.0$.
+- **Reason of Change**:
+  - Keep the free roam camera grounded and enclosed within the stadium environment as requested by the user.
+- **Changes**:
+  - In `GameSimulation.update()`, clamped `freeRoamX` within $\pm 1.10$, `freeRoamY` between $-2.0$ (grandstand back) and $1.55$ (front boundary), and `freeRoamZ` between $0.4$ and $2.8$.
+  - Updated `GestureDetector.onScaleUpdate` in `lib/main.dart` to clamp scale within $0.4\text{--}2.8$ and pitch between $-\pi / 2.2$ and $\pi / 6.0$.
+  - Adjusted `_buildAltitudeSlider()` range from $1.0\text{--}10.0$ to $0.4\text{--}2.8$ with safe clamped values.
+  - Reset default initial `freeRoam` position from $(0.0, 2.0, 4.0)$ to $(0.0, 1.4, 1.8)$ inside the stadium.
+
+---
+
 ## [2026-10-01 19:15:00 +08:00] - Practice Mode Redesign: Full Facility HUD, Ball Machine Drills, Regulation Court & Net, and Dynamic Target Landing Zones
 
 ### 1. Comprehensive Practice Mode HUD & Interactive Drill Settings

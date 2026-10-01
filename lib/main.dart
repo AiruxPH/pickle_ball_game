@@ -435,7 +435,7 @@ class _PickleballGameState extends State<PickleballGame> {
                       if (simulation.camera.mode == CameraMode.freeRoam) {
                         if (details.scale != 1.0) {
                           simulation.camera.freeRoamZ =
-                              (_initialZoomZ / details.scale).clamp(1.0, 10.0);
+                              (_initialZoomZ / details.scale).clamp(0.4, 2.8);
                         }
                         // Handle panning directly without triggering a Flutter rebuild.
                         // The Flame game loop will naturally pick up these changes.
@@ -446,7 +446,7 @@ class _PickleballGameState extends State<PickleballGame> {
                         simulation.camera.freeRoamPitch = simulation
                             .camera
                             .freeRoamPitch
-                            .clamp(-math.pi / 2.1, math.pi / 2.1);
+                            .clamp(-math.pi / 2.2, math.pi / 6.0);
                       }
                     },
                     child: GameWidget(game: flameGame),
@@ -921,11 +921,11 @@ class _PickleballGameState extends State<PickleballGame> {
           ),
         ),
         child: Slider(
-          min: 1.0,
-          max: 10.0,
+          min: 0.4,
+          max: 2.8,
           activeColor: const Color(0xFFF59E0B),
           inactiveColor: Colors.white12,
-          value: simulation.camera.freeRoamZ,
+          value: simulation.camera.freeRoamZ.clamp(0.4, 2.8),
           onChanged: (val) {
             setState(() {
               simulation.camera.freeRoamZ = val;

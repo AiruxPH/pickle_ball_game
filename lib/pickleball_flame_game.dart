@@ -1278,7 +1278,7 @@ class CourtVisualComponent extends Component {
 
     // Draw floor
     final floorBack = -length * 6.0;
-    final floorFront = 1.75;
+    final floorFront = length * 6.0;
     final floorW = width * 6.0;
 
     final isPractice = game.simulation.mapType == MapType.practiceFacility;
@@ -1307,9 +1307,25 @@ class CourtVisualComponent extends Component {
     } else {
       // --- STADIUM MAP ---
 
-      final boundsW = width * 2.8;
-      final boundsBack = -length * 2.5;
-      final boundsFront = floorFront;
+      // Solid foundation floor under the entire stadium area (prevents any black voids)
+      final stadiumBaseFloorPaint = Paint()..color = const Color(0xFF07121E);
+      canvas.drawPath(
+        _quad(
+          -floorW,
+          floorBack,
+          floorW,
+          floorBack,
+          floorW,
+          floorFront,
+          -floorW,
+          floorFront,
+        ),
+        stadiumBaseFloorPaint,
+      );
+
+      final boundsW = width * 3.4;
+      final boundsBack = -length * 2.8;
+      final boundsFront = length * 2.2;
 
       // Draw the walls (finite area)
       final wallPaint = Paint()..color = const Color(0xFF0F172A);

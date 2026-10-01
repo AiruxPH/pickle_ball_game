@@ -63,10 +63,10 @@ class Camera3D {
 
   // Free roam controls (controlled by joystick in free roam mode)
   double freeRoamX = 0.0;
-  double freeRoamY = 2.0;
-  double freeRoamZ = 4.0;
+  double freeRoamY = 1.4;
+  double freeRoamZ = 1.8;
   double freeRoamYaw = math.pi; // looking at -Y
-  double freeRoamPitch = -0.5; // looking slightly down
+  double freeRoamPitch = -0.35; // looking slightly down
 
   vmath.Matrix4 _viewProjection = vmath.Matrix4.identity();
   double screenWidth = 400;
@@ -88,6 +88,7 @@ class Camera3D {
   void updateDynamics({
     required double dt,
     required double ballX,
+    required double ballY,
     required double playerX,
     required double playerY,
     required GameMode gameMode,
@@ -104,9 +105,11 @@ class Camera3D {
       targetEyeY = (playerY - 1.8) * 0.4;
       targetLookY = (playerY - 1.8) * 0.2;
     } else {
-      // Smoothly track the ball X position slightly for normal match
+      // Smoothly track the ball position for normal match and spectator
       targetEyeX = ballX * 0.15;
       targetLookX = ballX * 0.05;
+      targetEyeY = (ballY * 0.10).clamp(-0.15, 0.15);
+      targetLookY = (ballY * 0.20).clamp(-0.25, 0.25);
     }
 
     eyeOffsetX += (targetEyeX - eyeOffsetX) * dt * 3.0;
@@ -155,8 +158,9 @@ class Camera3D {
         target = vmath.Vector3(targetOffsetX, -0.2 + targetOffsetY, 0.0);
         break;
       case CameraMode.broadcast:
-        eye = vmath.Vector3(2.5 + shakeX, 0.0 + shakeY, 1.5);
-        target = vmath.Vector3(targetOffsetX, 0.0, 0.0);
+        // Zoomed-in tournament sideline broadcast view with subtle rally tracking
+        eye = vmath.Vector3(1.35 + shakeX, eyeOffsetY + shakeY, 0.78);
+        target = vmath.Vector3(0.0, targetOffsetY * 0.5, 0.08);
         break;
       case CameraMode.freeRoam:
         eye = vmath.Vector3(freeRoamX + shakeX, freeRoamY + shakeY, freeRoamZ);
@@ -169,7 +173,8 @@ class Camera3D {
         target = eye + vmath.Vector3(dirX, dirY, dirZ);
         break;
       case CameraMode.topDown:
-        eye = vmath.Vector3(shakeX, shakeY, 3.5);
+        // Zoomed-in top-down framing where the court fills the view comfortably
+        eye = vmath.Vector3(shakeX, shakeY, 2.15);
         target = vmath.Vector3(0.0, 0.0, 0.0);
         up = vmath.Vector3(0.0, -1.0, 0.0); // Looking down Z, Y is up on screen
         break;
@@ -846,6 +851,15 @@ class GameSimulation {
 
       camera.freeRoamX += (-jY * forwardX + jX * rightX) * 0.05;
       camera.freeRoamY += (-jY * forwardY + jX * rightY) * 0.05;
+
+      // Constrain free roam strictly inside stadium boundaries
+      final maxW = courtWidth * 2.5; // ~1.10 (inside arena walls)
+      final minY = -courtLength * 2.0; // inside grandstand back wall (-2.8)
+      final maxY = courtLength * 1.55; // inside front arena boundary
+      camera.freeRoamX = camera.freeRoamX.clamp(-maxW, maxW);
+      camera.freeRoamY = camera.freeRoamY.clamp(minY, maxY);
+      camera.freeRoamZ = camera.freeRoamZ.clamp(0.4, 2.8);
+
       camera._updateMatrices();
       jX = 0;
       jY = 0;
@@ -941,6 +955,7 @@ class GameSimulation {
       camera.updateDynamics(
         dt: 0.025,
         ballX: ball.x,
+        ballY: ball.y,
         playerX: playerX,
         playerY: playerY,
         gameMode: gameMode,
@@ -1331,6 +1346,7 @@ class GameSimulation {
     camera.updateDynamics(
       dt: 0.025,
       ballX: ball.x,
+      ballY: ball.y,
       playerX: playerX,
       playerY: playerY,
       gameMode: gameMode,
