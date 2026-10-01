@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../settings_manager.dart';
 import '../theme/app_theme.dart';
+import '../widgets/angular_frame.dart';
 import '../widgets/game_scaffold.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -27,9 +28,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 24.0),
                 children: [
-                  Container(
-                    decoration: AppTheme.glassPanel,
+                  AngularFrame(
+                    accent: AppTheme.accentCyan,
+                    cut: 18,
                     padding: const EdgeInsets.all(24),
+                    fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

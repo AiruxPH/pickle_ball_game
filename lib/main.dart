@@ -17,6 +17,7 @@ import 'pickleball_flame_game.dart';
 import 'screens/loading_screen.dart';
 import 'settings_manager.dart';
 import 'theme/app_theme.dart';
+import 'widgets/angular_frame.dart';
 import 'widgets/match_hud.dart';
 
 void main() async {
@@ -852,29 +853,12 @@ class _PickleballGameState extends State<PickleballGame> {
       child: Container(
         color: Colors.black.withValues(alpha: 0.65),
         child: Center(
-          child: Container(
-            width: 280,
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1F24),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
+          child: AngularFrame(
+            width: 290,
+            cut: 18,
+            accent: const Color(0xFFF59E0B),
+            fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -887,7 +871,7 @@ class _PickleballGameState extends State<PickleballGame> {
                     letterSpacing: 4,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
                 _buildPauseButton(
                   icon: Icons.play_arrow,
                   label: 'RESUME',
@@ -989,24 +973,12 @@ class _PickleballGameState extends State<PickleballGame> {
       builder: (BuildContext ctx) {
         return Dialog(
           backgroundColor: Colors.transparent,
-          child: Container(
-            width: 300,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1F24),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
+          child: AngularFrame(
+            width: 310,
+            cut: 16,
+            accent: const Color(0xFFF59E0B),
+            fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
+            padding: const EdgeInsets.all(22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

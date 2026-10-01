@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/angular_frame.dart';
 import '../widgets/game_scaffold.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -49,9 +50,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.only(bottom: 24.0),
             children: [
               // ── Header card ──────────────────────────────────────────
-              Container(
-                decoration: AppTheme.glassPanel,
+              AngularFrame(
+                accent: AppTheme.accentCyan,
+                cut: 16,
                 padding: const EdgeInsets.all(24),
+                fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
                 child: Row(
                   children: [
                     Container(
@@ -108,9 +111,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
 
               // ── 3D Equipment Viewer ───────────────────────────────────
-              Container(
-                decoration: AppTheme.glassPanel,
-                padding: const EdgeInsets.all(16),
+              AngularFrame(
+                accent: AppTheme.accentCyan,
+                cut: 16,
+                padding: const EdgeInsets.all(20),
+                fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -222,14 +227,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatCard(String title, String value, IconData icon) {
-    return Container(
-      decoration: AppTheme.glassPanel,
+    return AngularFrame(
+      accent: AppTheme.accentCyan,
+      cut: 12,
       padding: const EdgeInsets.all(16),
+      fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
       child: Column(
         children: [
           Icon(icon, color: AppTheme.accentCyan, size: 32),
           const SizedBox(height: 12),
-          Text(title, style: AppTheme.subtitleStyle),
+          Text(title, style: AppTheme.subtitleStyle, textAlign: TextAlign.center),
           const SizedBox(height: 4),
           Text(value, style: AppTheme.titleStyle.copyWith(fontSize: 24)),
         ],

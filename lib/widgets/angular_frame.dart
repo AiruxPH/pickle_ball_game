@@ -14,6 +14,8 @@ class AngularFrame extends StatelessWidget {
     this.fillColors = const [AppTheme.surfaceRaised, AppTheme.panelBg],
     this.cut = 13,
     this.shadow = true,
+    this.width,
+    this.height,
   });
 
   final Widget child;
@@ -22,10 +24,12 @@ class AngularFrame extends StatelessWidget {
   final List<Color> fillColors;
   final double cut;
   final bool shadow;
+  final double? width;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
+    Widget content = CustomPaint(
       painter: _AngularFramePainter(
         accent: accent,
         fillColors: fillColors,
@@ -37,6 +41,12 @@ class AngularFrame extends StatelessWidget {
         child: Padding(padding: padding, child: child),
       ),
     );
+
+    if (width != null || height != null) {
+      content = SizedBox(width: width, height: height, child: content);
+    }
+
+    return content;
   }
 }
 
@@ -125,10 +135,11 @@ class _AngularFramePainter extends CustomPainter {
         ..strokeWidth = 1.5,
     );
 
+    final effectiveCut = cut.clamp(5.0, size.shortestSide * 0.24);
     final topBevel = Path()
-      ..moveTo(cut + 3, 4)
-      ..lineTo(size.width - cut * 1.85, 4)
-      ..lineTo(size.width - cut - 2, cut * 0.48 + 2);
+      ..moveTo(effectiveCut + 3, 4)
+      ..lineTo(size.width - effectiveCut * 1.85, 4)
+      ..lineTo(size.width - effectiveCut - 2, effectiveCut * 0.48 + 2);
     canvas.drawPath(
       topBevel,
       Paint()

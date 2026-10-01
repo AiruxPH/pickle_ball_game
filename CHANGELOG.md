@@ -4,6 +4,35 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-01 18:46:00 +08:00] - Extend AngularFrame Aesthetic Across Modals and Settings/Profile Panels & Fix Overflow
+
+### 1. Apply AngularFrame to Dialogs, Pause Menu, Settings, and Profile
+- **Reason of Change**:
+  - Unify the arcade/cyberpunk visual identity across all modal popups and content containers by utilizing `AngularFrame` (beveled/angular cut corners, metallic stroke, inner highlights, and ambient shadow) instead of standard rounded rectangles.
+  - User requested applying `AngularFrame` to:
+    1. In-game Pause menu (`_buildPauseOverlay` and `_showConfirmationDialog` in `lib/main.dart`).
+    2. CPU Difficulty selection dialog in `lib/screens/main_menu_screen.dart`.
+    3. Game Mode selection dialog in `lib/screens/main_menu_screen.dart`.
+    4. Controls and Accessibility settings container in `lib/screens/settings_screen.dart`.
+    5. Player Profile cards (Header profile card, stat cards, and 3D equipment showcase) in `lib/screens/profile_screen.dart`.
+- **Changes**:
+  - `lib/widgets/angular_frame.dart`: Added optional `width` and `height` properties to `AngularFrame` to cleanly size containers; synchronized `topBevel` path calculations with the clamped cut value.
+  - `lib/main.dart`: Replaced the rounded container in `_buildPauseOverlay()` and `_showConfirmationDialog()` with `AngularFrame` featuring amber accents, cut corners, and cyber gradient backdrops.
+  - `lib/screens/main_menu_screen.dart`: Replaced modal containers in `_showDifficultyDialog()` and `_buildStartMatchButton()` (Game Mode Picker) with `AngularFrame`.
+  - `lib/screens/settings_screen.dart`: Replaced `Container(decoration: AppTheme.glassPanel)` with `AngularFrame` with cyan accent and 18px corner cut.
+  - `lib/screens/profile_screen.dart`: Applied `AngularFrame` to the player header card, stat summary cards (`MATCHES`, `WINS`, `LONGEST RALLY`), and the 3D equipment showcase container.
+
+### 2. Fix 14px Right Overflow on CPU Difficulty Dialog
+- **Cause of Error**:
+  - In `lib/screens/main_menu_screen.dart`, the difficulty and game mode option dialog container was set to a narrow fixed width of `320px` with `24px` horizontal padding on each row. The subtitle text `"Slower reactions and more mistakes"` exceeded the remaining horizontal text layout bounds, triggering a 14-pixel layout overflow on the right edge.
+- **Reason of Change**:
+  - Eliminate the pixel overflow error and ensure text content scales and wraps smoothly without visual distortion on all screen sizes.
+- **Changes**:
+  - Increased dialog width from `320px` to `350px`.
+  - Adjusted row horizontal padding to `20px` and set `maxLines: 2` with `TextOverflow.ellipsis` for subtitle labels to guarantee proper flex wrapping without overflows.
+
+---
+
 ## [2026-10-01 15:05:00 +08:00] - Fix Mid-Game Ball Disappearance, Repeated Same-Side Bot Serve, and Asymmetric Hitbox Precision
 
 ### 1. Mid-Game Ball Disappearance & Errant Faults

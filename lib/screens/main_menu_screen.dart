@@ -16,27 +16,24 @@ class MainMenuScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
-        child: Container(
-          width: 320,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1F24),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-          ),
+        child: AngularFrame(
+          width: 350,
+          cut: 16,
+          accent: const Color(0xFFF59E0B),
+          fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Padding(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 child: Text(
                   'SELECT CPU DIFFICULTY',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
                   ),
                 ),
               ),
@@ -66,7 +63,7 @@ class MainMenuScreen extends StatelessWidget {
                 title: 'Hard',
                 subtitle: 'Fast, accurate, and aggressive',
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
             ],
           ),
         ),
@@ -312,47 +309,29 @@ class MainMenuScreen extends StatelessWidget {
           builder: (ctx) {
             return Dialog(
               backgroundColor: Colors.transparent,
-              child: Container(
-                width: 320,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1F24),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.8),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
+              child: AngularFrame(
+                width: 350,
+                cut: 16,
+                accent: const Color(0xFFF59E0B),
+                fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(15),
-                        ),
-                      ),
-                      child: const Text(
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      child: Text(
                         'SELECT GAME MODE',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
+                          letterSpacing: 1.1,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     _buildModeOption(
                       icon: Icons.person,
                       title: 'Player vs Bot',
@@ -390,7 +369,7 @@ class MainMenuScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                   ],
                 ),
               ),
@@ -425,7 +404,7 @@ class MainMenuScreen extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
             Container(
@@ -451,9 +430,10 @@ class MainMenuScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white54, fontSize: 13),
                   ),
