@@ -24,8 +24,8 @@ class ProjectedPoint {
 class BallState {
   BallState({
     this.x = 0,
-    this.y = 0,
-    this.z = 0.4,
+    this.y = -1.05,
+    this.z = 0.12,
     this.velocityX = 0.01,
     this.velocityY = 0.02,
     this.velocityZ = 0.02,
@@ -254,8 +254,8 @@ class GameSimulation {
   double botHitZMax = 0.4;
   
   bool lastHitByPlayer = false;
-  MatchSide servingSide = MatchSide.bot;
-  MatchPlayPhase playPhase = MatchPlayPhase.deadBall;
+  MatchSide servingSide = MatchSide.player;
+  MatchPlayPhase playPhase = MatchPlayPhase.inRally;
   int currentServerScore = 0;
   
   int rallyLength = 0;
@@ -279,6 +279,9 @@ class GameSimulation {
     playerVelocityX = 0;
     playerVelocityY = 0;
     playerServeAimAngle = 0.0;
+    ball.x = 0;
+    ball.y = -1.05;
+    ball.z = 0.12;
   }
 
   double botServeTimer = 0.0;
@@ -440,9 +443,16 @@ class GameSimulation {
         botX += (serveX - botX) * 0.1;
         botY += (botBaselineServeY - botY) * 0.1;
         
-        // Player returns to center
-        playerX += (0 - playerX) * 0.1;
-        playerY += (0.75 - playerY) * 0.1;
+        // Receiving player can position with joystick while awaiting serve
+        if (gameMode == GameMode.playerVsBot) {
+          playerVelocityX += (jX * moveSpeed - playerVelocityX) * 0.15;
+          playerVelocityY += (jY * moveSpeed - playerVelocityY) * 0.15;
+          playerX = (playerX + playerVelocityX).clamp(-courtWidth * 1.25, courtWidth * 1.25);
+          playerY = (playerY + playerVelocityY).clamp(0.05, courtLength * 1.35);
+        } else {
+          playerX += (0 - playerX) * 0.1;
+          playerY += (0.75 - playerY) * 0.1;
+        }
         
         // Ball on bot paddle at waist height
         ball.x = botX + 0.08;
@@ -775,14 +785,14 @@ class GameSimulation {
     }
 
     if (gameMode != GameMode.freeRoamPractice && !GameDebugConfig.bypassKitchenRules) {
-      if (rallyLength < 3 && !ball.hasBounced) {
-        return SwingResult.twoBounceFault;
-      }
       if (PickleballRules.isKitchenVolley(
         playerY: playerY,
         ballHasBounced: ball.hasBounced,
       )) {
         return SwingResult.kitchenFault;
+      }
+      if (rallyLength < 3 && !ball.hasBounced) {
+        return SwingResult.twoBounceFault;
       }
     }
 

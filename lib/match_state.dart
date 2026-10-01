@@ -6,7 +6,7 @@ class MatchState {
   MatchState({
     this.playerScore = 0,
     this.botScore = 0,
-    this.servingSide = MatchSide.bot,
+    this.servingSide = MatchSide.player,
     this.status = MatchStatus.ready,
   });
 
@@ -28,7 +28,7 @@ class MatchState {
   void reset() {
     playerScore = 0;
     botScore = 0;
-    servingSide = MatchSide.bot;
+    servingSide = MatchSide.player;
     status = MatchStatus.ready;
   }
 

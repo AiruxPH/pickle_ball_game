@@ -533,7 +533,7 @@ class _PickleballGameState extends State<PickleballGame> {
 
   Widget _buildHitButton() {
     final isPlayerServing = simulation.playPhase == MatchPlayPhase.waitingForServe && simulation.servingSide == MatchSide.player;
-    final buttonText = isPlayerServing ? 'SERVE' : 'HIT';
+    final buttonText = isPlayerServing ? 'TAP TO SERVE' : 'HIT';
     final buttonColor = isPlayerServing ? const Color(0xFFFF6D00) : const Color(0xFFF59E0B);
     final textColor = isPlayerServing ? Colors.white : Colors.black;
 

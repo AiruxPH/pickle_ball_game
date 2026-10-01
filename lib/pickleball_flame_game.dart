@@ -94,7 +94,9 @@ class PickleballFlameGame extends FlameGame {
 
   @override
   void update(double dt) {
-    simulation.camera.updateSize(size.x, size.y);
+    if (hasLayout) {
+      simulation.camera.updateSize(size.x, size.y);
+    }
     super.update(dt);
     if (!isPlaying) return;
 

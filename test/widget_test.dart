@@ -161,6 +161,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: PickleballGame()));
+    await tester.pump();
 
     expect(find.text('CPU: 0'), findsOneWidget);
     expect(find.text('YOU: 0'), findsOneWidget);
@@ -174,5 +175,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('HIT'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
   });
 }
