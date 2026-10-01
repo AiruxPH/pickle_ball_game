@@ -1,0 +1,210 @@
+{
+  "exportTimestamp": "2026-10-01T05-11-12",
+  "bodyType": "male",
+  "standardAnimations": {
+    "exported": {
+      "spellcast": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "060 legion__ceramic_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "thrust": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "060 legion__ceramic_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "walk": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "060 legion__ceramic_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "slash": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "060 legion__ceramic_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "shoot": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "060 legion__ceramic_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "hurt": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "060 legion__ceramic_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "climb": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "idle": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "060 legion__ceramic_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "jump": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "sit": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "emote": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "run": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "combat": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "1h_backslash": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ],
+      "1h_halfslash": [
+        "010 body_color__light_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png"
+      ]
+    },
+    "failed": {
+      "spellcast": [],
+      "thrust": [],
+      "walk": [],
+      "slash": [],
+      "shoot": [],
+      "hurt": [],
+      "climb": [],
+      "idle": [],
+      "jump": [],
+      "sit": [],
+      "emote": [],
+      "run": [],
+      "combat": [],
+      "1h_backslash": [],
+      "1h_halfslash": []
+    }
+  },
+  "customAnimations": {
+    "exported": {
+      "slash_reverse_oversize": [
+        "009 club__club_.png",
+        "010 body_color__light_.png",
+        "020 cuffed_pants__yellow_.png",
+        "036 longsleeves_2_overlay__brown_.png",
+        "060 legion__ceramic_.png",
+        "100 human_male__light_.png",
+        "101 neutral__light_.png",
+        "120 bob__orange_.png",
+        "125 hair_tie__brown_.png",
+        "140 club__club_.png"
+      ]
+    },
+    "failed": {}
+  },
+  "frameSize": 64,
+  "frameCounts": {},
+  "performance": {
+    "exportKind": "splitItemAnimations",
+    "totalMs": 1915.5,
+    "phasesMs": {
+      "render_imageLoadDecode_renderSingleItemAnimation": 117.1,
+      "render_composite_renderSingleItemAnimation": 16.1,
+      "pngEncode": 1620.1,
+      "zipFile": 33.1,
+      "render_imageLoadDecode_customItemSprite": 0,
+      "render_composite_customItemSprite": 11.1,
+      "drawAndSlice": 59.2,
+      "staticFiles": 6.6
+    },
+    "counters": {
+      "pngEncodeCount": 120,
+      "totalPngBytes": 1318673,
+      "drawAndSliceCount": 10,
+      "zipFileEntryCount": 120,
+      "renderExtractAnimationFromCanvasCalls": 0,
+      "renderSingleItemCalls": 0,
+      "renderSingleItemAnimationCalls": 110,
+      "extractFramesFromAnimationBatchCount": 0,
+      "renderSliceCanvasForCustomAnimCalls": 0
+    },
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0"
+  }
+}

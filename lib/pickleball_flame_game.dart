@@ -407,9 +407,15 @@ class PlayerVisualComponent extends Component {
       flipX = game.inputX > 0;
     }
 
-    final drawWidth = spriteToDraw.width * 0.15 * scale;
-    final drawHeight = spriteToDraw.height * 0.15 * scale;
-    final src = Rect.fromLTWH(0, 0, spriteToDraw.width.toDouble(), spriteToDraw.height.toDouble());
+    final frameWidth = spriteToDraw.width / 4.0;
+    final frameHeight = spriteToDraw.height / 4.0;
+
+    // Scale up the single frame so it's a good size
+    final drawWidth = frameWidth * 0.6 * scale;
+    final drawHeight = frameHeight * 0.6 * scale;
+    
+    // Crop to the top-left frame (row 0, column 0)
+    final src = Rect.fromLTWH(0, 0, frameWidth, frameHeight);
     final dst = Rect.fromCenter(center: center.translate(0, -10 * scale), width: drawWidth, height: drawHeight);
 
     if (flipX) {
@@ -527,6 +533,20 @@ class CourtVisualComponent extends Component {
       ..close();
   }
 
+  void _drawVerticalWall(Canvas canvas, double x1, double y1, double x2, double y2, double height, Paint paint) {
+    final p1 = _proj(x1, y1, 0);
+    final p2 = _proj(x2, y2, 0);
+    final p3 = _proj(x2, y2, height);
+    final p4 = _proj(x1, y1, height);
+    final path = Path()
+      ..moveTo(p1.dx, p1.dy)
+      ..lineTo(p2.dx, p2.dy)
+      ..lineTo(p3.dx, p3.dy)
+      ..lineTo(p4.dx, p4.dy)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
   void _drawBench(Canvas canvas, double x, double y, double width, double length, double height, Paint paint, {Image? sprite}) {
     if (sprite != null) {
       final centerOffset = _proj(x, y, 0);
@@ -633,10 +653,28 @@ class CourtVisualComponent extends Component {
 
     // --- STADIUM MAP ---
     
+    final boundsW = width * 2.8;
+    final boundsBack = -length * 2.5;
+    final boundsFront = floorFront;
+
+    // Draw the walls (finite area)
+    final wallPaint = Paint()..color = const Color(0xFF0F172A);
+    final wallLinesPaint = Paint()..color = const Color(0xFF334155)..style = PaintingStyle.stroke..strokeWidth = 2.0;
+    
+    // Back wall
+    _drawVerticalWall(canvas, -boundsW, boundsBack, boundsW, boundsBack, 1.5, wallPaint);
+    _drawVerticalWall(canvas, -boundsW, boundsBack, boundsW, boundsBack, 1.5, wallLinesPaint);
+    // Left wall
+    _drawVerticalWall(canvas, -boundsW, boundsFront, -boundsW, boundsBack, 1.5, wallPaint);
+    _drawVerticalWall(canvas, -boundsW, boundsFront, -boundsW, boundsBack, 1.5, wallLinesPaint);
+    // Right wall
+    _drawVerticalWall(canvas, boundsW, boundsBack, boundsW, boundsFront, 1.5, wallPaint);
+    _drawVerticalWall(canvas, boundsW, boundsBack, boundsW, boundsFront, 1.5, wallLinesPaint);
+
     // Outer bounds (Tournament slate outer run-off)
     final outerFloorPaint = Paint()..color = const Color(0xFF162544);
     canvas.drawPath(
-      _quad(-floorW, floorBack, floorW, floorBack, floorW, floorFront, -floorW, floorFront),
+      _quad(-boundsW, boundsBack, boundsW, boundsBack, boundsW, boundsFront, -boundsW, boundsFront),
       outerFloorPaint,
     );
 
@@ -707,6 +745,15 @@ class CourtVisualComponent extends Component {
     // Right side benches
     _drawBench(canvas, width * 2.2, -length * 0.5, 0.4, 2.5, 0.2, sBenchPaint, sprite: game.benchSprite);
     _drawBench(canvas, width * 2.2, length * 0.5, 0.4, 2.5, 0.2, sBenchPaint, sprite: game.bleacherSprite);
+
+    // Background giant procedural bleachers
+    _drawBench(canvas, 0, -length * 2.0, width * 3.0, 0.6, 0.3, sBenchPaint);
+    _drawBench(canvas, 0, -length * 2.2, width * 3.0, 0.6, 0.5, sBenchPaint);
+    _drawBench(canvas, 0, -length * 2.4, width * 3.0, 0.6, 0.7, sBenchPaint);
+
+    // Referee Chair
+    final refPaint = Paint()..color = const Color(0xFF94A3B8);
+    _drawBench(canvas, -width * 1.5, 0, 0.2, 0.2, 0.8, refPaint);
   }
 }
 
