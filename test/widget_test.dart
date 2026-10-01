@@ -95,7 +95,9 @@ void main() {
     expect(projectedCenter.x, 0);
     expect(
       simulation.camera.project(x: 0, y: -GameSimulation.courtLength).scale,
-      lessThan(simulation.camera.project(x: 0, y: GameSimulation.courtLength).scale),
+      lessThan(
+        simulation.camera.project(x: 0, y: GameSimulation.courtLength).scale,
+      ),
     );
     expect(simulation.ballScale(), greaterThan(1));
   });
@@ -224,27 +226,30 @@ void main() {
     expect(simulation.botTargetY, -0.75);
   });
 
-  test('bot selects safe, drive, and smash plans from ball height and aggression', () {
-    final simulation = GameSimulation();
-    simulation.playerX = 0.3;
-    simulation.ball.z = 0.2;
-    simulation.bot1Aggression = 0.2;
+  test(
+    'bot selects safe, drive, and smash plans from ball height and aggression',
+    () {
+      final simulation = GameSimulation();
+      simulation.playerX = 0.3;
+      simulation.ball.z = 0.2;
+      simulation.bot1Aggression = 0.2;
 
-    final safePlan = simulation.chooseBotShot();
-    expect(safePlan.type, BotShotType.safeReturn);
-    expect(safePlan.targetX, lessThan(0));
+      final safePlan = simulation.chooseBotShot();
+      expect(safePlan.type, BotShotType.safeReturn);
+      expect(safePlan.targetX, lessThan(0));
 
-    simulation.bot1Aggression = 0.8;
-    final drivePlan = simulation.chooseBotShot();
-    expect(drivePlan.type, BotShotType.drive);
-    expect(drivePlan.forwardSpeed, greaterThan(safePlan.forwardSpeed));
+      simulation.bot1Aggression = 0.8;
+      final drivePlan = simulation.chooseBotShot();
+      expect(drivePlan.type, BotShotType.drive);
+      expect(drivePlan.forwardSpeed, greaterThan(safePlan.forwardSpeed));
 
-    simulation.ball.z = 0.5;
-    final smashPlan = simulation.chooseBotShot();
-    expect(smashPlan.type, BotShotType.smash);
-    expect(smashPlan.forwardSpeed, greaterThan(drivePlan.forwardSpeed));
-    expect(smashPlan.lift, lessThan(drivePlan.lift));
-  });
+      simulation.ball.z = 0.5;
+      final smashPlan = simulation.chooseBotShot();
+      expect(smashPlan.type, BotShotType.smash);
+      expect(smashPlan.forwardSpeed, greaterThan(drivePlan.forwardSpeed));
+      expect(smashPlan.lift, lessThan(drivePlan.lift));
+    },
+  );
 
   test('bot aims toward the court space opposite the player', () {
     final simulation = GameSimulation();
@@ -356,9 +361,9 @@ void main() {
       ..hasBounced = true;
 
     expect(simulation.update(), isNull);
-    final hit = simulation
-        .drainEvents()
-        .firstWhere((event) => event.type == GameplayEventType.botHit);
+    final hit = simulation.drainEvents().firstWhere(
+      (event) => event.type == GameplayEventType.botHit,
+    );
 
     expect(hit.side, MatchSide.player);
     expect(hit.botId, simulation.bottomBotAgent.id);
@@ -405,7 +410,8 @@ void main() {
 
     final shot = receiver.chooseShot(perception);
     final ticksToNet = perception.ballY / shot.velocityY.abs();
-    final heightAtNet = perception.ballZ +
+    final heightAtNet =
+        perception.ballZ +
         shot.lift * ticksToNet -
         0.5 * perception.gravity * ticksToNet * ticksToNet;
 
@@ -475,6 +481,31 @@ void main() {
     expect(simulation.rallyPhase, RallyPhase.deadBall);
   });
 
+  test('servers always start opposite their diagonal serve target', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+
+    simulation.resetRally(servingSide: MatchSide.player, serverScore: 0);
+    expect(simulation.playerX, greaterThan(0));
+    expect(simulation.getPlayerServeTrajectory().targetX, lessThan(0));
+
+    simulation.resetRally(servingSide: MatchSide.player, serverScore: 1);
+    expect(simulation.playerX, lessThan(0));
+    expect(simulation.getPlayerServeTrajectory().targetX, greaterThan(0));
+
+    simulation.resetRally(servingSide: MatchSide.bot, serverScore: 0);
+    expect(simulation.botX, greaterThan(0));
+    simulation.triggerServe();
+    final botLandingX = simulation.botX + 0.08 + simulation.ball.velocityX * 52;
+    expect(botLandingX, lessThan(0));
+
+    simulation.resetRally(servingSide: MatchSide.bot, serverScore: 1);
+    expect(simulation.botX, lessThan(0));
+    simulation.triggerServe();
+    final alternateBotLandingX =
+        simulation.botX + 0.08 + simulation.ball.velocityX * 52;
+    expect(alternateBotLandingX, greaterThan(0));
+  });
+
   test('normal rally first bounce faults when it lands outside court', () {
     final simulation = GameSimulation();
     simulation
@@ -526,10 +557,7 @@ void main() {
       ..velocityY = 0.01
       ..hasBounced = true;
 
-    expect(
-      leftDeep.swing(joystickX: -1, joystickY: -1),
-      SwingResult.hit,
-    );
+    expect(leftDeep.swing(joystickX: -1, joystickY: -1), SwingResult.hit);
     expect(leftDeep.ball.velocityX, lessThan(0));
 
     final rightShort = GameSimulation()
@@ -544,10 +572,7 @@ void main() {
       ..velocityY = 0.01
       ..hasBounced = true;
 
-    expect(
-      rightShort.swing(joystickX: 1, joystickY: 1),
-      SwingResult.hit,
-    );
+    expect(rightShort.swing(joystickX: 1, joystickY: 1), SwingResult.hit);
     expect(rightShort.ball.velocityX, greaterThan(0));
     expect(
       rightShort.ball.velocityY.abs(),
@@ -569,9 +594,9 @@ void main() {
       ..hasBounced = true;
 
     expect(simulation.swing(), SwingResult.hit);
-    final hit = simulation
-        .drainEvents()
-        .firstWhere((event) => event.type == GameplayEventType.playerHit);
+    final hit = simulation.drainEvents().firstWhere(
+      (event) => event.type == GameplayEventType.playerHit,
+    );
     expect(hit.shotQuality, ShotQuality.perfect);
     expect(hit.isSmash, isFalse);
   });
@@ -590,9 +615,9 @@ void main() {
       ..hasBounced = true;
 
     expect(simulation.swing(), SwingResult.hit);
-    final hit = simulation
-        .drainEvents()
-        .firstWhere((event) => event.type == GameplayEventType.playerHit);
+    final hit = simulation.drainEvents().firstWhere(
+      (event) => event.type == GameplayEventType.playerHit,
+    );
     expect(hit.isSmash, isTrue);
     expect(simulation.ball.velocityY.abs(), greaterThan(0.03));
   });
@@ -677,7 +702,7 @@ void main() {
     match.playerScore = 10;
     match.botScore = 10;
     match.servingSide = MatchSide.player;
-    
+
     // Player wins rally while serving -> 11-10 (not win by 2 yet)
     match.resolveRally(rallyWinner: MatchSide.player);
     expect(match.isComplete, isFalse);
