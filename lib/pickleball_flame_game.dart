@@ -991,16 +991,27 @@ void _drawKineticPaddle({
 
     final diff = ballScreenPos - charCenter;
     final dist = diff.distance;
-    final maxReach = 72.0 * scale; // Clamped reach covering the large hitbox
+
+    // The sweet spot of the elongated paddle is located at the center of the blade
+    // (-19 * scale along the local -Y axis).
+    final sweetSpotOffset = 19.0 * scale;
+    // With tighter hitboxes, the maximum reaching extension matches the character's arm reach.
+    final maxReach = 58.0 * scale;
+    final reachDist = (dist - sweetSpotOffset).clamp(0.0, maxReach);
     final targetPos = dist > 1.0
-        ? charCenter + (diff / dist) * math.min(dist, maxReach)
+        ? charCenter + (diff / dist) * reachDist
         : hoverPos;
 
     paddlePos = Offset.lerp(hoverPos, targetPos, flightCurve)!;
 
-    // Dynamic spin and strike angle towards ball
+    // Angle to ball
     final aimAngle = math.atan2(diff.dy, diff.dx);
-    paddleAngle = baseAngle + (flightCurve * 2.8) + (aimAngle * 0.3);
+    // Align elongated blade (-Y in local space) directly towards the ball at contact
+    final strikeAngle = aimAngle + math.pi / 2;
+    final shortestAngleDiff =
+        (strikeAngle - baseAngle + math.pi) % (math.pi * 2) - math.pi;
+    final followThrough = (swingProgress - 0.5) * 0.4;
+    paddleAngle = baseAngle + shortestAngleDiff * flightCurve + followThrough;
   } else {
     paddlePos = hoverPos;
     paddleAngle = baseAngle + (math.sin(animTimer * 3.5) * 0.08);
@@ -1024,10 +1035,15 @@ void _drawKineticPaddle({
 
     // Energy Burst / Shockwave around paddle on contact
     final burstPaint = Paint()
-      ..color = energyColor.withValues(alpha: 0.4 * flightCurve)
+      ..color = energyColor.withValues(alpha: 0.45 * flightCurve)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    canvas.drawCircle(paddlePos, 18 * scale * flightCurve, burstPaint);
+    // Pulse shockwave centered right at the sweet spot
+    final sweetSpotWorld = paddlePos + Offset(
+      math.sin(paddleAngle) * (19 * scale),
+      -math.cos(paddleAngle) * (19 * scale),
+    );
+    canvas.drawCircle(sweetSpotWorld, 20 * scale * flightCurve, burstPaint);
   } else {
     // Subtle levitation shadow / energy pool underneath floating paddle
     final auraPaint = Paint()
@@ -1035,9 +1051,9 @@ void _drawKineticPaddle({
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     canvas.drawOval(
       Rect.fromCenter(
-        center: paddlePos.translate(0, 14 * scale),
-        width: 14 * scale,
-        height: 5 * scale,
+        center: paddlePos.translate(0, 16 * scale),
+        width: 16 * scale,
+        height: 6 * scale,
       ),
       auraPaint,
     );
@@ -1047,71 +1063,147 @@ void _drawKineticPaddle({
   canvas.translate(paddlePos.dx, paddlePos.dy);
   canvas.rotate(paddleAngle);
 
-  // 1. Paddle Handle / Grip
+  // 1. Paddle Handle / Grip (Elongated pro handle)
   final gripPaint = Paint()
-    ..color = const Color(0xFF2C3E50)
+    ..color = const Color(0xFF1E293B) // Dark graphite grip
     ..style = PaintingStyle.fill;
   final gripWrapPaint = Paint()
-    ..color = const Color(0xFFECEFF1)
+    ..color = const Color(0xFFF1F5F9) // Premium white perforated overgrip
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.2 * scale;
+    ..strokeWidth = 1.3 * scale;
   final gripRect = Rect.fromCenter(
-    center: Offset(0, 4 * scale),
-    width: 3.5 * scale,
-    height: 12 * scale,
+    center: Offset(0, 7.5 * scale),
+    width: 3.8 * scale,
+    height: 15.0 * scale,
   );
   canvas.drawRRect(
-    RRect.fromRectAndRadius(gripRect, Radius.circular(1.5 * scale)),
+    RRect.fromRectAndRadius(gripRect, Radius.circular(1.8 * scale)),
     gripPaint,
   );
-  canvas.drawLine(
-    Offset(-1.5 * scale, 2 * scale),
-    Offset(1.5 * scale, 4 * scale),
-    gripWrapPaint,
+  // Butt Cap
+  final buttCapPaint = Paint()
+    ..color = const Color(0xFF0F172A)
+    ..style = PaintingStyle.fill;
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(0, 15.2 * scale),
+        width: 4.8 * scale,
+        height: 2.2 * scale,
+      ),
+      Radius.circular(1.0 * scale),
+    ),
+    buttCapPaint,
   );
-  canvas.drawLine(
-    Offset(-1.5 * scale, 5 * scale),
-    Offset(1.5 * scale, 7 * scale),
-    gripWrapPaint,
-  );
+  // Diagonal wrap ridges across the grip
+  for (var i = 0; i < 4; i++) {
+    final y = 2.0 * scale + i * 3.2 * scale;
+    canvas.drawLine(
+      Offset(-1.8 * scale, y),
+      Offset(1.8 * scale, y + 2.0 * scale),
+      gripWrapPaint,
+    );
+  }
 
-  // 2. Paddle Edge Guard (Outer Rim)
+  // Tapered Throat / Neck collar connecting handle to blade
+  final throatPaint = Paint()
+    ..color = paddleRimColor
+    ..style = PaintingStyle.fill;
+  final throatPath = Path()
+    ..moveTo(-1.9 * scale, 0)
+    ..lineTo(-4.5 * scale, -4.5 * scale)
+    ..lineTo(4.5 * scale, -4.5 * scale)
+    ..lineTo(1.9 * scale, 0)
+    ..close();
+  canvas.drawPath(throatPath, throatPaint);
+
+  // 2. Elongated Paddle Edge Guard (Outer Rim)
   final rimPaint = Paint()
     ..color = paddleRimColor
     ..style = PaintingStyle.fill;
   final paddleRim = RRect.fromRectAndRadius(
     Rect.fromCenter(
-      center: Offset(0, -9 * scale),
-      width: 14 * scale,
-      height: 20 * scale,
+      center: Offset(0, -19 * scale),
+      width: 15.0 * scale,
+      height: 31.0 * scale,
     ),
-    Radius.circular(5 * scale),
+    Radius.circular(5.5 * scale),
   );
   canvas.drawRRect(paddleRim, rimPaint);
 
-  // 3. Paddle Face
+  // 3. Elongated Paddle Face (Raw Carbon / Honeycomb Face)
   final facePaint = Paint()
     ..color = paddleFaceColor
     ..style = PaintingStyle.fill;
   final paddleFace = RRect.fromRectAndRadius(
     Rect.fromCenter(
-      center: Offset(0, -9 * scale),
-      width: 11.5 * scale,
-      height: 17.5 * scale,
+      center: Offset(0, -19 * scale),
+      width: 12.6 * scale,
+      height: 28.5 * scale,
     ),
-    Radius.circular(3.5 * scale),
+    Radius.circular(4.0 * scale),
   );
   canvas.drawRRect(paddleFace, facePaint);
 
-  // 4. Sweet Spot Core Graphic
+  // Subtle carbon fiber micro-texture stripes
+  final texturePaint = Paint()
+    ..color = const Color(0x18000000)
+    ..strokeWidth = 0.8 * scale;
+  for (var i = -4; i <= 4; i++) {
+    final y = -19 * scale + i * 3.0 * scale;
+    canvas.drawLine(
+      Offset(-5.0 * scale, y),
+      Offset(5.0 * scale, y),
+      texturePaint,
+    );
+  }
+
+  // 4. Elongated Sweet Spot Core & Target Crosshair Graphic
+  final sweetSpotGlow = Paint()
+    ..color = sweetSpotColor.withValues(alpha: 0.35)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.0 * scale;
+  canvas.drawOval(
+    Rect.fromCenter(
+      center: Offset(0, -19 * scale),
+      width: 7.5 * scale,
+      height: 12.0 * scale,
+    ),
+    sweetSpotGlow,
+  );
+
   final sweetSpotPaint = Paint()
     ..color = sweetSpotColor
     ..style = PaintingStyle.fill;
-  canvas.drawCircle(Offset(0, -9 * scale), 3.5 * scale, sweetSpotPaint);
+  canvas.drawOval(
+    Rect.fromCenter(
+      center: Offset(0, -19 * scale),
+      width: 4.5 * scale,
+      height: 7.5 * scale,
+    ),
+    sweetSpotPaint,
+  );
+
   final corePaint = Paint()
-    ..color = const Color(0xFF1E272E)
+    ..color = const Color(0xFF0F172A)
     ..style = PaintingStyle.fill;
-  canvas.drawCircle(Offset(0, -9 * scale), 1.2 * scale, corePaint);
+  canvas.drawCircle(Offset(0, -19 * scale), 1.4 * scale, corePaint);
+
+  // Dynamic Chevron speed stripes near the top of the elongated paddle
+  final chevronPaint = Paint()
+    ..color = sweetSpotColor.withValues(alpha: 0.6)
+    ..strokeWidth = 1.0 * scale
+    ..style = PaintingStyle.stroke;
+  final c1 = Path()
+    ..moveTo(-3.5 * scale, -29 * scale)
+    ..lineTo(0, -31.5 * scale)
+    ..lineTo(3.5 * scale, -29 * scale);
+  final c2 = Path()
+    ..moveTo(-2.5 * scale, -26.5 * scale)
+    ..lineTo(0, -28.5 * scale)
+    ..lineTo(2.5 * scale, -26.5 * scale);
+  canvas.drawPath(c1, chevronPaint);
+  canvas.drawPath(c2, chevronPaint);
 
   canvas.restore();
 }

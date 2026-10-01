@@ -127,31 +127,43 @@ void main() {
     simulation.playerX = 0;
     simulation.playerY = 0.75;
     simulation.ball
-      ..x = 0.34
-      ..y = 0.44
-      ..z = 0.84;
+      ..x = 0.25
+      ..y = 0.52
+      ..z = 0.50;
     expect(simulation.canPlayerHitBall(), isTrue);
 
-    simulation.ball.x = 0.36;
+    // Outside horizontal reach (radius 0.26)
+    simulation.ball.x = 0.28;
     expect(simulation.canPlayerHitBall(), isFalse);
-    simulation.ball
-      ..x = 0
-      ..y = 0.42;
+    simulation.ball.x = 0.25;
+
+    // Too far in front (front reach 0.24)
+    simulation.ball.y = 0.50;
     expect(simulation.canPlayerHitBall(), isFalse);
-    simulation.ball
-      ..y = 0.75
-      ..z = 0.86;
+    simulation.ball.y = 0.52;
+
+    // Unrealistic midair hit rejected (zMax 0.52)
+    simulation.ball.z = 0.55;
+    expect(simulation.canPlayerHitBall(), isFalse);
+    simulation.ball.z = 0.84; // Old mid-air height
     expect(simulation.canPlayerHitBall(), isFalse);
 
     simulation.botX = 0;
     simulation.botY = -0.75;
     simulation.ball
-      ..x = 0.34
-      ..y = -0.44
-      ..z = 0.84;
+      ..x = 0.25
+      ..y = -0.52
+      ..z = 0.50;
     expect(simulation.canBotHitBall(), isTrue);
 
-    simulation.ball.y = -0.42;
+    // Bot too far in front
+    simulation.ball.y = -0.50;
+    expect(simulation.canBotHitBall(), isFalse);
+
+    // Bot mid-air ball in the sky rejected
+    simulation.ball
+      ..y = -0.52
+      ..z = 0.84;
     expect(simulation.canBotHitBall(), isFalse);
   });
 

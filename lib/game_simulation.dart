@@ -393,19 +393,19 @@ class GameSimulation {
     onPlayerDash?.call(playerX, playerY);
   }
 
-  // Directional player hitbox, kept close to the character and racket.
-  double playerHitRadiusX = 0.35;
-  double playerHitFrontY = 0.32; // In front towards net (ball.y < playerY)
-  double playerHitBackY = 0.32; // Behind player (ball.y > playerY)
+  // Directional player hitbox, tightly fitted to character and elongated paddle reach.
+  double playerHitRadiusX = 0.26;
+  double playerHitFrontY = 0.24; // In front towards net (ball.y < playerY)
+  double playerHitBackY = 0.18; // Behind player (ball.y > playerY)
   double playerHitZMin = 0.0;
-  double playerHitZMax = 0.85;
+  double playerHitZMax = 0.52; // Realistic overhead reach (net height 0.1364; prevents hitting high in the sky)
 
   // Directional bot hitbox (forward is toward the net: ball.y > botY).
-  double botHitRadiusX = 0.35;
-  double botHitFrontY = 0.32;
-  double botHitBackY = 0.32;
+  double botHitRadiusX = 0.26;
+  double botHitFrontY = 0.24;
+  double botHitBackY = 0.18;
   double botHitZMin = 0.0;
-  double botHitZMax = 0.85;
+  double botHitZMax = 0.52;
   double get playerHitRadiusY => playerHitFrontY;
   double get botHitRadiusY => botHitFrontY;
 
