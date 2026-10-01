@@ -3,9 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import 'package:vector_math/vector_math_64.dart' as vmath;
 
+import 'bot_agent.dart';
 import 'game_debug_config.dart';
 import 'match_state.dart';
 import 'pickleball_rules.dart';
+
+export 'bot_agent.dart';
 
 class CourtPoint {
   const CourtPoint(this.x, this.y);
@@ -197,44 +200,6 @@ enum RallyPhase {
 
 enum ShotQuality { early, good, perfect }
 
-enum BotShotType { safeReturn, drive, smash }
-
-enum BotDifficulty { easy, normal, hard }
-
-class BotDifficultySettings {
-  const BotDifficultySettings({
-    required this.reactionTicks,
-    required this.moveSpeed,
-    required this.dashSpeed,
-    required this.aggression,
-    required this.errorRate,
-    required this.aimError,
-  });
-
-  final double reactionTicks;
-  final double moveSpeed;
-  final double dashSpeed;
-  final double aggression;
-  final double errorRate;
-  final double aimError;
-}
-
-class BotShotPlan {
-  const BotShotPlan({
-    required this.type,
-    required this.targetX,
-    required this.targetY,
-    required this.forwardSpeed,
-    required this.lift,
-  });
-
-  final BotShotType type;
-  final double targetX;
-  final double targetY;
-  final double forwardSpeed;
-  final double lift;
-}
-
 enum GameplayEventType {
   playerHit,
   botHit,
@@ -252,6 +217,7 @@ class GameplayEvent {
     this.isSmash = false,
     this.shotQuality,
     this.botShotType,
+    this.botId,
   });
 
   final GameplayEventType type;
@@ -259,6 +225,7 @@ class GameplayEvent {
   final bool isSmash;
   final ShotQuality? shotQuality;
   final BotShotType? botShotType;
+  final String? botId;
 }
 
 enum GameMode { playerVsBot, botVsBot, freeRoamPractice }
@@ -269,8 +236,23 @@ class GameSimulation {
     this.gameMode = GameMode.playerVsBot,
     this.mapType = MapType.stadium,
     this.botDifficulty = BotDifficulty.normal,
-  }) {
-    bot1Aggression = difficultySettings.aggression;
+  }) : topBotAgent = BotAgent(
+          id: 'top-bot',
+          side: BotCourtSide.top,
+          difficulty: botDifficulty,
+          personality: const BotPersonality(name: 'Steady'),
+          randomSeed: 101,
+        ),
+        bottomBotAgent = BotAgent(
+          id: 'bottom-bot',
+          side: BotCourtSide.bottom,
+          difficulty: botDifficulty,
+          personality: const BotPersonality(
+            name: 'Attacker',
+            aggressionAdjustment: 0.20,
+          ),
+          randomSeed: 202,
+        ) {
     if (gameMode == GameMode.freeRoamPractice) {
       playPhase = MatchPlayPhase.inRally;
     }
@@ -279,6 +261,8 @@ class GameSimulation {
   final GameMode gameMode;
   final MapType mapType;
   final BotDifficulty botDifficulty;
+  final BotAgent topBotAgent;
+  final BotAgent bottomBotAgent;
   static const double courtWidth = PickleballRules.courtWidth;
   static const double courtLength = PickleballRules.courtLength;
   static const double gravity = 0.0012;
@@ -303,9 +287,12 @@ class GameSimulation {
   double playerVelocityY = 0;
   double playerServeAimAngle = 0.0; // Aim trajectory angle during serve
   
-  double bot2ReactionTimer = 0;
-  double bot2TargetX = 0;
-  double bot2TargetY = 0.75;
+  double get bot2ReactionTimer => bottomBotAgent.reactionTimer;
+  set bot2ReactionTimer(double value) => bottomBotAgent.reactionTimer = value;
+  double get bot2TargetX => bottomBotAgent.targetX;
+  set bot2TargetX(double value) => bottomBotAgent.targetX = value;
+  double get bot2TargetY => bottomBotAgent.targetY;
+  set bot2TargetY(double value) => bottomBotAgent.targetY = value;
 
   double botX = 0;
   double botY = -0.75;
@@ -532,6 +519,8 @@ class GameSimulation {
     ball.hasBounced = false;
     botServeTimer = 60.0;
     bot2ServeTimer = 60.0;
+    topBotAgent.reset();
+    bottomBotAgent.reset();
     playerVelocityX = 0;
     playerVelocityY = 0;
     playerServeAimAngle = 0.0;
@@ -543,138 +532,52 @@ class GameSimulation {
 
   double botServeTimer = 0.0;
   double bot2ServeTimer = 0.0;
-  double botTargetX = 0.0;
-  double botTargetY = -0.75;
-  double botReactionTimer = 0.0;
-  double botDashTimer = 0.0;
-  double botDashCooldown = 0.0; // prevents spam-dashing
-  bool botIsDashing = false;    // visual flag
+  double get botTargetX => topBotAgent.targetX;
+  set botTargetX(double value) => topBotAgent.targetX = value;
+  double get botTargetY => topBotAgent.targetY;
+  set botTargetY(double value) => topBotAgent.targetY = value;
+  double get botReactionTimer => topBotAgent.reactionTimer;
+  set botReactionTimer(double value) => topBotAgent.reactionTimer = value;
+  double get botDashTimer => topBotAgent.dashTimer;
+  set botDashTimer(double value) => topBotAgent.dashTimer = value;
+  double get botDashCooldown => topBotAgent.dashCooldown;
+  set botDashCooldown(double value) => topBotAgent.dashCooldown = value;
+  bool get botIsDashing => topBotAgent.isDashing;
+  set botIsDashing(bool value) => topBotAgent.isDashing = value;
 
   // Bot Personality (Aggression 0.0 = Defensive, 1.0 = Aggressive)
-  double bot1Aggression = 0.2; // Top Bot (Default opponent): Defensive
-  double bot2Aggression = 0.8; // Bottom Bot (Player replacement): Aggressive
-  double bot2DashCooldown = 0.0;
-  bool bot2IsDashing = false;
+  double get bot1Aggression => topBotAgent.aggression;
+  set bot1Aggression(double value) => topBotAgent.aggression = value;
+  double get bot2Aggression => bottomBotAgent.aggression;
+  set bot2Aggression(double value) => bottomBotAgent.aggression = value;
+  double get bot2DashCooldown => bottomBotAgent.dashCooldown;
+  set bot2DashCooldown(double value) => bottomBotAgent.dashCooldown = value;
+  bool get bot2IsDashing => bottomBotAgent.isDashing;
+  set bot2IsDashing(bool value) => bottomBotAgent.isDashing = value;
 
   double ballMachineTimer = 120.0; // Shoot a ball every 2 seconds roughly
 
-  BotDifficultySettings get difficultySettings => switch (botDifficulty) {
-    BotDifficulty.easy => const BotDifficultySettings(
-        reactionTicks: 16.0,
-        moveSpeed: 0.012,
-        dashSpeed: 0.040,
-        aggression: 0.20,
-        errorRate: 0.10,
-        aimError: 0.080,
-      ),
-    BotDifficulty.normal => const BotDifficultySettings(
-        reactionTicks: 10.0,
-        moveSpeed: 0.015,
-        dashSpeed: 0.050,
-        aggression: 0.45,
-        errorRate: 0.05,
-        aimError: 0.040,
-      ),
-    BotDifficulty.hard => const BotDifficultySettings(
-        reactionTicks: 5.0,
-        moveSpeed: 0.019,
-        dashSpeed: 0.060,
-        aggression: 0.72,
-        errorRate: 0.02,
-        aimError: 0.015,
-      ),
-  };
+  BotDifficultySettings get difficultySettings => topBotAgent.settings;
 
-  CourtPoint _predictBallBounce() {
-    var predictedX = ball.x;
-    var predictedY = ball.y;
-    var predictedZ = ball.z;
-    var predictedVelocityZ = ball.velocityZ;
+  BotPerception _botPerception({required double opponentX}) => BotPerception(
+        ballX: ball.x,
+        ballY: ball.y,
+        ballZ: ball.z,
+        ballVelocityX: ball.velocityX,
+        ballVelocityY: ball.velocityY,
+        ballVelocityZ: ball.velocityZ,
+        ballHasBounced: ball.hasBounced,
+        opponentX: opponentX,
+        gravity: gravity,
+      );
 
-    // Look far enough ahead for even a high lob to reach the court. This uses
-    // the same fixed-step gravity as the live ball without changing its state.
-    for (var tick = 0; tick < 160 && predictedZ > 0; tick++) {
-      predictedX += ball.velocityX;
-      predictedY += ball.velocityY;
-      predictedZ += predictedVelocityZ;
-      predictedVelocityZ -= gravity;
-    }
+  BotShotPlan chooseBotShot() => topBotAgent.chooseShot(
+        _botPerception(opponentX: playerX),
+      );
 
-    return CourtPoint(predictedX, predictedY);
-  }
-
-  void _chooseBotMovementTarget() {
-    if (ball.velocityY >= 0) {
-      // Once the bot has sent the ball away, recover near the middle instead
-      // of continuing to chase the ball into the player's half.
-      botTargetX = 0;
-      botTargetY = -0.75;
-      return;
-    }
-
-    final predictedBounce = _predictBallBounce();
-    botTargetX = predictedBounce.x.clamp(
-      -courtWidth * 0.95,
-      courtWidth * 0.95,
-    );
-
-    if (bot1Aggression > 0.5 && ball.hasBounced) {
-      botTargetY = -PickleballRules.kitchenDepth;
-      return;
-    }
-
-    // Set up slightly behind the bounce so the incoming ball stays in front
-    // of the bot's racket. Never recover inside the kitchen by default.
-    botTargetY = (predictedBounce.y - 0.12).clamp(
-      -courtLength * 0.98,
-      -PickleballRules.kitchenDepth - 0.05,
-    );
-  }
-
-  BotShotPlan chooseBotShot() {
-    final BotShotType shotType;
-    if (ball.z >= 0.36) {
-      shotType = BotShotType.smash;
-    } else if (bot1Aggression >= 0.55) {
-      shotType = BotShotType.drive;
-    } else {
-      shotType = BotShotType.safeReturn;
-    }
-
-    // Aim away from the player. Safer shots stay closer to the center, while
-    // attacking shots use more of the available sideline space.
-    final openCourtDirection = playerX >= 0 ? -1.0 : 1.0;
-    final targetWidth = switch (shotType) {
-      BotShotType.safeReturn => 0.45,
-      BotShotType.drive => 0.68,
-      BotShotType.smash => 0.78,
-    };
-    final targetX = openCourtDirection * courtWidth * targetWidth;
-
-    return switch (shotType) {
-      BotShotType.safeReturn => BotShotPlan(
-          type: shotType,
-          targetX: targetX,
-          targetY: 0.70,
-          forwardSpeed: 0.024,
-          lift: 0.022,
-        ),
-      BotShotType.drive => BotShotPlan(
-          type: shotType,
-          targetX: targetX,
-          targetY: 0.82,
-          forwardSpeed: 0.030,
-          lift: 0.015,
-        ),
-      BotShotType.smash => BotShotPlan(
-          type: shotType,
-          targetX: targetX,
-          targetY: 0.88,
-          forwardSpeed: 0.036,
-          lift: 0.009,
-        ),
-    };
-  }
+  BotShotPlan chooseBottomBotShot() => bottomBotAgent.chooseShot(
+        _botPerception(opponentX: botX),
+      );
 
   ({List<({double x, double y, double z})> points, double targetX, double targetY, bool isLegal}) getPlayerServeTrajectory() {
     final isEven = currentServerScore % 2 == 0;
@@ -907,81 +810,67 @@ class GameSimulation {
     }
 
     if (gameMode == GameMode.botVsBot) {
-      if (bot2ReactionTimer > 0) {
-        bot2ReactionTimer--;
-      } else {
-        bot2ReactionTimer = 10.0;
-        if (ball.velocityY > 0) {
-          // Ball is coming towards Bot2
-          bot2TargetX = ball.x.clamp(-courtWidth * 0.95, courtWidth * 0.95);
-          if (bot2Aggression > 0.5 && ball.hasBounced) {
-             bot2TargetY = PickleballRules.kitchenDepth; // dash to kitchen
-          } else {
-             bot2TargetY = ball.y > 0.4 ? ball.y : 0.75;
-          }
-        } else {
-          // Ball is going away
-          bot2TargetX = 0;
-          bot2TargetY = 0.75;
-        }
+      final bottomPerception = _botPerception(opponentX: botX);
+      if (bottomBotAgent.shouldThink()) {
+        bottomBotAgent.chooseMovementTarget(bottomPerception);
       }
 
       final dx = bot2TargetX - playerX;
       final dy = bot2TargetY - playerY;
       final dist = math.sqrt(dx*dx + dy*dy);
-      
-      if (bot2DashCooldown > 0) bot2DashCooldown--;
-      
-      // Dash when ball is coming towards this bot and we're far from target
-      final ballComingToBot2 = ball.velocityY > 0;
-      if (ballComingToBot2 && dist > 0.6 && bot2DashCooldown <= 0) {
-        dashPlayer();
-        bot2DashCooldown = 80.0;
-        bot2IsDashing = true;
-      } else {
-        bot2IsDashing = false;
+      bottomBotAgent.updateDash(
+        distance: dist,
+        ballIncoming: bottomBotAgent.isBallIncoming(ball.velocityY),
+      );
+
+      final bottomSpeed = bot2IsDashing
+          ? bottomBotAgent.settings.dashSpeed
+          : bottomBotAgent.settings.moveSpeed;
+      if (dist > 0.02) {
+        final step = math.min(bottomSpeed, dist);
+        playerX += (dx / dist) * step;
+        playerY += (dy / dist) * step;
       }
-      
-      if (dist > 0.05) {
-        jX = dx / dist;
-        jY = dy / dist;
-      } else {
-        jX = 0;
-        jY = 0;
-      }
+      playerX = playerX.clamp(-courtWidth * 1.25, courtWidth * 1.25);
+      playerY = playerY.clamp(0.05, courtLength * 1.35);
+      playerVelocityX = 0;
+      playerVelocityY = 0;
+      jX = 0;
+      jY = 0;
 
       // Auto-hit
-      if (ball.velocityY > 0 &&
-          canPlayerHitBall() &&
-          (ball.hasBounced || ball.y > courtLength * 0.5)) {
-        _recordHit(hitter: MatchSide.player);
-        lastHitByPlayer = true;
-        
-        final isAggressiveHit = math.Random().nextDouble() < bot2Aggression;
-        final isError = math.Random().nextDouble() < 0.05; // 5% error rate
-        
-        ball.velocityY = isAggressiveHit ? -0.030 : -0.024;
-        
-        if (isError) {
-           ball.velocityZ = 0.005; // Hit the net!
-           ball.velocityX = (ball.x - playerX) * 0.12 - 0.02; // Or hit out of bounds
-        } else {
-           ball.velocityZ = isAggressiveHit ? 0.015 : 0.022; // Hard hit is lower arc
-           
-           const targetCourtY = -0.70;
-           final ticks = ((ball.y - targetCourtY).abs() / ball.velocityY.abs()).clamp(20.0, 90.0);
-           
-           double bot2TargetCourtX = 0.0;
-           if (ball.x.abs() > 0.08) {
-             bot2TargetCourtX = -ball.x.sign * 0.12 - ball.x * 0.25;
-           } else {
-             final openSpaceX = botX > 0 ? -0.18 : 0.18;
-             bot2TargetCourtX = openSpaceX + (math.Random().nextDouble() - 0.5) * 0.15;
-           }
-           bot2TargetCourtX = bot2TargetCourtX.clamp(-courtWidth * 0.78, courtWidth * 0.78);
-           ball.velocityX = (bot2TargetCourtX - ball.x) / ticks;
+      if (ball.velocityY > 0 && canPlayerHitBall()) {
+        if (!isTwoBounceViolation(forPlayer: true)) {
+          _recordHit(hitter: MatchSide.player);
+          lastHitByPlayer = true;
+
+          final shotPlan = bottomBotAgent.chooseShot(bottomPerception);
+          final isSmash = shotPlan.type == BotShotType.smash;
+          final isError = bottomBotAgent.rollError();
+          _emit(GameplayEvent(
+            GameplayEventType.botHit,
+            side: MatchSide.player,
+            isSmash: isSmash,
+            botShotType: shotPlan.type,
+            botId: bottomBotAgent.id,
+          ));
+
+          ball.velocityY = shotPlan.velocityY;
+          if (isError) {
+            ball.velocityZ = 0.005;
+            ball.velocityX = (ball.x - playerX) * 0.12 - 0.02;
+          } else {
+            ball.velocityZ = shotPlan.lift;
+            final ticks = ((shotPlan.targetY - ball.y).abs() /
+                    ball.velocityY.abs())
+                .clamp(20.0, 90.0);
+            final targetX = (shotPlan.targetX +
+                    bottomBotAgent.nextAimOffset())
+                .clamp(-courtWidth * 0.85, courtWidth * 0.85);
+            ball.velocityX = (targetX - ball.x) / ticks;
+          }
+          ball.hasBounced = false;
         }
-        ball.hasBounced = false;
       }
     }
 
@@ -1116,32 +1005,23 @@ class GameSimulation {
         ballMachineTimer = 120.0 + math.Random().nextDouble() * 60; // 3 to 4.5 seconds
       }
     } else if (!GameDebugConfig.freezeAI) {
-      if (botReactionTimer > 0) {
-        botReactionTimer--;
-      } else {
-        botReactionTimer = difficultySettings.reactionTicks;
-        _chooseBotMovementTarget();
+      final topPerception = _botPerception(opponentX: playerX);
+      if (topBotAgent.shouldThink()) {
+        topBotAgent.chooseMovementTarget(topPerception);
       }
       
       final dx = botTargetX - botX;
       final dy = botTargetY - botY;
       final dist = math.sqrt(dx*dx + dy*dy);
       
-      // Tick cooldown
-      if (botDashCooldown > 0) botDashCooldown--;
-      if (botDashTimer > 0) {
-        botDashTimer--;
-        botIsDashing = true;
-      } else {
-        botIsDashing = false;
-      }
-
-      // Trigger dash only when: ball is coming, we are far, and cooldown is expired
       final ballComingToBot = ball.velocityY < 0;
-      if (ballComingToBot && dist > 0.6 && botDashCooldown <= 0 && botDashTimer <= 0) {
+      final wasDashing = botIsDashing;
+      topBotAgent.updateDash(
+        distance: dist,
+        ballIncoming: ballComingToBot,
+      );
+      if (!wasDashing && botIsDashing) {
         debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'dash', 'bot': {'x': botX, 'y': botY}, 'target': {'x': botTargetX, 'y': botTargetY}, 'distance': dist})}');
-        botDashTimer = 12.0;           // dash lasts 12 ticks
-        botDashCooldown = 80.0;        // cannot dash again for 2 seconds (80 * 25ms)
       }
 
       final double speed = botIsDashing
@@ -1167,20 +1047,22 @@ class GameSimulation {
       } else {
         _recordHit(hitter: MatchSide.bot);
         lastHitByPlayer = false;
-        final shotPlan = chooseBotShot();
+        final shotPlan = topBotAgent.chooseShot(
+          _botPerception(opponentX: playerX),
+        );
         final isSmash = shotPlan.type == BotShotType.smash;
-        final isError =
-            math.Random().nextDouble() < difficultySettings.errorRate;
+        final isError = topBotAgent.rollError();
         _emit(GameplayEvent(
           GameplayEventType.botHit,
           side: MatchSide.bot,
           isSmash: isSmash,
           botShotType: shotPlan.type,
+          botId: topBotAgent.id,
         ));
         
         debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'swing', 'shotType': shotPlan.type.name, 'error': isError, 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
         
-        ball.velocityY = shotPlan.forwardSpeed;
+        ball.velocityY = shotPlan.velocityY;
         
         if (isError) {
            ball.velocityZ = 0.005; // Hit the net!
@@ -1190,10 +1072,9 @@ class GameSimulation {
            final ticks = ((shotPlan.targetY - ball.y).abs() /
                    ball.velocityY.abs())
                .clamp(20.0, 90.0);
-           final aimError = (math.Random().nextDouble() - 0.5) *
-               difficultySettings.aimError *
-               2.0;
-           final targetX = (shotPlan.targetX + aimError).clamp(
+           final targetX = (shotPlan.targetX +
+                   topBotAgent.nextAimOffset())
+               .clamp(
              -courtWidth * 0.85,
              courtWidth * 0.85,
            );

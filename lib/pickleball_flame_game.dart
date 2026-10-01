@@ -134,8 +134,13 @@ class PickleballFlameGame extends FlameGame {
       for (final event in simulation.drainEvents()) {
         switch (event.type) {
           case GameplayEventType.botHit:
-            isBotSwinging = true;
-            botSwingTimer = 0.15;
+            if (event.side == MatchSide.player) {
+              isSwinging = true;
+              playerBotSwingTimer = 0.15;
+            } else {
+              isBotSwinging = true;
+              botSwingTimer = 0.15;
+            }
             simulation.camera.addShake(event.isSmash ? 0.7 : 0.4);
             break;
           case GameplayEventType.playerHit:
@@ -157,6 +162,10 @@ class PickleballFlameGame extends FlameGame {
       botSwingTimer -= dt;
       if (botSwingTimer <= 0) isBotSwinging = false;
     }
+    if (playerBotSwingTimer > 0) {
+      playerBotSwingTimer -= dt;
+      if (playerBotSwingTimer <= 0) isSwinging = false;
+    }
     if (_dashVfxTimer > 0) {
       _dashVfxTimer -= dt;
       if (_dashVfxTimer <= 0) isDashing = false;
@@ -164,6 +173,7 @@ class PickleballFlameGame extends FlameGame {
   }
 
   double botSwingTimer = 0;
+  double playerBotSwingTimer = 0;
 }
 
 class BallVisualComponent extends Component {

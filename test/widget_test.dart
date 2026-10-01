@@ -286,6 +286,85 @@ void main() {
     );
   });
 
+  test('bot agents keep independent identity, personality, and memory', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+
+    expect(simulation.topBotAgent.id, 'top-bot');
+    expect(simulation.bottomBotAgent.id, 'bottom-bot');
+    expect(
+      simulation.bottomBotAgent.aggression,
+      greaterThan(simulation.topBotAgent.aggression),
+    );
+
+    simulation.topBotAgent.reactionTimer = 7;
+    simulation.bottomBotAgent.reactionTimer = 2;
+    simulation.topBotAgent.targetX = -0.2;
+    simulation.bottomBotAgent.targetX = 0.3;
+
+    expect(simulation.topBotAgent.reactionTimer, 7);
+    expect(simulation.bottomBotAgent.reactionTimer, 2);
+    expect(simulation.topBotAgent.targetX, -0.2);
+    expect(simulation.bottomBotAgent.targetX, 0.3);
+  });
+
+  test('shared bot reasoning mirrors shots for opposite court sides', () {
+    const perception = BotPerception(
+      ballX: 0,
+      ballY: 0,
+      ballZ: 0.2,
+      ballVelocityX: 0,
+      ballVelocityY: 0,
+      ballVelocityZ: 0,
+      ballHasBounced: true,
+      opponentX: 0.25,
+      gravity: GameSimulation.gravity,
+    );
+    final top = BotAgent(
+      id: 'top',
+      side: BotCourtSide.top,
+      difficulty: BotDifficulty.normal,
+      personality: const BotPersonality(name: 'top'),
+      randomSeed: 1,
+    );
+    final bottom = BotAgent(
+      id: 'bottom',
+      side: BotCourtSide.bottom,
+      difficulty: BotDifficulty.normal,
+      personality: const BotPersonality(name: 'bottom'),
+      randomSeed: 2,
+    );
+
+    final topShot = top.chooseShot(perception);
+    final bottomShot = bottom.chooseShot(perception);
+
+    expect(topShot.type, bottomShot.type);
+    expect(topShot.targetX, bottomShot.targetX);
+    expect(topShot.targetY, -bottomShot.targetY);
+    expect(topShot.velocityY, -bottomShot.velocityY);
+  });
+
+  test('bottom bot emits its own identified hit event', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+    simulation.rallyPhase = RallyPhase.openRally;
+    simulation.ball
+      ..x = simulation.playerX
+      ..y = simulation.playerY
+      ..z = 0.2
+      ..velocityX = 0
+      ..velocityY = 0.01
+      ..velocityZ = 0
+      ..hasBounced = true;
+
+    expect(simulation.update(), isNull);
+    final hit = simulation
+        .drainEvents()
+        .firstWhere((event) => event.type == GameplayEventType.botHit);
+
+    expect(hit.side, MatchSide.player);
+    expect(hit.botId, simulation.bottomBotAgent.id);
+    expect(hit.botShotType, isNotNull);
+  });
+
   test('difficulty aggression influences the default bot shot plan', () {
     final easy = GameSimulation(botDifficulty: BotDifficulty.easy);
     final hard = GameSimulation(botDifficulty: BotDifficulty.hard);
