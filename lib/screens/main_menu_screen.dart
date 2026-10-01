@@ -7,6 +7,7 @@ import 'profile_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/angular_frame.dart';
 import '../widgets/background_painter.dart';
+import '../widgets/figma_game_frames.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
@@ -143,10 +144,8 @@ class MainMenuScreen extends StatelessWidget {
                     top: 100,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 470),
-                      child: AngularFrame(
-                        padding: const EdgeInsets.all(24),
-                        accent: AppTheme.accentLime,
-                        cut: 22,
+                      child: FigmaGradientBanner(
+                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 16),
                         child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
@@ -154,28 +153,34 @@ class MainMenuScreen extends StatelessWidget {
                             Text(
                               'PICKLEBALL',
                               style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 42,
+                                color: AppTheme.ink,
+                                fontSize: 38,
                                 height: 0.95,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 2.5,
+                                shadows: [
+                                  Shadow(color: Colors.white70, blurRadius: 4),
+                                ],
                               ),
                             ),
                             Text(
                               'MASTERS',
                               style: TextStyle(
-                                color: AppTheme.accentLime,
-                                fontSize: 42,
+                                color: Colors.white,
+                                fontSize: 38,
                                 height: 1.05,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 4,
+                                shadows: [
+                                  Shadow(color: AppTheme.ink, blurRadius: 5),
+                                ],
                               ),
                             ),
-                            SizedBox(height: 14),
+                            SizedBox(height: 10),
                             Text(
                               'READ THE BOUNCE. OWN THE KITCHEN.',
                               style: TextStyle(
-                                color: AppTheme.textSecondary,
+                                color: AppTheme.ink,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.6,

@@ -18,6 +18,7 @@ import 'screens/loading_screen.dart';
 import 'settings_manager.dart';
 import 'theme/app_theme.dart';
 import 'widgets/match_hud.dart';
+import 'widgets/figma_game_frames.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -802,6 +803,7 @@ class _PickleballGameState extends State<PickleballGame> {
               agent: simulation.topBotAgent,
               label: 'TOP BOT',
               color: AppTheme.teamCpu,
+              panelStyle: GamePanelStyle.crimson,
               isIncoming: simulation.ball.velocityY < 0,
             ),
             const SizedBox(width: 8),
@@ -809,6 +811,7 @@ class _PickleballGameState extends State<PickleballGame> {
               agent: simulation.bottomBotAgent,
               label: 'BOTTOM BOT',
               color: AppTheme.teamPlayer,
+              panelStyle: GamePanelStyle.moltenOrange,
               isIncoming: simulation.ball.velocityY > 0,
             ),
           ],
