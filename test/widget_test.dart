@@ -240,6 +240,90 @@ void main() {
     expect(simulation.rallyPhase, RallyPhase.deadBall);
   });
 
+  test('player shot uses two-axis directional aiming', () {
+    final leftDeep = GameSimulation()
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..playerX = 0
+      ..playerY = 0.75;
+    leftDeep.ball
+      ..x = 0
+      ..y = 0.6
+      ..z = 0.2
+      ..velocityY = 0.01
+      ..hasBounced = true;
+
+    expect(
+      leftDeep.swing(joystickX: -1, joystickY: -1),
+      SwingResult.hit,
+    );
+    expect(leftDeep.ball.velocityX, lessThan(0));
+
+    final rightShort = GameSimulation()
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..playerX = 0
+      ..playerY = 0.75;
+    rightShort.ball
+      ..x = 0
+      ..y = 0.6
+      ..z = 0.2
+      ..velocityY = 0.01
+      ..hasBounced = true;
+
+    expect(
+      rightShort.swing(joystickX: 1, joystickY: 1),
+      SwingResult.hit,
+    );
+    expect(rightShort.ball.velocityX, greaterThan(0));
+    expect(
+      rightShort.ball.velocityY.abs(),
+      closeTo(leftDeep.ball.velocityY.abs(), 0.0001),
+    );
+  });
+
+  test('centered contact produces perfect shot quality', () {
+    final simulation = GameSimulation()
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..playerX = 0
+      ..playerY = 0.75;
+    simulation.ball
+      ..x = 0
+      ..y = 0.75
+      ..z = 0.2
+      ..velocityY = 0.01
+      ..hasBounced = true;
+
+    expect(simulation.swing(), SwingResult.hit);
+    final hit = simulation
+        .drainEvents()
+        .firstWhere((event) => event.type == GameplayEventType.playerHit);
+    expect(hit.shotQuality, ShotQuality.perfect);
+    expect(hit.isSmash, isFalse);
+  });
+
+  test('high contact produces a smash event', () {
+    final simulation = GameSimulation()
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..playerX = 0
+      ..playerY = 0.75;
+    simulation.ball
+      ..x = 0
+      ..y = 0.75
+      ..z = 0.45
+      ..velocityY = 0.01
+      ..hasBounced = true;
+
+    expect(simulation.swing(), SwingResult.hit);
+    final hit = simulation
+        .drainEvents()
+        .firstWhere((event) => event.type == GameplayEventType.playerHit);
+    expect(hit.isSmash, isTrue);
+    expect(simulation.ball.velocityY.abs(), greaterThan(0.03));
+  });
+
   test('simulation emits player hit events', () {
     final simulation = GameSimulation();
     simulation

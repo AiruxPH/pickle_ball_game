@@ -195,6 +195,8 @@ enum RallyPhase {
   deadBall,
 }
 
+enum ShotQuality { early, good, perfect }
+
 enum GameplayEventType {
   playerHit,
   botHit,
@@ -206,11 +208,17 @@ enum GameplayEventType {
 }
 
 class GameplayEvent {
-  const GameplayEvent(this.type, {this.side, this.isSmash = false});
+  const GameplayEvent(
+    this.type, {
+    this.side,
+    this.isSmash = false,
+    this.shotQuality,
+  });
 
   final GameplayEventType type;
   final MatchSide? side;
   final bool isSmash;
+  final ShotQuality? shotQuality;
 }
 
 enum GameMode { playerVsBot, botVsBot, freeRoamPractice }
@@ -372,45 +380,72 @@ class GameSimulation {
     return result;
   }
 
-  void _executePlayerHit({double joystickX = 0.0}) {
+  ShotQuality _playerShotQuality() {
+    final dx = (ball.x - playerX).abs() / playerHitRadiusX;
+    final dy = (playerY - ball.y).abs() / playerHitFrontY;
+    final contactError = math.max(dx, dy);
+
+    if (contactError <= 0.28) return ShotQuality.perfect;
+    if (contactError <= 0.62) return ShotQuality.good;
+    return ShotQuality.early;
+  }
+
+  void _executePlayerHit({
+    double joystickX = 0.0,
+    double joystickY = 0.0,
+  }) {
     _recordHit(hitter: MatchSide.player);
     lastHitByPlayer = true;
-    
-    debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'player_swing', 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
-    
+
+    final quality = _playerShotQuality();
     final isSmash = ball.z > 0.3;
+    final qualityPower = switch (quality) {
+      ShotQuality.perfect => 1.10,
+      ShotQuality.good => 1.0,
+      ShotQuality.early => 0.88,
+    };
+
     _emit(GameplayEvent(
       GameplayEventType.playerHit,
       side: MatchSide.player,
       isSmash: isSmash,
+      shotQuality: quality,
     ));
-    if (isSmash) {
-      ball.velocityY = -0.032;
-      ball.velocityZ = 0.010;
-    } else {
-      ball.velocityY = -0.024;
-      ball.velocityZ = 0.022;
-    }
-    
-    // Smart recovery and directional steering:
-    // Flight time to bot's half of the court (target Y ~ -0.70)
-    const targetCourtY = -0.70;
-    final ticks = ((ball.y - targetCourtY).abs() / ball.velocityY.abs()).clamp(20.0, 90.0);
-    
-    // If recovering a wide ball (|ball.x| > 0.08), bias target towards opposite side / center
+
+    debugPrint('[DATA] ${jsonEncode({
+      'type': 'action',
+      'action': 'player_swing',
+      'quality': quality.name,
+      'rallyLength': rallyLength,
+      'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z},
+    })}');
+
+    // Vertical joystick aim controls depth. Up aims deeper into the opponent
+    // court; down pulls the shot shorter. With no input, aim safely deep.
+    final depthInput = joystickY.abs() > 0.15 ? joystickY : 0.0;
+    final targetCourtY =
+        (-0.70 + depthInput * 0.22).clamp(-0.92, -0.42);
+
     double targetCourtX = 0.0;
     if (ball.x.abs() > 0.08) {
       targetCourtX = -ball.x.sign * 0.12 - ball.x * 0.25;
     }
-    
-    // If user is steering with joystick, shift shot towards their intended aim
     if (joystickX.abs() > 0.15) {
-      targetCourtX = joystickX * (courtWidth * 0.72);
+      targetCourtX = joystickX * (courtWidth * 0.78);
     }
-    
-    // Clamp safely inside sidelines to eliminate side-out violations
-    targetCourtX = targetCourtX.clamp(-courtWidth * 0.78, courtWidth * 0.78);
-    
+    targetCourtX =
+        targetCourtX.clamp(-courtWidth * 0.88, courtWidth * 0.88);
+
+    final baseForwardSpeed = isSmash ? 0.034 : 0.024;
+    ball.velocityY = -baseForwardSpeed * qualityPower;
+
+    // A smash is flatter. Normal shots retain enough arc for safe clearance.
+    ball.velocityZ = isSmash
+        ? 0.009 * qualityPower
+        : 0.022 * (2.0 - qualityPower);
+
+    final ticks = ((ball.y - targetCourtY).abs() / ball.velocityY.abs())
+        .clamp(18.0, 90.0);
     ball.velocityX = (targetCourtX - ball.x) / ticks;
     ball.hasBounced = false;
   }
@@ -703,7 +738,7 @@ class GameSimulation {
         }
         playerSwingActiveTimer = 0.0;
         final isSmash = ball.z > 0.3;
-        _executePlayerHit(joystickX: jX);
+        _executePlayerHit(joystickX: jX, joystickY: jY);
         onPlayerHit?.call(isSmash);
       }
     }
@@ -1027,7 +1062,10 @@ class GameSimulation {
     return null;
   }
 
-  SwingResult swing({double joystickX = 0.0}) {
+  SwingResult swing({
+    double joystickX = 0.0,
+    double joystickY = 0.0,
+  }) {
     if (playPhase == MatchPlayPhase.waitingForServe) {
       if (servingSide == MatchSide.player) {
         triggerServe();
@@ -1059,7 +1097,10 @@ class GameSimulation {
 
     playerSwingActiveTimer = 0.0;
     final isSmash = ball.z > 0.3;
-    _executePlayerHit(joystickX: joystickX);
+    _executePlayerHit(
+      joystickX: joystickX,
+      joystickY: joystickY,
+    );
     onPlayerHit?.call(isSmash);
     return SwingResult.hit;
   }
