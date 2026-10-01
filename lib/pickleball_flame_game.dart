@@ -1281,7 +1281,9 @@ class CourtVisualComponent extends Component {
     final floorFront = 1.75;
     final floorW = width * 6.0;
 
-    if (game.simulation.mapType == MapType.practiceFacility) {
+    final isPractice = game.simulation.mapType == MapType.practiceFacility;
+
+    if (isPractice) {
       // Dark high-tech concrete floor
       final concretePaint = Paint()..color = const Color(0xFF1E2630);
       canvas.drawPath(
@@ -1298,127 +1300,109 @@ class CourtVisualComponent extends Component {
         concretePaint,
       );
 
-      // Draw practice target circles on the wall/floor (Neon Teal - #18FFFF)
-      final targetPaint = Paint()
-        ..color = const Color(0x1A18FFFF)
-        ..style = PaintingStyle.fill;
-      final targetBorder = Paint()
-        ..color = const Color(0x8018FFFF)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-
-      canvas.drawCircle(_proj(-0.3, -length + 0.2), 35, targetPaint);
-      canvas.drawCircle(_proj(-0.3, -length + 0.2), 35, targetBorder);
-
-      canvas.drawCircle(_proj(0.3, -length + 0.2), 35, targetPaint);
-      canvas.drawCircle(_proj(0.3, -length + 0.2), 35, targetBorder);
-
       // Benches for practice area (Neon Teal)
       final pBenchPaint = Paint()..color = const Color(0xFF00ACC1);
       _drawBench(canvas, -width * 2.5, 0.0, 0.3, 1.0, 0.15, pBenchPaint);
       _drawBench(canvas, -width * 2.5, -0.5, 0.3, 1.0, 0.15, pBenchPaint);
+    } else {
+      // --- STADIUM MAP ---
 
-      return; // No net or kitchen for practice facility
+      final boundsW = width * 2.8;
+      final boundsBack = -length * 2.5;
+      final boundsFront = floorFront;
+
+      // Draw the walls (finite area)
+      final wallPaint = Paint()..color = const Color(0xFF0F172A);
+      final wallLinesPaint = Paint()
+        ..color = const Color(0x333D607A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+
+      // Back wall
+      _drawVerticalWall(
+        canvas,
+        -boundsW,
+        boundsBack,
+        boundsW,
+        boundsBack,
+        1.5,
+        wallPaint,
+      );
+      _drawVerticalWall(
+        canvas,
+        -boundsW,
+        boundsBack,
+        boundsW,
+        boundsBack,
+        1.5,
+        wallLinesPaint,
+      );
+      // Left wall
+      _drawVerticalWall(
+        canvas,
+        -boundsW,
+        boundsFront,
+        -boundsW,
+        boundsBack,
+        1.5,
+        wallPaint,
+      );
+      _drawVerticalWall(
+        canvas,
+        -boundsW,
+        boundsFront,
+        -boundsW,
+        boundsBack,
+        1.5,
+        wallLinesPaint,
+      );
+      // Right wall
+      _drawVerticalWall(
+        canvas,
+        boundsW,
+        boundsBack,
+        boundsW,
+        boundsFront,
+        1.5,
+        wallPaint,
+      );
+      _drawVerticalWall(
+        canvas,
+        boundsW,
+        boundsBack,
+        boundsW,
+        boundsFront,
+        1.5,
+        wallLinesPaint,
+      );
+
+      // Outer bounds (Tournament slate outer run-off)
+      final outerFloorPaint = Paint()
+        ..shader = Gradient.linear(
+          _proj(0, boundsBack),
+          _proj(0, boundsFront),
+          const [Color(0xFF091827), Color(0xFF17394B)],
+        );
+      canvas.drawPath(
+        _quad(
+          -boundsW,
+          boundsBack,
+          boundsW,
+          boundsBack,
+          boundsW,
+          boundsFront,
+          -boundsW,
+          boundsFront,
+        ),
+        outerFloorPaint,
+      );
     }
 
-    // --- STADIUM MAP ---
-
-    final boundsW = width * 2.8;
-    final boundsBack = -length * 2.5;
-    final boundsFront = floorFront;
-
-    // Draw the walls (finite area)
-    final wallPaint = Paint()..color = const Color(0xFF0F172A);
-    final wallLinesPaint = Paint()
-      ..color = const Color(0x333D607A)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    // Back wall
-    _drawVerticalWall(
-      canvas,
-      -boundsW,
-      boundsBack,
-      boundsW,
-      boundsBack,
-      1.5,
-      wallPaint,
-    );
-    _drawVerticalWall(
-      canvas,
-      -boundsW,
-      boundsBack,
-      boundsW,
-      boundsBack,
-      1.5,
-      wallLinesPaint,
-    );
-    // Left wall
-    _drawVerticalWall(
-      canvas,
-      -boundsW,
-      boundsFront,
-      -boundsW,
-      boundsBack,
-      1.5,
-      wallPaint,
-    );
-    _drawVerticalWall(
-      canvas,
-      -boundsW,
-      boundsFront,
-      -boundsW,
-      boundsBack,
-      1.5,
-      wallLinesPaint,
-    );
-    // Right wall
-    _drawVerticalWall(
-      canvas,
-      boundsW,
-      boundsBack,
-      boundsW,
-      boundsFront,
-      1.5,
-      wallPaint,
-    );
-    _drawVerticalWall(
-      canvas,
-      boundsW,
-      boundsBack,
-      boundsW,
-      boundsFront,
-      1.5,
-      wallLinesPaint,
-    );
-
-    // Outer bounds (Tournament slate outer run-off)
-    final outerFloorPaint = Paint()
-      ..shader = Gradient.linear(
-        _proj(0, boundsBack),
-        _proj(0, boundsFront),
-        const [Color(0xFF091827), Color(0xFF17394B)],
-      );
-    canvas.drawPath(
-      _quad(
-        -boundsW,
-        boundsBack,
-        boundsW,
-        boundsBack,
-        boundsW,
-        boundsFront,
-        -boundsW,
-        boundsFront,
-      ),
-      outerFloorPaint,
-    );
-
-    // Court floor (Pacific Blue)
+    // Court floor (Pacific Blue or High-tech Slate Teal)
     final courtFloorPaint = Paint()
-      ..shader = Gradient.linear(_proj(0, -length), _proj(0, length), const [
-        Color(0xFF116B82),
-        Color(0xFF19A6A1),
-      ])
+      ..shader = Gradient.linear(_proj(0, -length), _proj(0, length), isPractice
+          ? const [Color(0xFF142433), Color(0xFF1C3446)]
+          : const [Color(0xFF116B82), Color(0xFF19A6A1)])
       ..style = PaintingStyle.fill;
     canvas.drawPath(
       _quad(-width, -length, width, -length, width, length, -width, length),
@@ -1427,10 +1411,9 @@ class CourtVisualComponent extends Component {
 
     // Kitchen floor (Precision Kitchen Teal)
     final kitchenFloorPaint = Paint()
-      ..shader = Gradient.linear(_proj(0, -kDepth), _proj(0, kDepth), const [
-        Color(0xFF0D536B),
-        Color(0xFF11748A),
-      ])
+      ..shader = Gradient.linear(_proj(0, -kDepth), _proj(0, kDepth), isPractice
+          ? const [Color(0xFF0E1E2B), Color(0xFF122838)]
+          : const [Color(0xFF0D536B), Color(0xFF11748A)])
       ..style = PaintingStyle.fill;
     canvas.drawPath(
       _quad(-width, -kDepth, width, -kDepth, width, kDepth, -width, kDepth),
@@ -1563,12 +1546,118 @@ class CourtVisualComponent extends Component {
 
     // A subdued seating bowl frames the court without competing with the ball
     // or resembling collision/debug geometry.
-    _drawGrandstand(canvas, width, length);
+    if (isPractice) {
+      _drawPracticeTargetZones(canvas);
+    } else {
+      _drawGrandstand(canvas, width, length);
+    }
 
     // Serve Trajectory Guide during player serve
     if (game.simulation.playPhase == MatchPlayPhase.waitingForServe &&
         game.simulation.servingSide == MatchSide.player) {
       _drawServeTrajectoryGuide(canvas);
+    }
+  }
+
+  Path _buildCourtCirclePath(
+    double cx,
+    double cy,
+    double r, [
+    int segments = 24,
+  ]) {
+    final path = Path();
+    for (var i = 0; i <= segments; i++) {
+      final theta = i * 2 * math.pi / segments;
+      final px = cx + r * math.cos(theta);
+      final py = cy + r * math.sin(theta);
+      final proj = _proj(px, py, 0);
+      if (i == 0) {
+        path.moveTo(proj.dx, proj.dy);
+      } else {
+        path.lineTo(proj.dx, proj.dy);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  void _drawPracticeTargetZones(Canvas canvas) {
+    final sim = game.simulation;
+    final activeTarget = sim.activeTarget;
+
+    for (final target in GameSimulation.practiceTargets) {
+      final isActive = target.name == activeTarget.name;
+      final outerPath = _buildCourtCirclePath(
+        target.x,
+        target.y,
+        target.radius,
+      );
+
+      if (isActive) {
+        // Glowing halo for active target
+        final haloPaint = Paint()
+          ..color = const Color(0x66CCFF00)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6.0
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
+        canvas.drawPath(outerPath, haloPaint);
+
+        // Active outer ring & fill
+        final fillPaint = Paint()
+          ..color = const Color(0x33CCFF00)
+          ..style = PaintingStyle.fill;
+        canvas.drawPath(outerPath, fillPaint);
+
+        final strokePaint = Paint()
+          ..color = const Color(0xFFCCFF00)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.4;
+        canvas.drawPath(outerPath, strokePaint);
+
+        // Inner bullseye
+        final innerPath = _buildCourtCirclePath(
+          target.x,
+          target.y,
+          target.radius * 0.45,
+        );
+        final innerFill = Paint()
+          ..color = const Color(0x55CCFF00)
+          ..style = PaintingStyle.fill;
+        canvas.drawPath(innerPath, innerFill);
+
+        final innerStroke = Paint()
+          ..color = const Color(0xFFFFFFFF)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.8;
+        canvas.drawPath(innerPath, innerStroke);
+
+        // Center dot
+        final centerProj = _proj(target.x, target.y, 0);
+        canvas.drawCircle(
+          centerProj,
+          3.5,
+          Paint()..color = const Color(0xFFFFFFFF),
+        );
+      } else {
+        // Inactive target: subtle holographic zone
+        final inactiveFill = Paint()
+          ..color = const Color(0x1400E5FF)
+          ..style = PaintingStyle.fill;
+        canvas.drawPath(outerPath, inactiveFill);
+
+        final inactiveStroke = Paint()
+          ..color = const Color(0x5500E5FF)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2;
+        canvas.drawPath(outerPath, inactiveStroke);
+
+        final centerProj = _proj(target.x, target.y, 0);
+        canvas.drawCircle(
+          centerProj,
+          2.0,
+          Paint()..color = const Color(0x8800E5FF),
+        );
+      }
     }
   }
 

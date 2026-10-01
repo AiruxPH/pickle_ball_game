@@ -19,6 +19,7 @@ import 'settings_manager.dart';
 import 'theme/app_theme.dart';
 import 'widgets/angular_frame.dart';
 import 'widgets/match_hud.dart';
+import 'widgets/practice_hud.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -121,6 +122,21 @@ class _PickleballGameState extends State<PickleballGame> {
         });
       });
     };
+    flameGame.simulation.onPracticeTargetHit = (targetName, points) {
+      if (!mounted) return;
+      if (SettingsManager().hapticsEnabled) {
+        HapticFeedback.heavyImpact();
+      }
+      setState(() {
+        feedbackText = 'TARGET HIT! +$points';
+        flameGame.spawnHitEffect(isSmash: true);
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted && feedbackText.startsWith('TARGET HIT!')) {
+            setState(() => feedbackText = '');
+          }
+        });
+      });
+    };
     _input.onJoystickChanged = (x, y) {
       setState(() {
         flameGame.inputX = x;
@@ -161,6 +177,10 @@ class _PickleballGameState extends State<PickleballGame> {
 
   void _handleRallyEnd(RallyEnd rallyEnd) {
     if (!mounted) return;
+    if (widget.gameMode == 2) {
+      // In practice mode, continuous drills run without match score interruption
+      return;
+    }
     setState(() {
       final previousPlayerScore = playerScore;
       final previousBotScore = botScore;
@@ -217,12 +237,51 @@ class _PickleballGameState extends State<PickleballGame> {
     setState(() {
       if (swingResult == SwingResult.twoBounceFault) {
         feedbackText = 'TWO-BOUNCE FAULT!';
-        _handleRallyEnd(RallyEnd.playerFault);
+        if (widget.gameMode != 2) {
+          _handleRallyEnd(RallyEnd.playerFault);
+        } else {
+          simulation.practiceStreak = 0;
+        }
       } else if (swingResult == SwingResult.kitchenFault) {
         feedbackText = 'KITCHEN FAULT!';
-        _handleRallyEnd(RallyEnd.playerFault);
+        if (widget.gameMode != 2) {
+          _handleRallyEnd(RallyEnd.playerFault);
+        } else {
+          simulation.practiceStreak = 0;
+        }
       }
     });
+  }
+
+  void _showPracticeDrillDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => PracticeDrillsDialog(
+        simulation: simulation,
+        onDrillChanged: (drill) {
+          setState(() {
+            simulation.practiceDrill = drill;
+          });
+        },
+        onIntervalChanged: (val) {
+          setState(() {
+            simulation.practiceFeedIntervalSeconds = val;
+          });
+        },
+        onAutoFeedChanged: (val) {
+          setState(() {
+            simulation.practiceAutoFeed = val;
+          });
+        },
+        onResetStats: () {
+          setState(() {
+            simulation.practiceStreak = 0;
+            simulation.practiceScore = 0;
+            simulation.practiceTargetHits = 0;
+          });
+        },
+      ),
+    );
   }
 
   @override
@@ -348,6 +407,13 @@ class _PickleballGameState extends State<PickleballGame> {
             }
             return KeyEventResult.handled;
           }
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyF &&
+              widget.gameMode == 2) {
+            flameGame.simulation.launchBallMachine();
+            setState(() {});
+            return KeyEventResult.handled;
+          }
           return KeyEventResult.ignored;
         },
         child: Listener(
@@ -462,8 +528,31 @@ class _PickleballGameState extends State<PickleballGame> {
                                 ),
                               )
                             else
-                              const Spacer(),
-                            const SizedBox(width: 36),
+                              Expanded(
+                                child: Center(
+                                  child: PracticeHud(
+                                    simulation: simulation,
+                                    onLaunchBall: () {
+                                      simulation.launchBallMachine();
+                                      setState(() {});
+                                    },
+                                    onOpenDrillSettings: _showPracticeDrillDialog,
+                                    onCycleDrill: () {
+                                      setState(() {
+                                        final drills = PracticeDrill.values;
+                                        final nextIdx =
+                                            (simulation.practiceDrill.index +
+                                                    1) %
+                                                drills.length;
+                                        simulation.practiceDrill =
+                                            drills[nextIdx];
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            if (widget.gameMode != 2)
+                              const SizedBox(width: 36),
                           ],
                         ),
                         // Removed old feedbackText widget

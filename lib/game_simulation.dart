@@ -244,6 +244,24 @@ class GameplayEvent {
 
 enum GameMode { playerVsBot, botVsBot, freeRoamPractice }
 
+enum PracticeDrill { dinks, drives, lobs, random }
+
+class PracticeTarget {
+  const PracticeTarget({
+    required this.name,
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.points,
+  });
+
+  final String name;
+  final double x;
+  final double y;
+  final double radius;
+  final int points;
+}
+
 enum MapType { stadium, practiceFacility }
 
 class GameSimulation {
@@ -270,8 +288,33 @@ class GameSimulation {
        ) {
     if (gameMode == GameMode.freeRoamPractice) {
       playPhase = MatchPlayPhase.inRally;
+      rallyPhase = RallyPhase.openRally;
     }
   }
+
+  // --- Practice Facility State ---
+  PracticeDrill practiceDrill = PracticeDrill.random;
+  bool practiceAutoFeed = true;
+  double practiceFeedIntervalSeconds = 2.8;
+  int practiceStreak = 0;
+  int practiceBestStreak = 0;
+  int practiceScore = 0;
+  int practiceTargetHits = 0;
+
+  static const List<PracticeTarget> practiceTargets = [
+    PracticeTarget(name: 'Deep Left', x: -0.28, y: -0.85, radius: 0.22, points: 100),
+    PracticeTarget(name: 'Deep Right', x: 0.28, y: -0.85, radius: 0.22, points: 100),
+    PracticeTarget(name: 'Deep Center', x: 0.0, y: -0.88, radius: 0.24, points: 75),
+    PracticeTarget(name: 'Kitchen Drop L', x: -0.24, y: -0.22, radius: 0.20, points: 50),
+    PracticeTarget(name: 'Kitchen Drop R', x: 0.24, y: -0.22, radius: 0.20, points: 50),
+  ];
+
+  int activeTargetIndex = 0;
+  PracticeTarget get activeTarget =>
+      practiceTargets[activeTargetIndex % practiceTargets.length];
+
+  void Function(String targetName, int points)? onPracticeTargetHit;
+  void Function()? onPracticeBallFired;
 
   final GameMode gameMode;
   final MapType mapType;
@@ -499,6 +542,10 @@ class GameSimulation {
     );
     ball.velocityX = (targetCourtX - ball.x) / ticks;
     ball.hasBounced = false;
+
+    if (gameMode == GameMode.freeRoamPractice) {
+      ballMachineTimer = math.max(ballMachineTimer, 75.0);
+    }
   }
 
   bool lastHitByPlayer = false;
@@ -533,6 +580,14 @@ class GameSimulation {
     MatchSide servingSide = MatchSide.bot,
     int serverScore = 0,
   }) {
+    if (gameMode == GameMode.freeRoamPractice) {
+      playPhase = MatchPlayPhase.inRally;
+      rallyPhase = RallyPhase.openRally;
+      lastHitByPlayer = false;
+      ballMachineTimer = 40.0;
+      return;
+    }
+
     this.servingSide = servingSide;
     currentServerScore = serverScore;
     lastHitByPlayer = servingSide == MatchSide.player;
@@ -588,7 +643,78 @@ class GameSimulation {
   bool get bot2IsDashing => bottomBotAgent.isDashing;
   set bot2IsDashing(bool value) => bottomBotAgent.isDashing = value;
 
-  double ballMachineTimer = 120.0; // Shoot a ball every 2 seconds roughly
+  double ballMachineTimer = 100.0;
+
+  void launchBallMachine({PracticeDrill? drill}) {
+    if (gameMode != GameMode.freeRoamPractice) return;
+
+    final selectedDrill = drill ?? practiceDrill;
+    final effectiveDrill = selectedDrill == PracticeDrill.random
+        ? switch (math.Random().nextInt(3)) {
+            0 => PracticeDrill.dinks,
+            1 => PracticeDrill.drives,
+            _ => PracticeDrill.lobs,
+          }
+        : selectedDrill;
+
+    ball.x = 0;
+    ball.y = -courtLength;
+    ball.z = 0.45;
+    ball.hasBounced = false;
+    lastHitByPlayer = false;
+
+    // Lateral target variance within playable bounds
+    final lateralSpread = (math.Random().nextDouble() - 0.5) * 0.40;
+    final targetX = (playerX * 0.6 + lateralSpread).clamp(
+      -courtWidth * 0.85,
+      courtWidth * 0.85,
+    );
+
+    switch (effectiveDrill) {
+      case PracticeDrill.dinks:
+        // Soft drop shot landing near the kitchen line (y ~ 0.28 to 0.42)
+        final targetY = 0.28 + math.Random().nextDouble() * 0.14;
+        final dx = targetX - ball.x;
+        final dy = targetY - ball.y;
+        final dist = math.sqrt(dx * dx + dy * dy);
+        const speed = 0.021;
+        ball.velocityX = (dx / dist) * speed;
+        ball.velocityY = (dy / dist) * speed;
+        ball.velocityZ = 0.016; // gentle arch
+        break;
+
+      case PracticeDrill.drives:
+        // Fast, penetrating baseline drive (y ~ 0.70 to 0.90)
+        final targetY = 0.70 + math.Random().nextDouble() * 0.20;
+        final dx = targetX - ball.x;
+        final dy = targetY - ball.y;
+        final dist = math.sqrt(dx * dx + dy * dy);
+        const speed = 0.031;
+        ball.velocityX = (dx / dist) * speed;
+        ball.velocityY = (dy / dist) * speed;
+        ball.velocityZ = 0.019; // low clearing trajectory
+        break;
+
+      case PracticeDrill.lobs:
+        // High arcing ball landing deep (y ~ 0.78 to 0.95), great for smashes
+        final targetY = 0.78 + math.Random().nextDouble() * 0.18;
+        final dx = targetX - ball.x;
+        final dy = targetY - ball.y;
+        final dist = math.sqrt(dx * dx + dy * dy);
+        const speed = 0.022;
+        ball.velocityX = (dx / dist) * speed;
+        ball.velocityY = (dy / dist) * speed;
+        ball.velocityZ = 0.033; // high arc
+        break;
+
+      case PracticeDrill.random:
+        break;
+    }
+
+    ballMachineTimer = practiceFeedIntervalSeconds * 40.0;
+    onPracticeBallFired?.call();
+    _emit(const GameplayEvent(GameplayEventType.bounce));
+  }
 
   BotDifficultySettings get difficultySettings => topBotAgent.settings;
 
@@ -842,10 +968,11 @@ class GameSimulation {
     final previousBallY = ball.y;
 
     // Buffered swing for player: connects cleanly when player swings slightly early
-    if (gameMode == GameMode.playerVsBot && playerSwingActiveTimer > 0) {
+    if (gameMode != GameMode.botVsBot && playerSwingActiveTimer > 0) {
       playerSwingActiveTimer -= 0.025;
       if (ball.velocityY > 0 && canPlayerHitBall()) {
-        if (!GameDebugConfig.bypassKitchenRules) {
+        if (gameMode != GameMode.freeRoamPractice &&
+            !GameDebugConfig.bypassKitchenRules) {
           if (PickleballRules.isKitchenVolley(
             playerY: playerY,
             ballHasBounced: ball.hasBounced,
@@ -1014,6 +1141,45 @@ class GameSimulation {
         ball.z = 0;
         ball.velocityZ = 0.018;
       } else {
+        if (!ball.hasBounced) {
+          ballBouncedThisTick = true;
+          _emit(
+            GameplayEvent(
+              GameplayEventType.bounce,
+              side: ball.y > 0 ? MatchSide.player : MatchSide.bot,
+            ),
+          );
+
+          // Check if player returned the ball into the opponent court
+          if (lastHitByPlayer && ball.y < 0) {
+            final isLegalIn = PickleballRules.isInsideCourt(ball.x, ball.y);
+            if (isLegalIn) {
+              practiceStreak++;
+              if (practiceStreak > practiceBestStreak) {
+                practiceBestStreak = practiceStreak;
+              }
+
+              // Check target zone hit
+              final target = activeTarget;
+              final tDx = ball.x - target.x;
+              final tDy = ball.y - target.y;
+              if (tDx * tDx + tDy * tDy <= target.radius * target.radius) {
+                final multiplier = practiceStreak >= 10
+                    ? 2.0
+                    : (practiceStreak >= 5 ? 1.5 : 1.0);
+                final awardedPoints = (target.points * multiplier).round();
+                practiceScore += awardedPoints;
+                practiceTargetHits++;
+                onPracticeTargetHit?.call(target.name, awardedPoints);
+                activeTargetIndex =
+                    (activeTargetIndex + 1) % practiceTargets.length;
+              }
+            } else {
+              practiceStreak = 0;
+            }
+          }
+        }
+
         ball.z = 0;
         ball.velocityZ = ball.velocityZ.abs() * 0.6; // damp
         if (ball.velocityZ < 0.005) {
@@ -1052,30 +1218,20 @@ class GameSimulation {
     }
 
     if (gameMode == GameMode.freeRoamPractice) {
-      if (ballMachineTimer > 0) {
-        ballMachineTimer--;
-      } else {
-        // Fire a ball towards the player!
-        ball.x = 0;
-        ball.y = -courtLength;
-        ball.z = 0.5;
+      if (lastHitByPlayer) {
+        if (previousBallY > 0 &&
+            ball.y <= 0 &&
+            ball.z < PickleballRules.netHeight) {
+          practiceStreak = 0;
+        }
+      }
 
-        final targetX = playerX + (math.Random().nextDouble() - 0.5) * 0.4;
-        final targetY = playerY;
-
-        final dx = targetX - ball.x;
-        final dy = targetY - ball.y;
-        final dist = math.sqrt(dx * dx + dy * dy);
-
-        ball.velocityX = (dx / dist) * 0.025;
-        ball.velocityY = (dy / dist) * 0.025;
-        ball.velocityZ = 0.025; // high arc
-        ball.hasBounced = false;
-
-        lastHitByPlayer = false;
-
-        ballMachineTimer =
-            120.0 + math.Random().nextDouble() * 60; // 3 to 4.5 seconds
+      if (practiceAutoFeed) {
+        if (ballMachineTimer > 0) {
+          ballMachineTimer--;
+        } else {
+          launchBallMachine();
+        }
       }
     } else if (!GameDebugConfig.freezeAI) {
       final topPerception = _botPerception(opponentX: playerX);

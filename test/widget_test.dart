@@ -769,4 +769,50 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 5));
   });
+
+  test('practice facility initializes in open rally and feeds drills', () {
+    final simulation = GameSimulation(
+      gameMode: GameMode.freeRoamPractice,
+      mapType: MapType.practiceFacility,
+    );
+    expect(simulation.playPhase, MatchPlayPhase.inRally);
+    expect(simulation.rallyPhase, RallyPhase.openRally);
+
+    simulation.launchBallMachine(drill: PracticeDrill.dinks);
+    expect(simulation.ball.y, lessThan(0));
+    expect(simulation.ball.velocityY, greaterThan(0));
+
+    simulation.launchBallMachine(drill: PracticeDrill.drives);
+    expect(simulation.ball.velocityY, greaterThan(0.025));
+
+    simulation.launchBallMachine(drill: PracticeDrill.lobs);
+    expect(simulation.ball.velocityZ, greaterThan(0.025));
+  });
+
+  test('practice target hit awards points and increments streak', () {
+    final simulation = GameSimulation(
+      gameMode: GameMode.freeRoamPractice,
+      mapType: MapType.practiceFacility,
+    );
+    final initialScore = simulation.practiceScore;
+    final initialTarget = simulation.activeTarget;
+
+    // Simulate player returning the ball directly into the active target
+    simulation.lastHitByPlayer = true;
+    simulation.ball
+      ..x = initialTarget.x
+      ..y = initialTarget.y
+      ..z = 0.01
+      ..velocityX = 0
+      ..velocityY = -0.01
+      ..velocityZ = -0.01
+      ..hasBounced = false;
+
+    simulation.update();
+
+    expect(simulation.practiceStreak, 1);
+    expect(simulation.practiceScore, greaterThan(initialScore));
+    expect(simulation.practiceTargetHits, 1);
+  });
 }
+

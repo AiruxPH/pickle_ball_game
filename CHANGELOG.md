@@ -4,6 +4,59 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-01 19:15:00 +08:00] - Practice Mode Redesign: Full Facility HUD, Ball Machine Drills, Regulation Court & Net, and Dynamic Target Landing Zones
+
+### 1. Comprehensive Practice Mode HUD & Interactive Drill Settings
+- **Reason of Change**:
+  - Elevate the practice experience from an empty sandbox to an arcade-grade training facility with instant feedback, goal-oriented target practice, and customizable ball feeds.
+  - Implemented:
+    1. **Practice HUD Header (`PracticeHud`)**: Styled with `AngularFrame` (beveled cuts, metallic edges, cyber fill), featuring a drill type chip (tappable to cycle), current & best streak counter with flame icon, target zone points tracker, instant "FEED BALL" button, and drill configuration button.
+    2. **Practice Drills Modal (`PracticeDrillsDialog`)**: Styled with `AngularFrame`, providing drill selection (`Dinks` for soft kitchen drops, `Drives` for fast baseline penetration, `Lobs` for high arcing smash practice, and `Random`), Auto Feed toggle with feed interval slider (1.5s to 4.5s), and a stat reset action.
+    3. **Key F Feed Shortcut**: Desktop keyboard support to immediately fire a training ball with the `F` key.
+
+### 2. Ball Machine Physics & Dynamic Training Drills
+- **Reason of Change**:
+  - Provide distinct, realistic shot behaviors for different pickleball training drills:
+    - **Dinks**: Soft drop shots targeted near the kitchen line ($y \approx 0.28\text{--}0.42$) with low velocity ($v = 0.021$) and gentle arch ($v_z = 0.016$).
+    - **Drives**: Penetrating baseline drives targeted deep ($y \approx 0.70\text{--}0.90$) with fast velocity ($v = 0.031$) and low net clearance ($v_z = 0.019$).
+    - **Lobs**: High arcing ball feeds targeted deep ($y \approx 0.78\text{--}0.95$) with high vertical velocity ($v_z = 0.033$) tailored for overhead smash practice.
+
+### 3. Dynamic Court Target Zones & Streak Multipliers
+- **Reason of Change**:
+  - Give players clear, rewarding landing targets on the opponent's court to practice placement accuracy:
+    - Defined 5 distinct court target zones (`Deep Left`, `Deep Right`, `Deep Center`, `Kitchen Drop L`, `Kitchen Drop R`).
+    - Added target hit detection with score awards ($50\text{--}100$ pts) and streak-based multipliers ($1.5\times$ at streak 5+, $2.0\times$ at streak 10+).
+    - Rendered targets in 3D perspective foreshortening directly on the opponent court surface with glowing outer rings, holographic fills, and bullseye centers for the active target.
+
+### 4. Fix Practice Facility Missing Net, Kitchen, and Court Lines
+- **Cause of Error**:
+  - In `lib/pickleball_flame_game.dart` (`CourtVisualComponent.render`), the `MapType.practiceFacility` conditional executed an early `return; // No net or kitchen for practice facility` immediately after rendering the concrete floor and benches.
+  - This prevented the court floor, non-volley kitchen lines, baseline, center line, and regulation net from ever being drawn, leaving players on a blank concrete floor with no net to practice clearing or dinking over.
+- **Reason of Change**:
+  - Restore full regulation court geometry, kitchen floor, lines, and 3D net in the practice facility so players can practice authentic net clearance, kitchen drops, and line shots.
+- **Changes**:
+  - Removed early return; rendered high-tech dark slate teal training court floor, non-volley kitchen zone, regulation lines, and full net mesh/tape/posts.
+  - Added `_drawPracticeTargetZones()` to project holographic target zones onto the court floor.
+
+### 5. Fix Faults Interrupting Practice Sessions & Match Scoring
+- **Cause of Error**:
+  - In `lib/main.dart`, when a kitchen violation or two-bounce fault occurred during practice, `_executeSwing()` invoked `_handleRallyEnd()`, which awarded CPU points and triggered match-end screens ("POINT FOR CPU!", "CPU WINS").
+- **Reason of Change**:
+  - Ensure practice mode is continuous: faults reset the practice streak and show referee feedback without modifying match points or stopping the session.
+- **Changes**:
+  - Added `if (widget.gameMode == 2) return;` guard in `_handleRallyEnd()`.
+  - Updated `_executeSwing()` to reset `simulation.practiceStreak = 0` on faults during practice mode without ending the rally.
+
+### 6. Fix Deprecated `Switch.activeColor`
+- **Cause of Error**:
+  - In `lib/widgets/practice_hud.dart`, `Switch` used `activeColor`, which is deprecated after Flutter v3.31 in favor of `activeThumbColor`.
+- **Reason of Change**:
+  - Eliminate deprecation warning and maintain clean static analysis.
+- **Changes**:
+  - Replaced `activeColor: AppTheme.accentLime` with `activeThumbColor: AppTheme.accentLime`.
+
+---
+
 ## [2026-10-01 18:46:00 +08:00] - Extend AngularFrame Aesthetic Across Modals and Settings/Profile Panels & Fix Overflow
 
 ### 1. Apply AngularFrame to Dialogs, Pause Menu, Settings, and Profile
