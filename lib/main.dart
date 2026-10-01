@@ -86,6 +86,25 @@ class _PickleballGameState extends State<PickleballGame> {
     flameGame.simulation.onPlayerDash = (x, y) {
       flameGame.spawnDashEffect(x: x, y: y, isPlayer: true);
     };
+    flameGame.simulation.onPlayerHit = (isSmash) {
+      if (!mounted) return;
+      setState(() {
+        feedbackText = isSmash ? 'SMASH!' : 'GOOD HIT';
+        flameGame.spawnHitEffect(isSmash: isSmash);
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted && (feedbackText == 'SMASH!' || feedbackText == 'GOOD HIT')) {
+            setState(() => feedbackText = '');
+          }
+        });
+      });
+    };
+    flameGame.simulation.onPlayerFault = (fault, reason) {
+      if (!mounted) return;
+      setState(() {
+        feedbackText = reason;
+        _handleRallyEnd(fault);
+      });
+    };
     _input.onJoystickChanged = (x, y) {
       setState(() {
         flameGame.inputX = x;
@@ -168,18 +187,9 @@ class _PickleballGameState extends State<PickleballGame> {
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) setState(() => flameGame.isSwinging = false);
     });
-    final wasHighBall = ballZ > 0.3;
-    final swingResult = simulation.swing();
+    final swingResult = simulation.swing(joystickX: flameGame.effectiveInputX);
     setState(() {
-      if (swingResult == SwingResult.hit) {
-        feedbackText = wasHighBall ? 'SMASH!' : 'GOOD HIT';
-        flameGame.spawnHitEffect(isSmash: wasHighBall);
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted && (feedbackText == 'SMASH!' || feedbackText == 'GOOD HIT')) {
-            setState(() => feedbackText = '');
-          }
-        });
-      } else if (swingResult == SwingResult.twoBounceFault) {
+      if (swingResult == SwingResult.twoBounceFault) {
         feedbackText = 'TWO-BOUNCE FAULT!';
         _handleRallyEnd(RallyEnd.playerFault);
       } else if (swingResult == SwingResult.kitchenFault) {
@@ -526,7 +536,7 @@ class _PickleballGameState extends State<PickleballGame> {
 
   Widget _buildHitButton() {
     final isPlayerServing = simulation.playPhase == MatchPlayPhase.waitingForServe && simulation.servingSide == MatchSide.player;
-    final buttonText = isPlayerServing ? 'TAP TO SERVE' : 'HIT';
+    final buttonText = isPlayerServing ? 'SERVE' : 'HIT';
     final buttonColor = isPlayerServing ? const Color(0xFFFF6D00) : const Color(0xFFF59E0B);
     final textColor = isPlayerServing ? Colors.white : Colors.black;
 

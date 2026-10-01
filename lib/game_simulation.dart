@@ -242,16 +242,65 @@ class GameSimulation {
     onPlayerDash?.call(playerX, playerY);
   }
 
-  // Adjustable Hitboxes
-  double playerHitRadiusX = 0.2;
-  double playerHitRadiusY = 0.2;
-  double playerHitZMin = 0.05;
-  double playerHitZMax = 0.6;
+  // Hitboxes & Swing Mechanics
+  double playerHitRadiusX = 0.35;
+  double playerHitRadiusY = 0.32;
+  double playerHitZMin = 0.0;
+  double playerHitZMax = 0.85;
   
-  double botHitRadiusX = 0.2;
-  double botHitRadiusY = 0.2;
+  double botHitRadiusX = 0.35;
+  double botHitRadiusY = 0.32;
   double botHitZMin = 0.0;
-  double botHitZMax = 0.4;
+  double botHitZMax = 0.85;
+
+  double playerSwingActiveTimer = 0.0;
+  void Function(bool isSmash)? onPlayerHit;
+  void Function(RallyEnd fault, String faultReason)? onPlayerFault;
+
+  bool canPlayerHitBall() {
+    return (ball.x - playerX).abs() <= playerHitRadiusX &&
+        (ball.y - playerY).abs() <= playerHitRadiusY &&
+        ball.z >= playerHitZMin &&
+        ball.z <= playerHitZMax;
+  }
+
+  void _executePlayerHit({double joystickX = 0.0}) {
+    rallyLength++;
+    lastHitByPlayer = true;
+    
+    debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'player_swing', 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
+    
+    final isSmash = ball.z > 0.3;
+    if (isSmash) {
+      ball.velocityY = -0.032;
+      ball.velocityZ = 0.010;
+    } else {
+      ball.velocityY = -0.024;
+      ball.velocityZ = 0.022;
+    }
+    
+    // Smart recovery and directional steering:
+    // Flight time to bot's half of the court (target Y ~ -0.70)
+    const targetCourtY = -0.70;
+    final ticks = ((ball.y - targetCourtY).abs() / ball.velocityY.abs()).clamp(20.0, 90.0);
+    
+    // If recovering a wide ball (|ball.x| > 0.08), bias target towards opposite side / center
+    double targetCourtX = 0.0;
+    if (ball.x.abs() > 0.08) {
+      targetCourtX = -ball.x.sign * 0.12 - ball.x * 0.25;
+    }
+    
+    // If user is steering with joystick, shift shot towards their intended aim
+    if (joystickX.abs() > 0.15) {
+      targetCourtX = joystickX * (courtWidth * 0.72);
+    }
+    
+    // Clamp safely inside sidelines to eliminate side-out violations
+    targetCourtX = targetCourtX.clamp(-courtWidth * 0.78, courtWidth * 0.78);
+    
+    ball.velocityX = (targetCourtX - ball.x) / ticks;
+    ball.hasBounced = false;
+  }
   
   bool lastHitByPlayer = false;
   MatchSide servingSide = MatchSide.player;
@@ -279,6 +328,7 @@ class GameSimulation {
     playerVelocityX = 0;
     playerVelocityY = 0;
     playerServeAimAngle = 0.0;
+    playerSwingActiveTimer = 0.0;
     ball.x = 0;
     ball.y = -1.05;
     ball.z = 0.12;
@@ -505,6 +555,29 @@ class GameSimulation {
 
     final previousBallY = ball.y;
 
+    // Buffered swing for player: connects cleanly when player swings slightly early
+    if (gameMode == GameMode.playerVsBot && playerSwingActiveTimer > 0) {
+      playerSwingActiveTimer -= 0.025;
+      if (ball.velocityY > 0 && canPlayerHitBall()) {
+        playerSwingActiveTimer = 0.0;
+        if (!GameDebugConfig.bypassKitchenRules) {
+          if (PickleballRules.isKitchenVolley(playerY: playerY, ballHasBounced: ball.hasBounced)) {
+            playPhase = MatchPlayPhase.deadBall;
+            onPlayerFault?.call(RallyEnd.playerFault, 'KITCHEN FAULT!');
+            return RallyEnd.playerFault;
+          }
+          if (rallyLength < 3 && !ball.hasBounced) {
+            playPhase = MatchPlayPhase.deadBall;
+            onPlayerFault?.call(RallyEnd.playerFault, 'TWO-BOUNCE FAULT!');
+            return RallyEnd.playerFault;
+          }
+        }
+        final isSmash = ball.z > 0.3;
+        _executePlayerHit(joystickX: jX);
+        onPlayerHit?.call(isSmash);
+      }
+    }
+
     if (gameMode == GameMode.botVsBot) {
       if (bot2ReactionTimer > 0) {
         bot2ReactionTimer--;
@@ -562,14 +635,26 @@ class GameSimulation {
         final isAggressiveHit = math.Random().nextDouble() < bot2Aggression;
         final isError = math.Random().nextDouble() < 0.05; // 5% error rate
         
-        ball.velocityY = isAggressiveHit ? -0.03 : -0.024;
+        ball.velocityY = isAggressiveHit ? -0.030 : -0.024;
         
         if (isError) {
            ball.velocityZ = 0.005; // Hit the net!
            ball.velocityX = (ball.x - playerX) * 0.12 - 0.02; // Or hit out of bounds
         } else {
            ball.velocityZ = isAggressiveHit ? 0.015 : 0.022; // Hard hit is lower arc
-           ball.velocityX = (ball.x - playerX) * 0.12;
+           
+           const targetCourtY = -0.70;
+           final ticks = ((ball.y - targetCourtY).abs() / ball.velocityY.abs()).clamp(20.0, 90.0);
+           
+           double bot2TargetCourtX = 0.0;
+           if (ball.x.abs() > 0.08) {
+             bot2TargetCourtX = -ball.x.sign * 0.12 - ball.x * 0.25;
+           } else {
+             final openSpaceX = botX > 0 ? -0.18 : 0.18;
+             bot2TargetCourtX = openSpaceX + (math.Random().nextDouble() - 0.5) * 0.15;
+           }
+           bot2TargetCourtX = bot2TargetCourtX.clamp(-courtWidth * 0.78, courtWidth * 0.78);
+           ball.velocityX = (bot2TargetCourtX - ball.x) / ticks;
         }
         ball.hasBounced = false;
       }
@@ -744,14 +829,32 @@ class GameSimulation {
         
         debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'swing', 'aggressive': isAggressiveHit, 'error': isError, 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
         
-        ball.velocityY = isAggressiveHit ? 0.03 : 0.024;
+        ball.velocityY = isAggressiveHit ? 0.030 : 0.024;
         
         if (isError) {
            ball.velocityZ = 0.005; // Hit the net!
            ball.velocityX = (ball.x - botX) * 0.12 + 0.02; // Or hit out of bounds
         } else {
            ball.velocityZ = isAggressiveHit ? 0.015 : 0.022; // Hard hit is lower arc
-           ball.velocityX = (ball.x - botX) * 0.12;
+           
+           // Smart recovery and court targeting: target player's court (Y ~ 0.70)
+           const targetCourtY = 0.70;
+           final ticks = ((targetCourtY - ball.y).abs() / ball.velocityY.abs()).clamp(20.0, 90.0);
+           
+           // Aim into court, with recovery angle if hit from the side
+           double botTargetCourtX = 0.0;
+           if (ball.x.abs() > 0.08) {
+             // Angle back across/center to cleanly recover side balls
+             botTargetCourtX = -ball.x.sign * 0.12 - ball.x * 0.25;
+           } else {
+             // Slight aim variation towards open court
+             final openSpaceX = playerX > 0 ? -0.18 : 0.18;
+             botTargetCourtX = openSpaceX + (math.Random().nextDouble() - 0.5) * 0.15;
+           }
+           
+           // Clamp safely inside sidelines so bot doesn't commit side-out violations
+           botTargetCourtX = botTargetCourtX.clamp(-courtWidth * 0.78, courtWidth * 0.78);
+           ball.velocityX = (botTargetCourtX - ball.x) / ticks;
         }
         ball.hasBounced = false;
       }
@@ -767,7 +870,7 @@ class GameSimulation {
     return null;
   }
 
-  SwingResult swing() {
+  SwingResult swing({double joystickX = 0.0}) {
     if (playPhase == MatchPlayPhase.waitingForServe) {
       if (servingSide == MatchSide.player) {
         triggerServe();
@@ -777,10 +880,9 @@ class GameSimulation {
     }
     
     // Check hit radius first
-    if ((ball.x - playerX).abs() > playerHitRadiusX || 
-        (ball.y - playerY).abs() > playerHitRadiusY || 
-        ball.z < playerHitZMin || 
-        ball.z > playerHitZMax) {
+    if (!canPlayerHitBall()) {
+      // Buffer the swing so hitting slightly early still connects as the ball enters reach
+      playerSwingActiveTimer = 0.16;
       return SwingResult.missed;
     }
 
@@ -796,20 +898,10 @@ class GameSimulation {
       }
     }
 
-    rallyLength++;
-    lastHitByPlayer = true;
-    
-    debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'player_swing', 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
-    
-    if (ball.z > 0.3) {
-      ball.velocityY = -0.032;
-      ball.velocityZ = 0.01;
-    } else {
-      ball.velocityY = -0.022;
-      ball.velocityZ = 0.022;
-    }
-    ball.velocityX = (ball.x - playerX) * 0.12;
-    ball.hasBounced = false;
+    playerSwingActiveTimer = 0.0;
+    final isSmash = ball.z > 0.3;
+    _executePlayerHit(joystickX: joystickX);
+    onPlayerHit?.call(isSmash);
     return SwingResult.hit;
   }
 

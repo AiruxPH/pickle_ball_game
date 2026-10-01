@@ -165,13 +165,13 @@ void main() {
 
     expect(find.text('CPU: 0'), findsOneWidget);
     expect(find.text('YOU: 0'), findsOneWidget);
-    expect(find.text('TAP TO SERVE'), findsOneWidget);
+    expect(find.text('SERVE'), findsOneWidget);
     expect(
       find.byWidgetPredicate((widget) => widget is GameWidget),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('TAP TO SERVE'));
+    await tester.tap(find.text('SERVE'));
     await tester.pump();
 
     expect(find.text('HIT'), findsOneWidget);
