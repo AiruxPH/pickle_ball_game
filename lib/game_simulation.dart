@@ -321,6 +321,12 @@ class GameSimulation {
   void Function(String targetName, int points)? onPracticeTargetHit;
   void Function()? onPracticeBallFired;
 
+  // --- Net Cloth Collision & Deformation State ---
+  double netImpactX = 0.0;
+  double netImpactIntensity = 0.0;
+  double netImpactDirection = 0.0;
+  void Function()? onNetHit;
+
   final GameMode gameMode;
   final MapType mapType;
   final BotDifficulty botDifficulty;
@@ -600,6 +606,9 @@ class GameSimulation {
     rallyPhase = RallyPhase.waitingForServe;
     rallyLength = 0;
     _events.clear();
+    netImpactIntensity = 0.0;
+    netImpactX = 0.0;
+    netImpactDirection = 0.0;
 
     ball.velocityZ = 0;
     ball.velocityY = 0;
@@ -813,6 +822,10 @@ class GameSimulation {
   RallyEnd? update({double joystickX = 0, double joystickY = 0}) {
     var ballBouncedThisTick = false;
 
+    if (netImpactIntensity > 0) {
+      netImpactIntensity = math.max(0.0, netImpactIntensity - 0.04);
+    }
+
     _telemetryTimer += 0.025;
     if (_telemetryTimer >= 0.5) {
       _telemetryTimer = 0.0;
@@ -942,6 +955,9 @@ class GameSimulation {
     }
 
     if (playPhase == MatchPlayPhase.deadBall) {
+      if (netImpactIntensity > 0) {
+        netImpactIntensity = math.max(0.0, netImpactIntensity - 0.04);
+      }
       ball.x += ball.velocityX * 0.5;
       ball.y += ball.velocityY * 0.5;
       ball.z += ball.velocityZ;
@@ -1206,21 +1222,49 @@ class GameSimulation {
       ball.hasBounced = true;
     }
 
-    if (gameMode != GameMode.freeRoamPractice) {
-      if (previousBallY < 0 &&
-          ball.y >= 0 &&
-          ball.z < PickleballRules.netHeight) {
-        return _endRally(RallyEnd.botFault, cause: GameplayEventType.netFault);
-      }
-      if (previousBallY > 0 &&
-          ball.y <= 0 &&
-          ball.z < PickleballRules.netHeight) {
+    // Net Collision (Cloth physics: absorbs horizontal kinetic energy, gentle rebound, slides down net)
+    final crossedNetPlane = (previousBallY < 0 && ball.y >= 0) ||
+        (previousBallY > 0 && ball.y <= 0);
+    final isWithinNetHeight =
+        ball.z < PickleballRules.netHeight && ball.z >= 0;
+    final isWithinNetWidth = ball.x.abs() <= courtWidth * 1.15;
+
+    if (crossedNetPlane && isWithinNetHeight && isWithinNetWidth) {
+      final fromPlayerSide = previousBallY > 0;
+
+      // Cloth impact deflection parameters for visual ripple
+      netImpactX = ball.x;
+      netImpactIntensity = (ball.velocityY.abs() * 35.0).clamp(0.4, 1.2);
+      netImpactDirection = fromPlayerSide ? -1.0 : 1.0;
+
+      // Keep ball on incoming side of the net (do not phase through)
+      ball.y = fromPlayerSide ? 0.025 : -0.025;
+
+      // Cloth absorbs ~88% of forward kinetic energy, producing a gentle rebound
+      ball.velocityY = -ball.velocityY * 0.12;
+
+      // Lateral friction against mesh cloth
+      ball.velocityX *= 0.35;
+
+      // Damped vertical velocity - slides down the net towards the floor
+      ball.velocityZ = (ball.velocityZ * 0.20).clamp(-0.01, 0.006);
+
+      onNetHit?.call();
+
+      if (gameMode != GameMode.freeRoamPractice) {
         return _endRally(
-          RallyEnd.playerFault,
+          fromPlayerSide ? RallyEnd.playerFault : RallyEnd.botFault,
           cause: GameplayEventType.netFault,
         );
+      } else {
+        if (lastHitByPlayer && fromPlayerSide) {
+          practiceStreak = 0;
+        }
+        _emit(const GameplayEvent(GameplayEventType.netFault));
       }
+    }
 
+    if (gameMode != GameMode.freeRoamPractice) {
       // Wide bleacher limits: only terminate when ball completely clears the arena
       if (!ball.hasBounced &&
           (ball.y.abs() > courtLength * 2.2 ||
@@ -1233,14 +1277,6 @@ class GameSimulation {
     }
 
     if (gameMode == GameMode.freeRoamPractice) {
-      if (lastHitByPlayer) {
-        if (previousBallY > 0 &&
-            ball.y <= 0 &&
-            ball.z < PickleballRules.netHeight) {
-          practiceStreak = 0;
-        }
-      }
-
       if (practiceAutoFeed) {
         if (ballMachineTimer > 0) {
           ballMachineTimer--;

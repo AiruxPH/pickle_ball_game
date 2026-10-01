@@ -814,5 +814,89 @@ void main() {
     expect(simulation.practiceScore, greaterThan(initialScore));
     expect(simulation.practiceTargetHits, 1);
   });
+
+  test('cloth net collision absorbs energy, rebounds gently, and sets ripple', () {
+    final simulation = GameSimulation(gameMode: GameMode.playerVsBot);
+    simulation.resetRally(servingSide: MatchSide.player);
+    simulation.playPhase = MatchPlayPhase.inRally;
+    simulation.rallyPhase = RallyPhase.openRally;
+
+    var netHitCallbackFired = false;
+    simulation.onNetHit = () => netHitCallbackFired = true;
+
+    // Ball traveling from player side (y > 0) towards net (velocityY < 0)
+    // Low shot that will collide into the net below regulation net height
+    simulation.ball
+      ..x = 0.05
+      ..y = 0.02
+      ..z = 0.08 // Below netHeight (0.1364)
+      ..velocityX = 0.01
+      ..velocityY = -0.03
+      ..velocityZ = -0.002
+      ..hasBounced = false;
+
+    final rallyEnd = simulation.update();
+
+    expect(rallyEnd, RallyEnd.playerFault);
+    expect(netHitCallbackFired, isTrue);
+    expect(simulation.ball.y, greaterThan(0)); // Stayed on player side
+    expect(simulation.ball.velocityY, greaterThan(0)); // Reversed gently
+    expect(simulation.ball.velocityY, lessThan(0.01)); // Heavily damped (~88% absorbed)
+    expect(simulation.netImpactIntensity, greaterThan(0));
+    expect(simulation.netImpactDirection, -1.0); // Deflected towards bot
+
+    final events = simulation.drainEvents();
+    expect(
+      events.any((e) => e.type == GameplayEventType.netFault),
+      isTrue,
+    );
+  });
+
+  test('practice mode cloth net collision resets streak and drops softly', () {
+    final simulation = GameSimulation(gameMode: GameMode.freeRoamPractice);
+    simulation.practiceStreak = 5;
+    simulation.lastHitByPlayer = true;
+
+    var netHitCallbackFired = false;
+    simulation.onNetHit = () => netHitCallbackFired = true;
+
+    simulation.ball
+      ..x = -0.1
+      ..y = 0.025
+      ..z = 0.06 // Below netHeight
+      ..velocityX = 0.0
+      ..velocityY = -0.035
+      ..velocityZ = 0.0
+      ..hasBounced = false;
+
+    simulation.update();
+
+    expect(simulation.practiceStreak, 0); // Streak reset on net fault
+    expect(netHitCallbackFired, isTrue);
+    expect(simulation.ball.y, greaterThan(0)); // Kept in front of net
+    expect(simulation.ball.velocityY, greaterThan(0)); // Soft rebound
+  });
+
+  test('shots above net height clear cleanly without net collision', () {
+    final simulation = GameSimulation(gameMode: GameMode.playerVsBot);
+    simulation.playPhase = MatchPlayPhase.inRally;
+    simulation.rallyPhase = RallyPhase.openRally;
+
+    // Ball traveling from player side towards bot court, safely above net
+    simulation.ball
+      ..x = 0.0
+      ..y = 0.02
+      ..z = PickleballRules.netHeight + 0.05 // Safely above net
+      ..velocityX = 0.0
+      ..velocityY = -0.03
+      ..velocityZ = 0.005
+      ..hasBounced = false;
+
+    final rallyEnd = simulation.update();
+
+    expect(rallyEnd, isNull); // Clean clearance, no fault
+    expect(simulation.ball.y, lessThan(0)); // Crosses over into bot court
+    expect(simulation.netImpactIntensity, 0.0); // No net deflection
+  });
 }
 

@@ -137,6 +137,22 @@ class _PickleballGameState extends State<PickleballGame> {
         });
       });
     };
+    flameGame.simulation.onNetHit = () {
+      if (!mounted) return;
+      if (SettingsManager().hapticsEnabled) {
+        HapticFeedback.lightImpact();
+      }
+      if (mode == GameMode.freeRoamPractice) {
+        setState(() {
+          feedbackText = 'NET FAULT!';
+          Future.delayed(const Duration(milliseconds: 900), () {
+            if (mounted && feedbackText == 'NET FAULT!') {
+              setState(() => feedbackText = '');
+            }
+          });
+        });
+      }
+    };
     _input.onJoystickChanged = (x, y) {
       setState(() {
         flameGame.inputX = x;

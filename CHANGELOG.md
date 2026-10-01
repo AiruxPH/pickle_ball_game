@@ -4,6 +4,46 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-01 20:25:00 +08:00] - Cloth-like Net Collisions: Inelastic Energy Absorption, Soft Drop Physics, and Dynamic Mesh Flex/Ripple
+
+### 1. Inelastic Cloth Collision Physics & Boundary Enforcement
+- **Cause of Error**:
+  - Previously, when the ball hit below regulation net height ($Z < 0.1364$), the game merely registered a fault in match modes or streak reset in practice mode without altering the ball's physical velocity or trajectory. The ball would phase cleanly through the net plane into the opponent's court and continue flying.
+- **Reason of Change**:
+  - Implement realistic cloth net behavior where the flexible mesh absorbs the ball's kinetic energy and drops it gently to the court floor on the incoming side, preventing unrealistic clipping and bouncy rubber-like rebounds.
+- **Changes**:
+  - In `lib/game_simulation.dart`, implemented net plane collision detection:
+    `crossedNetPlane = (previousBallY < 0 && ball.y >= 0) || (previousBallY > 0 && ball.y <= 0)` with $Z \in [0, \text{netHeight}]$ and $|X| \le \text{courtWidth} \times 1.15$.
+  - **Inelastic Cloth Damping**:
+    - Rebound velocity: $V_y = -V_y \times 0.12$ (absorbing ~88% of forward kinetic energy).
+    - Lateral friction: $V_x \times 0.35$ against the mesh cord.
+    - Vertical slide: $V_z$ damped to $(V_z \times 0.20)$ clamped in $[-0.01, 0.006]$, causing the ball to slide softly down the net face to the floor.
+  - **Side Constraint**:
+    - Constrained ball position $Y = \text{fromPlayerSide} ? 0.025 : -0.025$, ensuring the ball never passes through the net plane upon contact.
+  - **State Integration**:
+    - In match modes, immediately ends the rally via `_endRally(faultSide, cause: GameplayEventType.netFault)`.
+    - In free-roam practice mode, resets `practiceStreak = 0`, emits `GameplayEventType.netFault`, and lets the ball drop and roll on the player's side.
+
+### 2. Dynamic Net Cloth Flex & Ripple Mesh Rendering
+- **Reason of Change**:
+  - Provide tangible, physical visual feedback when the ball strikes the net. Rather than a static, rigid wall, the net now reacts like real woven sports mesh cloth, bulging outward at the point of impact and damping back to rest.
+- **Changes**:
+  - Added deformation telemetry to `GameSimulation`: `netImpactX`, `netImpactIntensity`, `netImpactDirection`, and `onNetHit` callback.
+  - In `CourtVisualComponent.render` (`lib/pickleball_flame_game.dart`):
+    - Computed continuous Gaussian displacement along $X$ and sinusoidal tension along $Z$:
+      `netYOffset(x, z) = impactDir * intensity * 0.035 * sin(z / netHeight * pi / 2) * exp(-dx * dx / 0.025)`
+    - Applied dynamic displacement to the net mesh polygon, vertical grid lines, horizontal mesh lines, and top white tape.
+    - Decayed `netImpactIntensity` each tick (both active rally and dead ball) back to zero.
+
+### 3. Audio-Visual Feedback & Haptics
+- **Reason of Change**:
+  - Polish the sensory feel of hitting the net across both match and practice modes.
+- **Changes**:
+  - In `lib/pickleball_flame_game.dart`, added `GameplayEventType.netFault` handler triggering `spawnHitEffect(isSmash: false)`.
+  - In `lib/main.dart`, hooked `flameGame.simulation.onNetHit` to trigger light haptic feedback (`HapticFeedback.lightImpact()`) and display referee feedback banner `"NET FAULT!"` during practice mode.
+
+---
+
 ## [2026-10-01 19:35:00 +08:00] - Refine Bot vs Bot POVs: Zoom In Side/Top Views, Eliminate Black Floor Clipping, and Enforce Stadium Bounds in Free Roam
 
 ### 1. Zoom In on Side View (Broadcast Camera) & Smooth Rally Tracking

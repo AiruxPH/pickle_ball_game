@@ -199,6 +199,8 @@ class PickleballFlameGame extends FlameGame {
             spawnBounceEffect();
             break;
           case GameplayEventType.netFault:
+            spawnHitEffect(isSmash: false);
+            break;
           case GameplayEventType.outOfBounds:
           case GameplayEventType.doubleBounce:
           case GameplayEventType.rallyEnd:
@@ -1504,19 +1506,34 @@ class CourtVisualComponent extends Component {
       ..color = const Color(0x44FFFFFF)
       ..style = PaintingStyle.fill;
 
-    // Net mesh
+    // Cloth mesh flex & ripple calculations
+    final sim = game.simulation;
+    final intensity = sim.netImpactIntensity;
+    final impactX = sim.netImpactX;
+    final impactDir = sim.netImpactDirection;
+
+    double netYOffset(double x, double z) {
+      if (intensity <= 0.001) return 0.0;
+      final dx = x - impactX;
+      // Fixed at bottom (z=0), flexes upwards with max deflection near upper-mid net
+      final zFactor = math.sin((z / netHeight).clamp(0.0, 1.0) * (math.pi / 2));
+      // Gaussian distribution centered at impact point X
+      final xFactor = math.exp(-dx * dx / 0.025);
+      return impactDir * intensity * 0.035 * zFactor * xFactor;
+    }
+
+    // Net mesh (cloth flexes dynamically at impact point)
+    const netSegs = 20;
     final netPath = Path()
       ..moveTo(_proj(-width * 1.1, 0, 0).dx, _proj(-width * 1.1, 0, 0).dy)
-      ..lineTo(_proj(width * 1.1, 0, 0).dx, _proj(width * 1.1, 0, 0).dy)
-      ..lineTo(
-        _proj(width * 1.1, 0, netHeight).dx,
-        _proj(width * 1.1, 0, netHeight).dy,
-      )
-      ..lineTo(
-        _proj(-width * 1.1, 0, netHeight).dx,
-        _proj(-width * 1.1, 0, netHeight).dy,
-      )
-      ..close();
+      ..lineTo(_proj(width * 1.1, 0, 0).dx, _proj(width * 1.1, 0, 0).dy);
+    for (var i = netSegs; i >= 0; i--) {
+      final x = -width * 1.1 + (width * 2.2 * i / netSegs);
+      final y = netYOffset(x, netHeight);
+      final pt = _proj(x, y, netHeight);
+      netPath.lineTo(pt.dx, pt.dy);
+    }
+    netPath.close();
     canvas.drawPath(netPath, netMeshPaint);
 
     final netGridPaint = Paint()
@@ -1525,30 +1542,46 @@ class CourtVisualComponent extends Component {
       ..style = PaintingStyle.stroke;
     for (var index = 1; index < 10; index++) {
       final x = -width * 1.1 + (width * 2.2 * index / 10);
-      canvas.drawLine(_proj(x, 0, 0), _proj(x, 0, netHeight), netGridPaint);
+      final yTop = netYOffset(x, netHeight);
+      canvas.drawLine(_proj(x, 0, 0), _proj(x, yTop, netHeight), netGridPaint);
     }
     for (var index = 1; index < 4; index++) {
       final z = netHeight * index / 4;
-      canvas.drawLine(
-        _proj(-width * 1.1, 0, z),
-        _proj(width * 1.1, 0, z),
-        netGridPaint,
-      );
+      final hGridPath = Path()
+        ..moveTo(
+          _proj(-width * 1.1, netYOffset(-width * 1.1, z), z).dx,
+          _proj(-width * 1.1, netYOffset(-width * 1.1, z), z).dy,
+        );
+      for (var i = 1; i <= netSegs; i++) {
+        final x = -width * 1.1 + (width * 2.2 * i / netSegs);
+        final y = netYOffset(x, z);
+        final pt = _proj(x, y, z);
+        hGridPath.lineTo(pt.dx, pt.dy);
+      }
+      canvas.drawPath(hGridPath, netGridPaint);
     }
 
-    // Bottom of net
+    // Bottom of net (rigid ground wire)
     canvas.drawLine(
       _proj(-width * 1.1, 0, 0),
       _proj(width * 1.1, 0, 0),
       netTapePaint,
     );
-    // Top of net (White tape)
-    canvas.drawLine(
-      _proj(-width * 1.1, 0, netHeight),
-      _proj(width * 1.1, 0, netHeight),
-      netTapePaint,
-    );
-    // Posts
+    // Top of net (White tape - flexes with cloth ripple)
+    final topTapePath = Path()
+      ..moveTo(
+        _proj(-width * 1.1, netYOffset(-width * 1.1, netHeight), netHeight).dx,
+        _proj(-width * 1.1, netYOffset(-width * 1.1, netHeight), netHeight).dy,
+      );
+    for (var i = 1; i <= netSegs; i++) {
+      final x = -width * 1.1 + (width * 2.2 * i / netSegs);
+      final y = netYOffset(x, netHeight);
+      final pt = _proj(x, y, netHeight);
+      topTapePath.lineTo(pt.dx, pt.dy);
+    }
+    canvas.drawPath(topTapePath, netTapePaint);
+
+    // Posts (rigid vertical steel poles at ends)
     canvas.drawLine(
       _proj(-width * 1.1, 0, 0),
       _proj(-width * 1.1, 0, netHeight),
