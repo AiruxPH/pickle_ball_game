@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect, Gradient, RRect, Radius, MaskFilter, BlurStyle, Image;
+import 'dart:ui' show Canvas, Color, Offset, Paint, PaintingStyle, Path, Rect, Gradient, RRect, Radius, MaskFilter, BlurStyle, Image, ColorFilter, BlendMode;
 
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -19,12 +19,12 @@ class PickleballFlameGame extends FlameGame {
   final GameSimulation simulation;
   late final Image benchSprite;
   late final Image bleacherSprite;
-  late final List<Image> lpcIdleLayers = [];
-  late final List<Image> lpcWalkLayers = [];
-  late final List<Image> lpcSlashLayers = [];
+  late final Image unifiedSprite;
   void Function(RallyEnd event)? onRallyEnd;
   double inputX = 0;
   double inputY = 0;
+  double effectiveInputX = 0;
+  double effectiveInputY = 0;
   double _timeAccumulator = 0;
   bool isPlaying = false;
   bool isSwinging = false;
@@ -50,24 +50,7 @@ class PickleballFlameGame extends FlameGame {
     // Load external sprite assets (transparent PNGs)
     benchSprite = await images.load('stadium_bench-removebg-preview.png');
     bleacherSprite = await images.load('stadium_bleachers-removebg-preview.png');
-    
-    final lpcDir = 'lpc_male_item_animations_2026-10-01T05-11-12/standard/';
-    final lpcFiles = [
-      '010 body_color__light_.png',
-      '020 cuffed_pants__yellow_.png',
-      '036 longsleeves_2_overlay__brown_.png',
-      '060 legion__ceramic_.png',
-      '100 human_male__light_.png',
-      '101 neutral__light_.png',
-      '120 bob__orange_.png',
-      '125 hair_tie__brown_.png'
-    ];
-    
-    for (final file in lpcFiles) {
-      lpcIdleLayers.add(await images.load('${lpcDir}idle/$file'));
-      lpcWalkLayers.add(await images.load('${lpcDir}walk/$file'));
-      lpcSlashLayers.add(await images.load('${lpcDir}slash/$file'));
-    }
+    unifiedSprite = await images.load('character-spritesheet (2).png');
     
     await add(CourtVisualComponent(this));
     await add(BallVisualComponent(this));
@@ -103,6 +86,8 @@ class PickleballFlameGame extends FlameGame {
     isPlaying = false;
     inputX = 0;
     inputY = 0;
+    effectiveInputX = 0;
+    effectiveInputY = 0;
   }
 
   @override
@@ -132,12 +117,15 @@ class PickleballFlameGame extends FlameGame {
       currentInputY += 1;
     }
 
+    effectiveInputX = currentInputX.clamp(-1.0, 1.0);
+    effectiveInputY = currentInputY.clamp(-1.0, 1.0);
+
     final prevVy = simulation.ball.velocityY;
 
     while (_timeAccumulator >= fixedStep) {
       final rallyEnd = simulation.update(
-        joystickX: currentInputX.clamp(-1, 1),
-        joystickY: currentInputY.clamp(-1, 1),
+        joystickX: effectiveInputX,
+        joystickY: effectiveInputY,
       );
       _timeAccumulator -= fixedStep;
       
@@ -269,6 +257,46 @@ class BotVisualComponent extends Component {
   BotVisualComponent(this.game);
 
   final PickleballFlameGame game;
+  double animTimer = 0.0;
+  int facingRow = 2; // Default facing Down (front towards player)
+  double _prevBotX = 0;
+  double _prevBotY = -0.75;
+  bool _isMoving = false;
+  double _swingTimer = 0.0;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    animTimer += dt;
+
+    if (game.isBotSwinging) {
+      _swingTimer = (_swingTimer + dt).clamp(0.0, 0.18);
+    } else {
+      _swingTimer = 0.0;
+    }
+
+    final simulation = game.simulation;
+    final isPractice = simulation.gameMode == GameMode.freeRoamPractice;
+    if (isPractice) return;
+
+    final dx = simulation.botX - _prevBotX;
+    final dy = simulation.botY - _prevBotY;
+    _prevBotX = simulation.botX;
+    _prevBotY = simulation.botY;
+
+    final speed = (dt > 0) ? (math.sqrt(dx * dx + dy * dy) / dt) : 0.0;
+    _isMoving = speed > 0.03;
+
+    if (_isMoving) {
+      if (dx.abs() > dy.abs()) {
+        facingRow = dx > 0 ? 3 : 1; // 3 = Right, 1 = Left
+      } else {
+        facingRow = dy > 0 ? 2 : 0; // 2 = Down (towards player), 0 = Up (away)
+      }
+    } else {
+      facingRow = 2; // Face towards player by default
+    }
+  }
 
   @override
   void render(Canvas canvas) {
@@ -308,41 +336,67 @@ class BotVisualComponent extends Component {
       final indicatorPaint = Paint()..color = (simulation.ballMachineTimer < 30) ? const Color(0xFFFF5252) : const Color(0xFF69F0AE)..style = PaintingStyle.fill;
       canvas.drawCircle(center.translate(0, -15 * scale), 6 * scale, indicatorPaint);
     } else {
-      final paint = Paint()
-        ..shader = Gradient.radial(
-          center.translate(-5 * scale, -5 * scale),
-          22.5 * scale,
-          [const Color(0xFFFF8A80), const Color(0xFFFF5252), const Color(0xFFC62828)],
-          [0.0, 0.5, 1.0],
-        );
-      canvas.drawCircle(center, 22.5 * scale, paint);
-      final iconPaint = Paint()
-        ..color = const Color(0xFFFFFFFF)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3 * scale;
-      canvas.drawCircle(center, 10 * scale, iconPaint);
+      int validFrames = 1;
+      double speed = 0.1;
+      int baseRow = 8; // Default walk rows (8-11)
 
-      final racketPaint = Paint()
-        ..color = const Color(0xFFE91E63) // Pink paddle for the bot
-        ..style = PaintingStyle.fill;
-        
-      final handOffset = Offset(-24 * scale, 5 * scale);
-      
-      canvas.save();
-      canvas.translate(center.dx + handOffset.dx, center.dy + handOffset.dy);
-      
       if (game.isBotSwinging) {
-        canvas.rotate(0.78);
+        baseRow = 12; // Slash rows (12-15)
+        validFrames = 6;
+        speed = 0.04;
+      } else if (_isMoving) {
+        baseRow = 8; // Walk rows (8-11)
+        validFrames = 9;
+        speed = 0.08;
+      } else {
+        baseRow = 22; // Idle breathing rows (22-25)
+        validFrames = 2;
+        speed = 0.5;
       }
+
+      final frameWidth = game.unifiedSprite.width / 18.0;
+      final frameHeight = game.unifiedSprite.height / 66.0;
+
+      int frameCol = (animTimer / speed).floor() % validFrames;
+      int frameRow = baseRow + facingRow;
+
+      final drawWidth = frameWidth * 1.6 * scale;
+      final drawHeight = frameHeight * 1.6 * scale;
       
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(0, -12 * scale), width: 14 * scale, height: 32 * scale),
-          const Radius.circular(6),
-        ),
-        racketPaint,
+      final src = Rect.fromLTWH(frameCol * frameWidth, frameRow * frameHeight, frameWidth, frameHeight);
+      final dst = Rect.fromCenter(center: center.translate(0, -15 * scale), width: drawWidth, height: drawHeight);
+
+      // Draw bot sprite with opponent crimson aura / tint
+      final botSpritePaint = Paint()
+        ..colorFilter = const ColorFilter.mode(Color(0x35E53935), BlendMode.srcATop);
+      canvas.drawImageRect(game.unifiedSprite, src, dst, botSpritePaint);
+
+      // Calculate ball screen position for kinetic strike
+      final ballPoint = simulation.camera.project(
+        x: simulation.ball.x,
+        y: simulation.ball.y,
+        elevation: simulation.ball.z,
       );
-      canvas.restore();
+      final ballScreenPos = Offset(
+        (ballPoint.x + 1.0) / 2.0 * game.size.x,
+        (ballPoint.y + 1.0) / 2.0 * game.size.y,
+      );
+
+      // Draw Bot's Floating / Kinetic Paddle (Hot Crimson & Obsidian)
+      _drawKineticPaddle(
+        canvas: canvas,
+        charCenter: center,
+        scale: scale,
+        facingRow: facingRow,
+        animTimer: animTimer,
+        isSwinging: game.isBotSwinging,
+        swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
+        ballScreenPos: ballScreenPos,
+        paddleFaceColor: const Color(0xFFFF1744), // Crimson neon
+        paddleRimColor: const Color(0xFF212121),  // Obsidian black
+        energyColor: const Color(0xFFFF4081),     // Hot pink energy
+        sweetSpotColor: const Color(0xFFFFD700),  // Golden sweet spot
+      );
     }
 
     if (!isPractice && GameDebugConfig.showHitboxes) _drawHitbox(canvas, simulation);
@@ -382,8 +436,8 @@ class BotVisualComponent extends Component {
     canvas.drawPath(pathMax, paint);
     canvas.drawPath(pathMax, fillPaint);
 
-    canvas.drawLine(proj(pX - rX, pY - rY, zMin), proj(pX - rX, pY - rY, zMax), paint);
-    canvas.drawLine(proj(pX + rX, pY - rY, zMin), proj(pX + rX, pY - rY, zMax), paint);
+    canvas.drawLine(proj(pX - rX, pY - rY, zMin), proj(pX - rX, pY - rY, zMin), paint);
+    canvas.drawLine(proj(pX + rX, pY - rY, zMin), proj(pX + rX, pY - rY, zMin), paint);
     canvas.drawLine(proj(pX + rX, pY + rY, zMin), proj(pX + rX, pY + rY, zMax), paint);
     canvas.drawLine(proj(pX - rX, pY + rY, zMin), proj(pX - rX, pY + rY, zMax), paint);
   }
@@ -395,16 +449,36 @@ class PlayerVisualComponent extends Component {
   final PickleballFlameGame game;
   double animTimer = 0.0;
   int facingRow = 0; // 0=Up, 1=Left, 2=Down, 3=Right
+  double _swingTimer = 0.0;
 
   @override
   void update(double dt) {
     super.update(dt);
     animTimer += dt;
+
+    if (game.isSwinging) {
+      _swingTimer = (_swingTimer + dt).clamp(0.0, 0.18);
+    } else {
+      _swingTimer = 0.0;
+    }
     
-    if (game.inputY < 0) facingRow = 0;
-    else if (game.inputX < 0) facingRow = 1;
-    else if (game.inputY > 0) facingRow = 2;
-    else if (game.inputX > 0) facingRow = 3;
+    // Check effective input (from keyboard or joystick) and simulation velocity
+    double moveX = game.effectiveInputX;
+    double moveY = game.effectiveInputY;
+    
+    if (moveX.abs() < 0.05 && moveY.abs() < 0.05) {
+      moveX = game.simulation.playerVelocityX;
+      moveY = game.simulation.playerVelocityY;
+    }
+    
+    // Update facing direction dynamically based on movement
+    if (moveX.abs() > 0.01 || moveY.abs() > 0.01) {
+      if (moveX.abs() > moveY.abs()) {
+        facingRow = moveX > 0 ? 3 : 1; // 3 = Right, 1 = Left
+      } else {
+        facingRow = moveY > 0 ? 2 : 0; // 2 = Down (front), 0 = Up (back toward net)
+      }
+    }
   }
 
   @override
@@ -426,35 +500,39 @@ class PlayerVisualComponent extends Component {
       shadowPaintFloor,
     );
 
-    List<Image> currentLayers;
+    final vx = game.simulation.playerVelocityX;
+    final vy = game.simulation.playerVelocityY;
+    final bool isMoving = (vx.abs() > 0.005 || vy.abs() > 0.005) ||
+                          (game.effectiveInputX.abs() > 0.08 || game.effectiveInputY.abs() > 0.08);
+
     int validFrames = 1;
     double speed = 0.1;
-    bool isMoving = game.inputX != 0 || game.inputY != 0;
+    int baseRow = 8; // Default walk rows (8-11)
 
-    if (game.isSwinging && game.lpcSlashLayers.isNotEmpty) {
-      currentLayers = game.lpcSlashLayers;
-      validFrames = 6; // Slash animation has 6 frames
+    if (game.isSwinging) {
+      baseRow = 12; // Slash rows (12-15)
+      validFrames = 6;
       speed = 0.05;
-    } else if (isMoving && game.lpcWalkLayers.isNotEmpty) {
-      currentLayers = game.lpcWalkLayers;
-      validFrames = 9; // Walk animation has 9 frames
+    } else if (game.isDashing) {
+      baseRow = 38; // Run rows (38-41)
+      validFrames = 8;
+      speed = 0.06;
+    } else if (isMoving) {
+      baseRow = 8; // Walk rows (8-11)
+      validFrames = 9;
       speed = 0.08;
-    } else if (game.lpcIdleLayers.isNotEmpty) {
-      currentLayers = game.lpcIdleLayers;
-      validFrames = 1; // Idle is just the first frame
-      speed = 1.0;
     } else {
-      return; // Layers not loaded yet
+      baseRow = 22; // Idle breathing rows (22-25)
+      validFrames = 2;
+      speed = 0.5;
     }
 
-    // ALL of these universal LPC generated sheets are output as 832x256 images.
-    // That means there are exactly 13 physical columns and 4 rows.
-    final physicalCols = 13.0;
-    final frameHeight = currentLayers[0].height / 4.0;
-    final frameWidth = currentLayers[0].width / physicalCols;
+    // Unified LPC sheet has 18 columns and 66 rows
+    final frameWidth = game.unifiedSprite.width / 18.0;
+    final frameHeight = game.unifiedSprite.height / 66.0;
 
     int frameCol = (animTimer / speed).floor() % validFrames;
-    int frameRow = facingRow;
+    int frameRow = baseRow + facingRow;
 
     // Scale up the single frame so it's a good size on the court
     final drawWidth = frameWidth * 1.6 * scale;
@@ -463,10 +541,35 @@ class PlayerVisualComponent extends Component {
     final src = Rect.fromLTWH(frameCol * frameWidth, frameRow * frameHeight, frameWidth, frameHeight);
     final dst = Rect.fromCenter(center: center.translate(0, -15 * scale), width: drawWidth, height: drawHeight);
 
-    // Draw all layers stacked
-    for (final layer in currentLayers) {
-      canvas.drawImageRect(layer, src, dst, Paint());
-    }
+    // Draw the single unified sprite
+    canvas.drawImageRect(game.unifiedSprite, src, dst, Paint());
+
+    // Calculate ball screen position for kinetic strike
+    final ballPoint = simulation.camera.project(
+      x: simulation.ball.x,
+      y: simulation.ball.y,
+      elevation: simulation.ball.z,
+    );
+    final ballScreenPos = Offset(
+      (ballPoint.x + 1.0) / 2.0 * game.size.x,
+      (ballPoint.y + 1.0) / 2.0 * game.size.y,
+    );
+
+    // Draw Player's Floating / Kinetic Paddle (Electric Neon Cyan)
+    _drawKineticPaddle(
+      canvas: canvas,
+      charCenter: center,
+      scale: scale,
+      facingRow: facingRow,
+      animTimer: animTimer,
+      isSwinging: game.isSwinging,
+      swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
+      ballScreenPos: ballScreenPos,
+      paddleFaceColor: const Color(0xFF00E5FF), // Electric Neon Cyan
+      paddleRimColor: const Color(0xFF102A43),  // Dark Graphite Navy
+      energyColor: const Color(0xFF00E5FF),     // Cyan Energy
+      sweetSpotColor: const Color(0xFFFFFFFF),  // Pure White sweet spot
+    );
 
     if (game.isSwinging) {
       final glowPaint = Paint()
@@ -513,8 +616,8 @@ class PlayerVisualComponent extends Component {
       ..lineTo(proj(pX - rX, pY + rY, zMax).dx, proj(pX - rX, pY + rY, zMax).dy)
       ..close();
 
-    final paint = Paint()..color = const Color(0xAAFF0000)..style = PaintingStyle.stroke..strokeWidth = 2;
-    final fillPaint = Paint()..color = const Color(0x22FF0000)..style = PaintingStyle.fill;
+    final paint = Paint()..color = const Color(0xAA00E5FF)..style = PaintingStyle.stroke..strokeWidth = 2;
+    final fillPaint = Paint()..color = const Color(0x2200E5FF)..style = PaintingStyle.fill;
     
     canvas.drawPath(pathMin, paint);
     canvas.drawPath(pathMax, paint);
@@ -525,6 +628,149 @@ class PlayerVisualComponent extends Component {
     canvas.drawLine(proj(pX + rX, pY + rY, zMin), proj(pX + rX, pY + rY, zMax), paint);
     canvas.drawLine(proj(pX - rX, pY + rY, zMin), proj(pX - rX, pY + rY, zMax), paint);
   }
+}
+
+void _drawKineticPaddle({
+  required Canvas canvas,
+  required Offset charCenter,
+  required double scale,
+  required int facingRow,
+  required double animTimer,
+  required bool isSwinging,
+  required double swingProgress,
+  required Offset ballScreenPos,
+  required Color paddleFaceColor,
+  required Color paddleRimColor,
+  required Color energyColor,
+  required Color sweetSpotColor,
+}) {
+  canvas.save();
+
+  // Hand anchor relative to character center
+  Offset handOffset;
+  double baseAngle;
+
+  switch (facingRow) {
+    case 0: // Facing Up (towards net - back of character)
+      handOffset = Offset(16 * scale, -10 * scale);
+      baseAngle = -0.3;
+      break;
+    case 1: // Facing Left
+      handOffset = Offset(-14 * scale, -8 * scale);
+      baseAngle = -0.7;
+      break;
+    case 2: // Facing Down (towards camera - front of character)
+      handOffset = Offset(14 * scale, -6 * scale);
+      baseAngle = 0.4;
+      break;
+    case 3: // Facing Right
+    default:
+      handOffset = Offset(14 * scale, -8 * scale);
+      baseAngle = 0.7;
+      break;
+  }
+
+  final handPos = charCenter + handOffset;
+  
+  // Floating Hover Position (floating magnetically near dominant side)
+  final hoverBob = math.sin(animTimer * 4.5) * (3.0 * scale);
+  final hoverOffset = handOffset + Offset(6 * scale * (facingRow == 1 ? -1 : 1), -4 * scale + hoverBob);
+  final hoverPos = charCenter + hoverOffset;
+
+  Offset paddlePos;
+  double paddleAngle;
+  double flightCurve = 0.0;
+
+  if (isSwinging && swingProgress > 0) {
+    // Kinetic flight curve: 0.0 -> 1.0 (peak extension at ball) -> 0.0 (return)
+    flightCurve = math.sin(swingProgress.clamp(0.0, 1.0) * math.pi);
+    
+    final diff = ballScreenPos - charCenter;
+    final dist = diff.distance;
+    final maxReach = 72.0 * scale; // Clamped reach covering the large hitbox
+    final targetPos = dist > 1.0 ? charCenter + (diff / dist) * math.min(dist, maxReach) : hoverPos;
+    
+    paddlePos = Offset.lerp(hoverPos, targetPos, flightCurve)!;
+    
+    // Dynamic spin and strike angle towards ball
+    final aimAngle = math.atan2(diff.dy, diff.dx);
+    paddleAngle = baseAngle + (flightCurve * 2.8) + (aimAngle * 0.3);
+  } else {
+    paddlePos = hoverPos;
+    paddleAngle = baseAngle + (math.sin(animTimer * 3.5) * 0.08);
+  }
+
+  // Draw Kinetic Energy Aura / Glow
+  if (flightCurve > 0.05) {
+    // Energy Tether / Trail from Hand to Flying Paddle
+    final tetherPaint = Paint()
+      ..color = energyColor.withValues(alpha: 0.55 * flightCurve)
+      ..strokeWidth = 3.0 * scale
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawLine(handPos, paddlePos, tetherPaint);
+
+    final tetherCore = Paint()
+      ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.85 * flightCurve)
+      ..strokeWidth = 1.2 * scale
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(handPos, paddlePos, tetherCore);
+
+    // Energy Burst / Shockwave around paddle on contact
+    final burstPaint = Paint()
+      ..color = energyColor.withValues(alpha: 0.4 * flightCurve)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawCircle(paddlePos, 18 * scale * flightCurve, burstPaint);
+  } else {
+    // Subtle levitation shadow / energy pool underneath floating paddle
+    final auraPaint = Paint()
+      ..color = energyColor.withValues(alpha: 0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawOval(
+      Rect.fromCenter(center: paddlePos.translate(0, 14 * scale), width: 14 * scale, height: 5 * scale),
+      auraPaint,
+    );
+  }
+
+  // Draw Paddle Body at paddlePos rotated by paddleAngle
+  canvas.translate(paddlePos.dx, paddlePos.dy);
+  canvas.rotate(paddleAngle);
+
+  // 1. Paddle Handle / Grip
+  final gripPaint = Paint()..color = const Color(0xFF2C3E50)..style = PaintingStyle.fill;
+  final gripWrapPaint = Paint()
+    ..color = const Color(0xFFECEFF1)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2 * scale;
+  final gripRect = Rect.fromCenter(center: Offset(0, 4 * scale), width: 3.5 * scale, height: 12 * scale);
+  canvas.drawRRect(RRect.fromRectAndRadius(gripRect, Radius.circular(1.5 * scale)), gripPaint);
+  canvas.drawLine(Offset(-1.5 * scale, 2 * scale), Offset(1.5 * scale, 4 * scale), gripWrapPaint);
+  canvas.drawLine(Offset(-1.5 * scale, 5 * scale), Offset(1.5 * scale, 7 * scale), gripWrapPaint);
+
+  // 2. Paddle Edge Guard (Outer Rim)
+  final rimPaint = Paint()..color = paddleRimColor..style = PaintingStyle.fill;
+  final paddleRim = RRect.fromRectAndRadius(
+    Rect.fromCenter(center: Offset(0, -9 * scale), width: 14 * scale, height: 20 * scale),
+    Radius.circular(5 * scale),
+  );
+  canvas.drawRRect(paddleRim, rimPaint);
+
+  // 3. Paddle Face
+  final facePaint = Paint()..color = paddleFaceColor..style = PaintingStyle.fill;
+  final paddleFace = RRect.fromRectAndRadius(
+    Rect.fromCenter(center: Offset(0, -9 * scale), width: 11.5 * scale, height: 17.5 * scale),
+    Radius.circular(3.5 * scale),
+  );
+  canvas.drawRRect(paddleFace, facePaint);
+
+  // 4. Sweet Spot Core Graphic
+  final sweetSpotPaint = Paint()..color = sweetSpotColor..style = PaintingStyle.fill;
+  canvas.drawCircle(Offset(0, -9 * scale), 3.5 * scale, sweetSpotPaint);
+  final corePaint = Paint()..color = const Color(0xFF1E272E)..style = PaintingStyle.fill;
+  canvas.drawCircle(Offset(0, -9 * scale), 1.2 * scale, corePaint);
+
+  canvas.restore();
 }
 
 class CourtVisualComponent extends Component {

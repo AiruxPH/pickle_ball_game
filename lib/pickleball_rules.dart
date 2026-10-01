@@ -18,11 +18,16 @@ class FaultResult {
 
 class PickleballRules {
   static const int winningScore = 11;
-  static const double courtWidth = 0.82;
-  static const double courtLength = 0.95;
-  static const double netHeight = 0.18;
+  // Official regulation pickleball court proportions (20 ft wide x 44 ft long)
+  // Half-court length normalized to 1.0 (22 ft)
+  static const double courtLength = 1.0;
+  // Half-court width: 10 ft / 22 ft = 0.4545
+  static const double courtWidth = 0.4545;
+  // Net height: 36 inches / 22 ft = 0.1364 at posts (34 inches / 22 ft = 0.1288 at center)
+  static const double netHeight = 0.1364;
+  // Non-Volley Zone ("Kitchen"): 7 ft / 22 ft = 0.3182
+  static const double kitchenDepth = 0.3182;
   static const double screenCourtScale = 0.9;
-  static const double kitchenDepth = 0.3;
 
   static bool isInsideCourt(double x, double y) {
     return x.abs() <= courtWidth && y.abs() <= courtLength;
