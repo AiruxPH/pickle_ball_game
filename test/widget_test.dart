@@ -365,6 +365,55 @@ void main() {
     expect(hit.botShotType, isNotNull);
   });
 
+  test('spectate mode rejects player swing and dash controls', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+    simulation.playerVelocityX = 0.04;
+    simulation.playerVelocityY = -0.03;
+    final beforeX = simulation.playerVelocityX;
+    final beforeY = simulation.playerVelocityY;
+
+    expect(simulation.swing(), SwingResult.missed);
+    simulation.dashPlayer();
+
+    expect(simulation.rallyLength, 0);
+    expect(simulation.playerVelocityX, beforeX);
+    expect(simulation.playerVelocityY, beforeY);
+  });
+
+  test('low receiving contact selects a net-clearing safe return', () {
+    final receiver = BotAgent(
+      id: 'receiver',
+      side: BotCourtSide.bottom,
+      difficulty: BotDifficulty.normal,
+      personality: const BotPersonality(
+        name: 'Aggressive receiver',
+        aggressionAdjustment: 0.30,
+      ),
+      randomSeed: 3,
+    );
+    const perception = BotPerception(
+      ballX: 0,
+      ballY: 0.65,
+      ballZ: 0.01,
+      ballVelocityX: 0,
+      ballVelocityY: 0.01,
+      ballVelocityZ: 0,
+      ballHasBounced: true,
+      opponentX: 0,
+      gravity: GameSimulation.gravity,
+    );
+
+    final shot = receiver.chooseShot(perception);
+    final ticksToNet = perception.ballY / shot.velocityY.abs();
+    final heightAtNet = perception.ballZ +
+        shot.lift * ticksToNet -
+        0.5 * perception.gravity * ticksToNet * ticksToNet;
+
+    expect(shot.type, BotShotType.safeReturn);
+    expect(shot.velocityY, lessThan(0));
+    expect(heightAtNet, greaterThan(PickleballRules.netHeight + 0.04));
+  });
+
   test('difficulty aggression influences the default bot shot plan', () {
     final easy = GameSimulation(botDifficulty: BotDifficulty.easy);
     final hard = GameSimulation(botDifficulty: BotDifficulty.hard);

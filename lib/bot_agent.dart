@@ -212,7 +212,7 @@ class BotAgent {
     final BotShotType shotType;
     if (perception.ballZ >= 0.36) {
       shotType = BotShotType.smash;
-    } else if (aggression >= 0.55) {
+    } else if (perception.ballZ >= 0.12 && aggression >= 0.55) {
       shotType = BotShotType.drive;
     } else {
       shotType = BotShotType.safeReturn;
@@ -230,28 +230,67 @@ class BotAgent {
     final direction = side == BotCourtSide.top ? 1.0 : -1.0;
 
     return switch (shotType) {
-      BotShotType.safeReturn => BotShotPlan(
+      BotShotType.safeReturn => _buildShotPlan(
+          perception: perception,
           type: shotType,
           targetX: targetX,
           targetY: direction * 0.70,
-          velocityY: direction * 0.024,
-          lift: 0.022,
+          speed: 0.024,
+          netClearance: 0.055,
         ),
-      BotShotType.drive => BotShotPlan(
+      BotShotType.drive => _buildShotPlan(
+          perception: perception,
           type: shotType,
           targetX: targetX,
           targetY: direction * 0.82,
-          velocityY: direction * 0.030,
-          lift: 0.015,
+          speed: 0.030,
+          netClearance: 0.030,
         ),
-      BotShotType.smash => BotShotPlan(
+      BotShotType.smash => _buildShotPlan(
+          perception: perception,
           type: shotType,
           targetX: targetX,
           targetY: direction * 0.88,
-          velocityY: direction * 0.036,
-          lift: 0.009,
+          speed: 0.036,
+          netClearance: 0.015,
         ),
     };
+  }
+
+  BotShotPlan _buildShotPlan({
+    required BotPerception perception,
+    required BotShotType type,
+    required double targetX,
+    required double targetY,
+    required double speed,
+    required double netClearance,
+  }) {
+    final direction = side == BotCourtSide.top ? 1.0 : -1.0;
+    final velocityY = direction * speed;
+    final flightTicks = ((targetY - perception.ballY).abs() / speed)
+        .clamp(12.0, 90.0);
+
+    // Choose vertical velocity from the desired landing depth, then raise it
+    // if necessary to guarantee clearance over the net from this contact.
+    final landingLift =
+        (0.5 * perception.gravity * flightTicks * flightTicks -
+                perception.ballZ) /
+            flightTicks;
+    final netTicks = (perception.ballY.abs() / speed)
+        .clamp(1.0, flightTicks);
+    final clearanceLift =
+        (PickleballRules.netHeight + netClearance - perception.ballZ +
+                0.5 * perception.gravity * netTicks * netTicks) /
+            netTicks;
+    final lift = math.max(0.006, math.max(landingLift, clearanceLift));
+
+    return BotShotPlan(
+      type: type,
+      targetX: targetX,
+      targetY: targetY,
+      velocityY: velocityY,
+      lift: lift,
+    );
   }
 
   bool rollError() => _random.nextDouble() < settings.errorRate;

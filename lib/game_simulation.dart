@@ -301,6 +301,7 @@ class GameSimulation {
   void Function(double x, double y)? onPlayerDash;
 
   void dashPlayer() {
+    if (gameMode == GameMode.botVsBot) return;
     if (playPhase != MatchPlayPhase.inRally && playPhase != MatchPlayPhase.waitingForServe) return;
     
     if (playerVelocityX.abs() < 0.005 && playerVelocityY.abs() < 0.005) {
@@ -1098,6 +1099,9 @@ class GameSimulation {
     double joystickX = 0.0,
     double joystickY = 0.0,
   }) {
+    if (gameMode == GameMode.botVsBot) {
+      return SwingResult.missed;
+    }
     if (playPhase == MatchPlayPhase.waitingForServe) {
       if (servingSide == MatchSide.player) {
         triggerServe();

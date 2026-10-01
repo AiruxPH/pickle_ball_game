@@ -181,7 +181,7 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   void _executeSwing() {
-    if (!isPlaying || _isPaused) return;
+    if (!isPlaying || _isPaused || widget.gameMode == 1) return;
     setState(() => flameGame.isSwinging = true);
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) setState(() => flameGame.isSwinging = false);
@@ -297,7 +297,9 @@ class _PickleballGameState extends State<PickleballGame> {
             return KeyEventResult.handled;
           }
           if (event is KeyDownEvent && (event.logicalKey == LogicalKeyboardKey.shiftLeft || event.logicalKey == LogicalKeyboardKey.shiftRight)) {
-            flameGame.simulation.dashPlayer();
+            if (widget.gameMode != 1) {
+              flameGame.simulation.dashPlayer();
+            }
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;

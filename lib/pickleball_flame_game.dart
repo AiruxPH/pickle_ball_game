@@ -121,6 +121,14 @@ class PickleballFlameGame extends FlameGame {
       currentInputY += 1;
     }
 
+    // Spectate input is reserved for the free-roam camera. It must never be
+    // forwarded as movement input to either autonomous bot.
+    if (simulation.gameMode == GameMode.botVsBot &&
+        simulation.camera.mode != CameraMode.freeRoam) {
+      currentInputX = 0;
+      currentInputY = 0;
+    }
+
     effectiveInputX = currentInputX.clamp(-1.0, 1.0);
     effectiveInputY = currentInputY.clamp(-1.0, 1.0);
 
