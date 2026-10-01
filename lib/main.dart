@@ -76,6 +76,10 @@ class _PickleballGameState extends State<PickleballGame> {
   @override
   void initState() {
     super.initState();
+    // Debug visualization is session-only and should never leak into a fresh
+    // match or spectator broadcast.
+    GameDebugConfig.showHitboxes = false;
+    _showDebugMenu = false;
     GameMode mode = GameMode.playerVsBot;
     MapType map = MapType.stadium;
     if (widget.gameMode == 1) {
