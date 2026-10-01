@@ -776,18 +776,21 @@ class GameSimulation {
             return _endRally(RallyEnd.botFault);
           }
 
-          if (rallyLength == 0) {
-            // First bounce of the serve: Must land in correct cross-court service box!
+          if (rallyPhase == RallyPhase.serveInFlight) {
+            // The first legal bounce of a serve must land in the diagonal
+            // service box and beyond the kitchen line.
             final isEven = currentServerScore % 2 == 0;
             final isCorrect = PickleballRules.isServeInCorrectBox(
               x: ball.x,
               y: ball.y,
-              playerServing: lastHitByPlayer,
+              playerServing: servingSide == MatchSide.player,
               serveFromLeft: !isEven,
             );
             if (!isCorrect) {
               return _endRally(
-                lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault,
+                servingSide == MatchSide.player
+                    ? RallyEnd.playerFault
+                    : RallyEnd.botFault,
               );
             }
           } else if (!PickleballRules.isInsideCourt(ball.x, ball.y)) {
