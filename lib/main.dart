@@ -98,13 +98,6 @@ class _PickleballGameState extends State<PickleballGame> {
         });
       });
     };
-    flameGame.simulation.onPlayerFault = (fault, reason) {
-      if (!mounted) return;
-      setState(() {
-        feedbackText = reason;
-        _handleRallyEnd(fault);
-      });
-    };
     _input.onJoystickChanged = (x, y) {
       setState(() {
         flameGame.inputX = x;

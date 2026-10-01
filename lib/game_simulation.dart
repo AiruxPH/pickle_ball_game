@@ -242,26 +242,52 @@ class GameSimulation {
     onPlayerDash?.call(playerX, playerY);
   }
 
-  // Hitboxes & Swing Mechanics
-  double playerHitRadiusX = 0.35;
-  double playerHitRadiusY = 0.32;
+  // Asymmetric Player Hitbox (generous forward reach towards net)
+  double playerHitRadiusX = 0.42;
+  double playerHitFrontY = 0.50; // In front towards net (ball.y < playerY)
+  double playerHitBackY = 0.22;  // Behind player (ball.y > playerY)
   double playerHitZMin = 0.0;
-  double playerHitZMax = 0.85;
+  double playerHitZMax = 0.95;
   
-  double botHitRadiusX = 0.35;
-  double botHitRadiusY = 0.32;
+  // Asymmetric Bot Hitbox (forward reach towards net: ball.y > botY)
+  double botHitRadiusX = 0.42;
+  double botHitFrontY = 0.50;
+  double botHitBackY = 0.22;
   double botHitZMin = 0.0;
-  double botHitZMax = 0.85;
+  double botHitZMax = 0.95;
+  double get playerHitRadiusY => playerHitFrontY;
+  double get botHitRadiusY => botHitFrontY;
 
   double playerSwingActiveTimer = 0.0;
   void Function(bool isSmash)? onPlayerHit;
-  void Function(RallyEnd fault, String faultReason)? onPlayerFault;
 
   bool canPlayerHitBall() {
-    return (ball.x - playerX).abs() <= playerHitRadiusX &&
-        (ball.y - playerY).abs() <= playerHitRadiusY &&
-        ball.z >= playerHitZMin &&
-        ball.z <= playerHitZMax;
+    final dx = (ball.x - playerX).abs();
+    final dyFront = playerY - ball.y; // > 0 when ball is between player and net
+    final inY = dyFront >= -playerHitBackY && dyFront <= playerHitFrontY;
+    final inZ = ball.z >= playerHitZMin && ball.z <= playerHitZMax;
+    return dx <= playerHitRadiusX && inY && inZ;
+  }
+
+  bool canBotHitBall() {
+    final dx = (ball.x - botX).abs();
+    final dyFront = ball.y - botY; // > 0 when ball is between bot and net
+    final inY = dyFront >= -botHitBackY && dyFront <= botHitFrontY;
+    final inZ = ball.z >= botHitZMin && ball.z <= botHitZMax;
+    return dx <= botHitRadiusX && inY && inZ;
+  }
+
+  bool isTwoBounceViolation({required bool forPlayer}) {
+    // Official Two-Bounce Rule:
+    // 1. Receiver must let the serve bounce before returning (rallyLength == 0).
+    // 2. Server must let the return of serve bounce before hitting the 3rd shot (rallyLength == 1).
+    // From rallyLength >= 2 onwards, volleys outside the kitchen are completely legal!
+    if (rallyLength == 0) {
+      return !ball.hasBounced;
+    } else if (rallyLength == 1) {
+      return !ball.hasBounced;
+    }
+    return false;
   }
 
   void _executePlayerHit({double joystickX = 0.0}) {
@@ -397,7 +423,7 @@ class GameSimulation {
       lastHitByPlayer = true;
     } else {
       final isEven = currentServerScore % 2 == 0;
-      final targetX = isEven ? 0.227 : -0.227;
+      final targetX = isEven ? -0.227 : 0.227;
       final targetY = 0.66;
       const double T = 52.0;
       ball.velocityX = (targetX - (botX + 0.08)) / T;
@@ -559,19 +585,20 @@ class GameSimulation {
     if (gameMode == GameMode.playerVsBot && playerSwingActiveTimer > 0) {
       playerSwingActiveTimer -= 0.025;
       if (ball.velocityY > 0 && canPlayerHitBall()) {
-        playerSwingActiveTimer = 0.0;
         if (!GameDebugConfig.bypassKitchenRules) {
           if (PickleballRules.isKitchenVolley(playerY: playerY, ballHasBounced: ball.hasBounced)) {
+            playerSwingActiveTimer = 0.0;
             playPhase = MatchPlayPhase.deadBall;
-            onPlayerFault?.call(RallyEnd.playerFault, 'KITCHEN FAULT!');
             return RallyEnd.playerFault;
           }
-          if (rallyLength < 3 && !ball.hasBounced) {
-            playPhase = MatchPlayPhase.deadBall;
-            onPlayerFault?.call(RallyEnd.playerFault, 'TWO-BOUNCE FAULT!');
-            return RallyEnd.playerFault;
+          if (isTwoBounceViolation(forPlayer: true)) {
+            // If ball is descending toward ground on serve/return, wait for bounce instead of premature fault
+            if (ball.z > 0.12) {
+              return null;
+            }
           }
         }
+        playerSwingActiveTimer = 0.0;
         final isSmash = ball.z > 0.3;
         _executePlayerHit(joystickX: jX);
         onPlayerHit?.call(isSmash);
@@ -624,10 +651,7 @@ class GameSimulation {
 
       // Auto-hit
       if (ball.velocityY > 0 &&
-          (ball.y - playerY).abs() <= playerHitRadiusY &&
-          (ball.x - playerX).abs() <= playerHitRadiusX &&
-          ball.z >= playerHitZMin &&
-          ball.z <= playerHitZMax &&
+          canPlayerHitBall() &&
           (ball.hasBounced || ball.y > courtLength * 0.5)) {
         rallyLength++;
         lastHitByPlayer = true;
@@ -683,6 +707,16 @@ class GameSimulation {
     if (ball.z <= 0) {
       if (gameMode != GameMode.freeRoamPractice) {
         if (!ball.hasBounced) {
+          // A ball cannot bounce on the hitter's own side of the net
+          if (lastHitByPlayer && ball.y >= 0) {
+            playPhase = MatchPlayPhase.deadBall;
+            return RallyEnd.playerFault;
+          }
+          if (!lastHitByPlayer && ball.y <= 0) {
+            playPhase = MatchPlayPhase.deadBall;
+            return RallyEnd.botFault;
+          }
+
           if (rallyLength == 0) {
             // First bounce of the serve: Must land in correct cross-court service box!
             final isEven = currentServerScore % 2 == 0;
@@ -701,8 +735,9 @@ class GameSimulation {
             return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
           }
         } else {
+          // Double bounce: fault on the receiving player who let it bounce twice on their side
           playPhase = MatchPlayPhase.deadBall;
-          return lastHitByPlayer ? RallyEnd.botFault : RallyEnd.playerFault;
+          return ball.y > 0 ? RallyEnd.playerFault : RallyEnd.botFault;
         }
         ball.z = 0;
         ball.velocityZ = 0.018;
@@ -728,7 +763,8 @@ class GameSimulation {
         return RallyEnd.playerFault;
       }
 
-      if (!ball.hasBounced && (ball.y.abs() > courtLength * 1.5 || ball.x.abs() > courtWidth * 1.5)) {
+      // Wide bleacher limits: only terminate when ball completely clears the arena
+      if (!ball.hasBounced && (ball.y.abs() > courtLength * 2.2 || ball.x.abs() > courtWidth * 2.5)) {
         playPhase = MatchPlayPhase.deadBall;
         return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
       }
@@ -812,13 +848,8 @@ class GameSimulation {
       botY = botY.clamp(-courtLength * 1.35, -0.05);
     }
 
-    if (ball.velocityY < 0 &&
-        (ball.y - botY).abs() <= botHitRadiusY &&
-        (ball.x - botX).abs() <= botHitRadiusX &&
-        ball.z >= botHitZMin &&
-        ball.z <= botHitZMax) {
-      
-      if (rallyLength < 3 && !ball.hasBounced) {
+    if (ball.velocityY < 0 && canBotHitBall()) {
+      if (isTwoBounceViolation(forPlayer: false)) {
         // Wait for bounce
       } else {
         rallyLength++;
@@ -882,7 +913,7 @@ class GameSimulation {
     // Check hit radius first
     if (!canPlayerHitBall()) {
       // Buffer the swing so hitting slightly early still connects as the ball enters reach
-      playerSwingActiveTimer = 0.16;
+      playerSwingActiveTimer = 0.20;
       return SwingResult.missed;
     }
 
@@ -893,8 +924,10 @@ class GameSimulation {
       )) {
         return SwingResult.kitchenFault;
       }
-      if (rallyLength < 3 && !ball.hasBounced) {
-        return SwingResult.twoBounceFault;
+      if (isTwoBounceViolation(forPlayer: true)) {
+        if (ball.z > 0.12) {
+          return SwingResult.twoBounceFault;
+        }
       }
     }
 

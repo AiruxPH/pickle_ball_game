@@ -422,35 +422,50 @@ class BotVisualComponent extends Component {
     final pX = sim.botX;
     final pY = sim.botY;
     final rX = sim.botHitRadiusX;
-    final rY = sim.botHitRadiusY;
+    final frontY = sim.botHitFrontY;
+    final backY = sim.botHitBackY;
     final zMin = sim.botHitZMin;
     final zMax = sim.botHitZMax;
+    final zMid = (zMin + zMax) / 2.0;
+
+    // Bot faces net in +Y direction
+    final yFront = pY + frontY;
+    final yBack = pY - backY;
 
     final pathMin = Path()
-      ..moveTo(proj(pX - rX, pY - rY, zMin).dx, proj(pX - rX, pY - rY, zMin).dy)
-      ..lineTo(proj(pX + rX, pY - rY, zMin).dx, proj(pX + rX, pY - rY, zMin).dy)
-      ..lineTo(proj(pX + rX, pY + rY, zMin).dx, proj(pX + rX, pY + rY, zMin).dy)
-      ..lineTo(proj(pX - rX, pY + rY, zMin).dx, proj(pX - rX, pY + rY, zMin).dy)
+      ..moveTo(proj(pX - rX, yBack, zMin).dx, proj(pX - rX, yBack, zMin).dy)
+      ..lineTo(proj(pX + rX, yBack, zMin).dx, proj(pX + rX, yBack, zMin).dy)
+      ..lineTo(proj(pX + rX, yFront, zMin).dx, proj(pX + rX, yFront, zMin).dy)
+      ..lineTo(proj(pX - rX, yFront, zMin).dx, proj(pX - rX, yFront, zMin).dy)
+      ..close();
+
+    final pathMid = Path()
+      ..moveTo(proj(pX - rX, yBack, zMid).dx, proj(pX - rX, yBack, zMid).dy)
+      ..lineTo(proj(pX + rX, yBack, zMid).dx, proj(pX + rX, yBack, zMid).dy)
+      ..lineTo(proj(pX + rX, yFront, zMid).dx, proj(pX + rX, yFront, zMid).dy)
+      ..lineTo(proj(pX - rX, yFront, zMid).dx, proj(pX - rX, yFront, zMid).dy)
       ..close();
     
     final pathMax = Path()
-      ..moveTo(proj(pX - rX, pY - rY, zMax).dx, proj(pX - rX, pY - rY, zMax).dy)
-      ..lineTo(proj(pX + rX, pY - rY, zMax).dx, proj(pX + rX, pY - rY, zMax).dy)
-      ..lineTo(proj(pX + rX, pY + rY, zMax).dx, proj(pX + rX, pY + rY, zMax).dy)
-      ..lineTo(proj(pX - rX, pY + rY, zMax).dx, proj(pX - rX, pY + rY, zMax).dy)
+      ..moveTo(proj(pX - rX, yBack, zMax).dx, proj(pX - rX, yBack, zMax).dy)
+      ..lineTo(proj(pX + rX, yBack, zMax).dx, proj(pX + rX, yBack, zMax).dy)
+      ..lineTo(proj(pX + rX, yFront, zMax).dx, proj(pX + rX, yFront, zMax).dy)
+      ..lineTo(proj(pX - rX, yFront, zMax).dx, proj(pX - rX, yFront, zMax).dy)
       ..close();
 
     final paint = Paint()..color = const Color(0xAA00FF00)..style = PaintingStyle.stroke..strokeWidth = 2;
+    final midPaint = Paint()..color = const Color(0x5500FF00)..style = PaintingStyle.stroke..strokeWidth = 1.2;
     final fillPaint = Paint()..color = const Color(0x2200FF00)..style = PaintingStyle.fill;
     
     canvas.drawPath(pathMin, paint);
+    canvas.drawPath(pathMid, midPaint);
     canvas.drawPath(pathMax, paint);
     canvas.drawPath(pathMax, fillPaint);
 
-    canvas.drawLine(proj(pX - rX, pY - rY, zMin), proj(pX - rX, pY - rY, zMin), paint);
-    canvas.drawLine(proj(pX + rX, pY - rY, zMin), proj(pX + rX, pY - rY, zMin), paint);
-    canvas.drawLine(proj(pX + rX, pY + rY, zMin), proj(pX + rX, pY + rY, zMax), paint);
-    canvas.drawLine(proj(pX - rX, pY + rY, zMin), proj(pX - rX, pY + rY, zMax), paint);
+    canvas.drawLine(proj(pX - rX, yBack, zMin), proj(pX - rX, yBack, zMax), paint);
+    canvas.drawLine(proj(pX + rX, yBack, zMin), proj(pX + rX, yBack, zMax), paint);
+    canvas.drawLine(proj(pX + rX, yFront, zMin), proj(pX + rX, yFront, zMax), paint);
+    canvas.drawLine(proj(pX - rX, yFront, zMin), proj(pX - rX, yFront, zMax), paint);
   }
 }
 
@@ -609,35 +624,50 @@ class PlayerVisualComponent extends Component {
     final pX = sim.playerX;
     final pY = sim.playerY;
     final rX = sim.playerHitRadiusX;
-    final rY = sim.playerHitRadiusY;
+    final frontY = sim.playerHitFrontY;
+    final backY = sim.playerHitBackY;
     final zMin = sim.playerHitZMin;
     final zMax = sim.playerHitZMax;
+    final zMid = (zMin + zMax) / 2.0;
+
+    // Player faces net in -Y direction
+    final yFront = pY - frontY;
+    final yBack = pY + backY;
 
     final pathMin = Path()
-      ..moveTo(proj(pX - rX, pY - rY, zMin).dx, proj(pX - rX, pY - rY, zMin).dy)
-      ..lineTo(proj(pX + rX, pY - rY, zMin).dx, proj(pX + rX, pY - rY, zMin).dy)
-      ..lineTo(proj(pX + rX, pY + rY, zMin).dx, proj(pX + rX, pY + rY, zMin).dy)
-      ..lineTo(proj(pX - rX, pY + rY, zMin).dx, proj(pX - rX, pY + rY, zMin).dy)
+      ..moveTo(proj(pX - rX, yFront, zMin).dx, proj(pX - rX, yFront, zMin).dy)
+      ..lineTo(proj(pX + rX, yFront, zMin).dx, proj(pX + rX, yFront, zMin).dy)
+      ..lineTo(proj(pX + rX, yBack, zMin).dx, proj(pX + rX, yBack, zMin).dy)
+      ..lineTo(proj(pX - rX, yBack, zMin).dx, proj(pX - rX, yBack, zMin).dy)
+      ..close();
+
+    final pathMid = Path()
+      ..moveTo(proj(pX - rX, yFront, zMid).dx, proj(pX - rX, yFront, zMid).dy)
+      ..lineTo(proj(pX + rX, yFront, zMid).dx, proj(pX + rX, yFront, zMid).dy)
+      ..lineTo(proj(pX + rX, yBack, zMid).dx, proj(pX + rX, yBack, zMid).dy)
+      ..lineTo(proj(pX - rX, yBack, zMid).dx, proj(pX - rX, yBack, zMid).dy)
       ..close();
     
     final pathMax = Path()
-      ..moveTo(proj(pX - rX, pY - rY, zMax).dx, proj(pX - rX, pY - rY, zMax).dy)
-      ..lineTo(proj(pX + rX, pY - rY, zMax).dx, proj(pX + rX, pY - rY, zMax).dy)
-      ..lineTo(proj(pX + rX, pY + rY, zMax).dx, proj(pX + rX, pY + rY, zMax).dy)
-      ..lineTo(proj(pX - rX, pY + rY, zMax).dx, proj(pX - rX, pY + rY, zMax).dy)
+      ..moveTo(proj(pX - rX, yFront, zMax).dx, proj(pX - rX, yFront, zMax).dy)
+      ..lineTo(proj(pX + rX, yFront, zMax).dx, proj(pX + rX, yFront, zMax).dy)
+      ..lineTo(proj(pX + rX, yBack, zMax).dx, proj(pX + rX, yBack, zMax).dy)
+      ..lineTo(proj(pX - rX, yBack, zMax).dx, proj(pX - rX, yBack, zMax).dy)
       ..close();
 
     final paint = Paint()..color = const Color(0xAA00E5FF)..style = PaintingStyle.stroke..strokeWidth = 2;
+    final midPaint = Paint()..color = const Color(0x5500E5FF)..style = PaintingStyle.stroke..strokeWidth = 1.2;
     final fillPaint = Paint()..color = const Color(0x2200E5FF)..style = PaintingStyle.fill;
     
     canvas.drawPath(pathMin, paint);
+    canvas.drawPath(pathMid, midPaint);
     canvas.drawPath(pathMax, paint);
     canvas.drawPath(pathMax, fillPaint);
 
-    canvas.drawLine(proj(pX - rX, pY - rY, zMin), proj(pX - rX, pY - rY, zMax), paint);
-    canvas.drawLine(proj(pX + rX, pY - rY, zMin), proj(pX + rX, pY - rY, zMax), paint);
-    canvas.drawLine(proj(pX + rX, pY + rY, zMin), proj(pX + rX, pY + rY, zMax), paint);
-    canvas.drawLine(proj(pX - rX, pY + rY, zMin), proj(pX - rX, pY + rY, zMax), paint);
+    canvas.drawLine(proj(pX - rX, yFront, zMin), proj(pX - rX, yFront, zMax), paint);
+    canvas.drawLine(proj(pX + rX, yFront, zMin), proj(pX + rX, yFront, zMax), paint);
+    canvas.drawLine(proj(pX + rX, yBack, zMin), proj(pX + rX, yBack, zMax), paint);
+    canvas.drawLine(proj(pX - rX, yBack, zMin), proj(pX - rX, yBack, zMax), paint);
   }
 }
 
