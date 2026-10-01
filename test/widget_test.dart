@@ -221,6 +221,25 @@ void main() {
     expect(simulation.rallyPhase, RallyPhase.deadBall);
   });
 
+  test('second bounce faults the player on the player side', () {
+    final simulation = GameSimulation();
+    simulation
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..lastHitByPlayer = false;
+    simulation.ball
+      ..x = 0
+      ..y = 0.6
+      ..z = -0.001
+      ..velocityX = 0
+      ..velocityY = 0.001
+      ..velocityZ = -0.01
+      ..hasBounced = true;
+
+    expect(simulation.update(), RallyEnd.playerFault);
+    expect(simulation.rallyPhase, RallyPhase.deadBall);
+  });
+
   test('ball speed is reported in miles per hour', () {
     final simulation = GameSimulation();
     simulation.ball
