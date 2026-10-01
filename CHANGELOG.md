@@ -4,6 +4,29 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-01 20:42:00 +08:00] - Orbital Familiar Paddle: Dynamic 3D Revolution Around Player & Bot Characters
+
+### 1. Familiar Orbital Motion & Depth-Aware Layering
+- **Reason of Change**:
+  - Transform the floating kinetic paddle into a magical, high-tech familiar companion that actively revolves around the player and bot characters in a smooth 3D elliptical orbit when moving or idle, and darts dynamically forward to strike incoming balls.
+- **Changes**:
+  - In `lib/pickleball_flame_game.dart` (`_drawKineticPaddle`):
+    - **Continuous Elliptical Orbit**:
+      - Configured orbit with $\omega = 2.6\text{ rad/s}$ (~2.4s per revolution).
+      - Ellipse dimensions: $R_x = 28 \times \text{scale}$, $R_y = 11.5 \times \text{scale}$ (perspective compression), hovering at chest/torso height ($Y = -12 \times \text{scale}$) with vertical floating bob.
+    - **Aerodynamic Familiar Lean**:
+      - Dynamically tilted the paddle body along its orbital tangent velocity ($\text{tilt} = -\sin(\theta) \times 0.25$), giving it the posture of an autonomous drone gliding along its trajectory.
+    - **3D Depth Scaling & Layering**:
+      - Modulated paddle scale by depth ($\text{depthScale} = 1.0 + \sin(\theta) \times 0.12$), making it slightly larger in front and smaller behind.
+      - In `PlayerVisualComponent` and `BotVisualComponent`, evaluated $\sin(\theta) < -0.15$: when passing behind, the familiar renders behind the character sprite; when passing in front, it renders on top.
+    - **Visual Familiar Aesthetics**:
+      - Rendered an ethereal orbital waist ring tracing the familiar's elliptical path.
+      - Added 3-tiered glowing stardust motion tail motes trailing behind the paddle in orbit.
+    - **Seamless Strike Transition**:
+      - On swing, the familiar launches smoothly from its instantaneous orbital coordinates to the ball impact point, aligning its sweet spot on contact, and returns fluidly into its orbital path on swing completion.
+
+---
+
 ## [2026-10-01 20:35:00 +08:00] - Shrink Player & Bot Hitboxes, Eliminate Unrealistic Midair Hits, and Elongate Paddle for Precise Visual Contact
 
 ### 1. Reduce Hitbox Dimensions to Authentic Physical Reach

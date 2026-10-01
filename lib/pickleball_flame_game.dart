@@ -552,7 +552,6 @@ class BotVisualComponent extends Component {
           Color(0x35E53935),
           BlendMode.srcATop,
         );
-      canvas.drawImageRect(game.unifiedSprite, src, dst, botSpritePaint);
 
       // Calculate ball screen position for kinetic strike
       final ballPoint = simulation.camera.project(
@@ -565,21 +564,34 @@ class BotVisualComponent extends Component {
         (ballPoint.y + 1.0) / 2.0 * game.size.y,
       );
 
-      // Draw Bot's Floating / Kinetic Paddle (Hot Crimson & Obsidian)
-      _drawKineticPaddle(
-        canvas: canvas,
-        charCenter: center,
-        scale: scale,
-        facingRow: facingRow,
-        animTimer: animTimer,
-        isSwinging: game.isBotSwinging,
-        swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
-        ballScreenPos: ballScreenPos,
-        paddleFaceColor: const Color(0xFFFF1744), // Crimson neon
-        paddleRimColor: const Color(0xFF212121), // Obsidian black
-        energyColor: const Color(0xFFFF4081), // Hot pink energy
-        sweetSpotColor: const Color(0xFFFFD700), // Golden sweet spot
-      );
+      // Familiar orbit depth check (passes behind character when sin(orbitAngle) < -0.15)
+      final orbitAngle = animTimer * 2.6;
+      final isBehind = math.sin(orbitAngle) < -0.15 && !game.isBotSwinging;
+
+      void drawBotFamiliarPaddle() {
+        _drawKineticPaddle(
+          canvas: canvas,
+          charCenter: center,
+          scale: scale,
+          facingRow: facingRow,
+          animTimer: animTimer,
+          isSwinging: game.isBotSwinging,
+          swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
+          ballScreenPos: ballScreenPos,
+          paddleFaceColor: const Color(0xFFFF1744), // Crimson neon
+          paddleRimColor: const Color(0xFF212121), // Obsidian black
+          energyColor: const Color(0xFFFF4081), // Hot pink energy
+          sweetSpotColor: const Color(0xFFFFD700), // Golden sweet spot
+        );
+      }
+
+      if (isBehind) {
+        drawBotFamiliarPaddle();
+        canvas.drawImageRect(game.unifiedSprite, src, dst, botSpritePaint);
+      } else {
+        canvas.drawImageRect(game.unifiedSprite, src, dst, botSpritePaint);
+        drawBotFamiliarPaddle();
+      }
     }
 
     if (!isPractice && GameDebugConfig.showHitboxes) {
@@ -801,9 +813,6 @@ class PlayerVisualComponent extends Component {
       height: drawHeight,
     );
 
-    // Draw the single unified sprite
-    canvas.drawImageRect(game.unifiedSprite, src, dst, Paint());
-
     // Calculate ball screen position for kinetic strike
     final ballPoint = simulation.camera.project(
       x: simulation.ball.x,
@@ -815,21 +824,34 @@ class PlayerVisualComponent extends Component {
       (ballPoint.y + 1.0) / 2.0 * game.size.y,
     );
 
-    // Draw Player's Floating / Kinetic Paddle (Electric Neon Cyan)
-    _drawKineticPaddle(
-      canvas: canvas,
-      charCenter: center,
-      scale: scale,
-      facingRow: facingRow,
-      animTimer: animTimer,
-      isSwinging: game.isSwinging,
-      swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
-      ballScreenPos: ballScreenPos,
-      paddleFaceColor: const Color(0xFF00E5FF), // Electric Neon Cyan
-      paddleRimColor: const Color(0xFF102A43), // Dark Graphite Navy
-      energyColor: const Color(0xFF00E5FF), // Cyan Energy
-      sweetSpotColor: const Color(0xFFFFFFFF), // Pure White sweet spot
-    );
+    // Familiar orbit depth check (passes behind character when sin(orbitAngle) < -0.15)
+    final orbitAngle = animTimer * 2.6;
+    final isBehind = math.sin(orbitAngle) < -0.15 && !game.isSwinging;
+
+    void drawPlayerFamiliarPaddle() {
+      _drawKineticPaddle(
+        canvas: canvas,
+        charCenter: center,
+        scale: scale,
+        facingRow: facingRow,
+        animTimer: animTimer,
+        isSwinging: game.isSwinging,
+        swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
+        ballScreenPos: ballScreenPos,
+        paddleFaceColor: const Color(0xFF00E5FF), // Electric Neon Cyan
+        paddleRimColor: const Color(0xFF102A43), // Dark Graphite Navy
+        energyColor: const Color(0xFF00E5FF), // Cyan Energy
+        sweetSpotColor: const Color(0xFFFFFFFF), // Pure White sweet spot
+      );
+    }
+
+    if (isBehind) {
+      drawPlayerFamiliarPaddle();
+      canvas.drawImageRect(game.unifiedSprite, src, dst, Paint());
+    } else {
+      canvas.drawImageRect(game.unifiedSprite, src, dst, Paint());
+      drawPlayerFamiliarPaddle();
+    }
 
     if (game.isSwinging) {
       final glowPaint = Paint()
@@ -949,37 +971,38 @@ void _drawKineticPaddle({
   canvas.save();
 
   // Hand anchor relative to character center
-  Offset handOffset;
-  double baseAngle;
-
-  switch (facingRow) {
-    case 0: // Facing Up (towards net - back of character)
-      handOffset = Offset(16 * scale, -10 * scale);
-      baseAngle = -0.3;
-      break;
-    case 1: // Facing Left
-      handOffset = Offset(-14 * scale, -8 * scale);
-      baseAngle = -0.7;
-      break;
-    case 2: // Facing Down (towards camera - front of character)
-      handOffset = Offset(14 * scale, -6 * scale);
-      baseAngle = 0.4;
-      break;
-    case 3: // Facing Right
-    default:
-      handOffset = Offset(14 * scale, -8 * scale);
-      baseAngle = 0.7;
-      break;
-  }
+  final Offset handOffset = switch (facingRow) {
+    0 => Offset(16 * scale, -10 * scale), // Facing Up
+    1 => Offset(-14 * scale, -8 * scale), // Facing Left
+    2 => Offset(14 * scale, -6 * scale), // Facing Down
+    _ => Offset(14 * scale, -8 * scale), // Facing Right
+  };
 
   final handPos = charCenter + handOffset;
 
-  // Floating Hover Position (floating magnetically near dominant side)
-  final hoverBob = math.sin(animTimer * 4.5) * (3.0 * scale);
-  final hoverOffset =
-      handOffset +
-      Offset(6 * scale * (facingRow == 1 ? -1 : 1), -4 * scale + hoverBob);
-  final hoverPos = charCenter + hoverOffset;
+  // --- FAMILIAR REVOLVING ORBIT ---
+  // The paddle orbits around the player character like a magical companion/familiar.
+  const orbitSpeed = 2.6; // One smooth revolution every ~2.4 seconds
+  final orbitAngle = animTimer * orbitSpeed;
+  final orbitRadiusX = 28.0 * scale;
+  final orbitRadiusY = 11.5 * scale; // Compressed in Y for isometric perspective
+  final orbitCenterY = -12.0 * scale; // Torso / chest height
+
+  final cosOrbit = math.cos(orbitAngle);
+  final sinOrbit = math.sin(orbitAngle);
+  final familiarBob = math.sin(animTimer * 5.0) * (2.2 * scale);
+
+  final orbitPos = charCenter + Offset(
+    cosOrbit * orbitRadiusX,
+    orbitCenterY + sinOrbit * orbitRadiusY + familiarBob,
+  );
+
+  // Dynamic lean/tilt as the familiar glides along its orbital ellipse
+  final orbitTilt = -sinOrbit * 0.25;
+  final familiarRestAngle = orbitTilt + (math.sin(animTimer * 3.5) * 0.08);
+
+  // Depth scale effect: slightly larger when in front (+sinOrbit), smaller when behind (-sinOrbit)
+  final depthScale = 1.0 + (sinOrbit * 0.12);
 
   Offset paddlePos;
   double paddleAngle;
@@ -995,31 +1018,31 @@ void _drawKineticPaddle({
     // The sweet spot of the elongated paddle is located at the center of the blade
     // (-19 * scale along the local -Y axis).
     final sweetSpotOffset = 19.0 * scale;
-    // With tighter hitboxes, the maximum reaching extension matches the character's arm reach.
+    // Maximum reaching extension matches the character's arm reach.
     final maxReach = 58.0 * scale;
     final reachDist = (dist - sweetSpotOffset).clamp(0.0, maxReach);
     final targetPos = dist > 1.0
         ? charCenter + (diff / dist) * reachDist
-        : hoverPos;
+        : orbitPos;
 
-    paddlePos = Offset.lerp(hoverPos, targetPos, flightCurve)!;
+    paddlePos = Offset.lerp(orbitPos, targetPos, flightCurve)!;
 
     // Angle to ball
     final aimAngle = math.atan2(diff.dy, diff.dx);
     // Align elongated blade (-Y in local space) directly towards the ball at contact
     final strikeAngle = aimAngle + math.pi / 2;
     final shortestAngleDiff =
-        (strikeAngle - baseAngle + math.pi) % (math.pi * 2) - math.pi;
+        (strikeAngle - familiarRestAngle + math.pi) % (math.pi * 2) - math.pi;
     final followThrough = (swingProgress - 0.5) * 0.4;
-    paddleAngle = baseAngle + shortestAngleDiff * flightCurve + followThrough;
+    paddleAngle = familiarRestAngle + shortestAngleDiff * flightCurve + followThrough;
   } else {
-    paddlePos = hoverPos;
-    paddleAngle = baseAngle + (math.sin(animTimer * 3.5) * 0.08);
+    paddlePos = orbitPos;
+    paddleAngle = familiarRestAngle;
   }
 
-  // Draw Kinetic Energy Aura / Glow
+  // Draw Familiar Energy Aura & Visual Accents
   if (flightCurve > 0.05) {
-    // Energy Tether / Trail from Hand to Flying Paddle
+    // Energy Tether / Trail from Hand to Flying Familiar
     final tetherPaint = Paint()
       ..color = energyColor.withValues(alpha: 0.55 * flightCurve)
       ..strokeWidth = 3.0 * scale
@@ -1045,15 +1068,41 @@ void _drawKineticPaddle({
     );
     canvas.drawCircle(sweetSpotWorld, 20 * scale * flightCurve, burstPaint);
   } else {
-    // Subtle levitation shadow / energy pool underneath floating paddle
+    // Faint ethereal orbit ring around the player's waist
+    final ringPaint = Paint()
+      ..color = energyColor.withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0 * scale;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: charCenter.translate(0, orbitCenterY),
+        width: orbitRadiusX * 2,
+        height: orbitRadiusY * 2,
+      ),
+      ringPaint,
+    );
+
+    // Stardust trail motes revolving behind the familiar
+    final trailPaint = Paint()..style = PaintingStyle.fill;
+    for (var i = 1; i <= 3; i++) {
+      final prevAngle = orbitAngle - (i * 0.22);
+      final prevPos = charCenter + Offset(
+        math.cos(prevAngle) * orbitRadiusX,
+        orbitCenterY + math.sin(prevAngle) * orbitRadiusY + familiarBob,
+      );
+      trailPaint.color = energyColor.withValues(alpha: 0.35 / i);
+      canvas.drawCircle(prevPos, (2.2 - i * 0.4) * scale, trailPaint);
+    }
+
+    // Subtle levitation shadow underneath floating familiar
     final auraPaint = Paint()
-      ..color = energyColor.withValues(alpha: 0.3)
+      ..color = energyColor.withValues(alpha: 0.28)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     canvas.drawOval(
       Rect.fromCenter(
-        center: paddlePos.translate(0, 16 * scale),
-        width: 16 * scale,
-        height: 6 * scale,
+        center: paddlePos.translate(0, 16 * scale * depthScale),
+        width: 15 * scale * depthScale,
+        height: 5 * scale * depthScale,
       ),
       auraPaint,
     );
@@ -1062,6 +1111,9 @@ void _drawKineticPaddle({
   // Draw Paddle Body at paddlePos rotated by paddleAngle
   canvas.translate(paddlePos.dx, paddlePos.dy);
   canvas.rotate(paddleAngle);
+  if (flightCurve <= 0.05) {
+    canvas.scale(depthScale, depthScale);
+  }
 
   // 1. Paddle Handle / Grip (Elongated pro handle)
   final gripPaint = Paint()
