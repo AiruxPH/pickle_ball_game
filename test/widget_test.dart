@@ -163,6 +163,64 @@ void main() {
     expect(simulation.ball.hasBounced, isFalse);
   });
 
+  test('serve box excludes the kitchen line but includes outer lines', () {
+    expect(
+      PickleballRules.isServeInCorrectBox(
+        x: -0.2,
+        y: -PickleballRules.kitchenDepth,
+        playerServing: true,
+        serveFromLeft: false,
+      ),
+      isFalse,
+    );
+    expect(
+      PickleballRules.isServeInCorrectBox(
+        x: -PickleballRules.courtWidth,
+        y: -PickleballRules.courtLength,
+        playerServing: true,
+        serveFromLeft: false,
+      ),
+      isTrue,
+    );
+  });
+
+  test('serve first bounce faults when it misses the diagonal service box', () {
+    final simulation = GameSimulation();
+    simulation.resetRally(servingSide: MatchSide.player, serverScore: 0);
+    simulation.triggerServe();
+
+    simulation.ball
+      ..x = 0.25
+      ..y = -0.65
+      ..z = -0.001
+      ..velocityX = 0
+      ..velocityY = -0.001
+      ..velocityZ = -0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), RallyEnd.playerFault);
+    expect(simulation.rallyPhase, RallyPhase.deadBall);
+  });
+
+  test('normal rally first bounce faults when it lands outside court', () {
+    final simulation = GameSimulation();
+    simulation
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..lastHitByPlayer = true;
+    simulation.ball
+      ..x = PickleballRules.courtWidth + 0.05
+      ..y = -0.7
+      ..z = -0.001
+      ..velocityX = 0
+      ..velocityY = -0.001
+      ..velocityZ = -0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), RallyEnd.playerFault);
+    expect(simulation.rallyPhase, RallyPhase.deadBall);
+  });
+
   test('ball speed is reported in miles per hour', () {
     final simulation = GameSimulation();
     simulation.ball
