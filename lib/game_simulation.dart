@@ -212,6 +212,7 @@ class GameSimulation {
   double playerY = 0.75;
   double playerVelocityX = 0;
   double playerVelocityY = 0;
+  double playerServeAimAngle = 0.0; // Aim trajectory angle during serve
   
   double bot2ReactionTimer = 0;
   double bot2TargetX = 0;
@@ -277,6 +278,7 @@ class GameSimulation {
     bot2ServeTimer = 60.0;
     playerVelocityX = 0;
     playerVelocityY = 0;
+    playerServeAimAngle = 0.0;
   }
 
   double botServeTimer = 0.0;
@@ -296,19 +298,58 @@ class GameSimulation {
 
   double ballMachineTimer = 120.0; // Shoot a ball every 2 seconds roughly
 
+  ({List<({double x, double y, double z})> points, double targetX, double targetY, bool isLegal}) getPlayerServeTrajectory() {
+    final isEven = currentServerScore % 2 == 0;
+    final baseTargetX = isEven ? -0.227 : 0.227;
+    final targetX = (baseTargetX + math.sin(playerServeAimAngle) * 0.22).clamp(-courtWidth * 0.95, courtWidth * 0.95);
+    final targetY = -0.66;
+    
+    final ballStartX = playerX + 0.08;
+    final ballStartY = playerY - 0.04;
+    const ballStartZ = 0.12;
+    
+    const double T = 52.0;
+    final vx = (targetX - ballStartX) / T;
+    final vy = (targetY - ballStartY) / T;
+    final vz = (0.5 * gravity * T * T - ballStartZ) / T;
+    
+    final points = <({double x, double y, double z})>[];
+    for (double t = 0; t <= T; t += 2.0) {
+      final x = ballStartX + vx * t;
+      final y = ballStartY + vy * t;
+      final z = math.max(0.0, ballStartZ + vz * t - 0.5 * gravity * t * t);
+      points.add((x: x, y: y, z: z));
+    }
+    
+    final isLegal = PickleballRules.isServeInCorrectBox(
+      x: targetX,
+      y: targetY,
+      playerServing: true,
+      serveFromLeft: !isEven,
+    );
+    
+    return (points: points, targetX: targetX, targetY: targetY, isLegal: isLegal);
+  }
+
   void triggerServe() {
     if (playPhase != MatchPlayPhase.waitingForServe) return;
     playPhase = MatchPlayPhase.inRally;
     
     if (servingSide == MatchSide.player) {
-      ball.velocityX = (currentServerScore % 2 == 0) ? -0.015 : 0.015; // Aim cross court
-      ball.velocityY = -0.024;
-      ball.velocityZ = 0.016;
+      final traj = getPlayerServeTrajectory();
+      const double T = 52.0;
+      ball.velocityX = (traj.targetX - (playerX + 0.08)) / T;
+      ball.velocityY = (traj.targetY - (playerY - 0.04)) / T;
+      ball.velocityZ = (0.5 * gravity * T * T - 0.12) / T;
       lastHitByPlayer = true;
     } else {
-      ball.velocityX = (currentServerScore % 2 == 0) ? -0.015 : 0.015;
-      ball.velocityY = 0.024;
-      ball.velocityZ = 0.016;
+      final isEven = currentServerScore % 2 == 0;
+      final targetX = isEven ? 0.227 : -0.227;
+      final targetY = 0.66;
+      const double T = 52.0;
+      ball.velocityX = (targetX - (botX + 0.08)) / T;
+      ball.velocityY = (targetY - (botY + 0.04)) / T;
+      ball.velocityZ = (0.5 * gravity * T * T - 0.12) / T;
       lastHitByPlayer = false;
     }
   }
@@ -353,18 +394,38 @@ class GameSimulation {
 
     if (playPhase == MatchPlayPhase.waitingForServe) {
       final isEven = currentServerScore % 2 == 0;
-      final serveX = isEven ? 0.4 : -0.4;
+      final serveX = isEven ? 0.25 : -0.25;
       
       if (servingSide == MatchSide.player) {
-        // Smoothly walk to serve position
-        playerX += (serveX - playerX) * 0.1;
-        playerY += (0.85 - playerY) * 0.1;
-        botX += (0 - botX) * 0.1;
-        botY += (-0.75 - botY) * 0.1; // Bot returns to center
+        // Player stands completely outside the baseline (Y > courtLength)
+        final baselineServeY = courtLength + 0.08;
         
-        ball.x = playerX;
-        ball.y = playerY - 0.1;
-        ball.z = 0.4;
+        if (gameMode == GameMode.playerVsBot) {
+          if (jX.abs() > 0.05) {
+            // Interactive serve aiming and positioning outside the court
+            playerServeAimAngle = (playerServeAimAngle + jX * 0.025).clamp(-0.45, 0.45);
+            if (isEven) {
+              playerX = (playerX + jX * 0.008).clamp(0.06, courtWidth);
+            } else {
+              playerX = (playerX + jX * 0.008).clamp(-courtWidth, -0.06);
+            }
+          }
+        }
+        
+        // Position player outside the baseline
+        playerY += (baselineServeY - playerY) * 0.15;
+        if (playerX == 0) {
+          playerX = serveX;
+        }
+        
+        // Bot returns to ready position on its side
+        botX += (0 - botX) * 0.1;
+        botY += (-0.75 - botY) * 0.1;
+        
+        // Ball rests on the player/paddle (waist height, not floating in sky)
+        ball.x = playerX + 0.08;
+        ball.y = playerY - 0.04;
+        ball.z = 0.12;
 
         if (gameMode == GameMode.botVsBot) {
           if (bot2ServeTimer > 0) {
@@ -374,14 +435,19 @@ class GameSimulation {
           }
         }
       } else {
+        // Bot serves outside baseline
+        final botBaselineServeY = -courtLength - 0.08;
         botX += (serveX - botX) * 0.1;
-        botY += (-0.85 - botY) * 0.1; // Behind baseline
-        playerX += (0 - playerX) * 0.1;
-        playerY += (0.75 - playerY) * 0.1; // Player returns to center
+        botY += (botBaselineServeY - botY) * 0.1;
         
-        ball.x = botX;
-        ball.y = botY + 0.1;
-        ball.z = 0.4;
+        // Player returns to center
+        playerX += (0 - playerX) * 0.1;
+        playerY += (0.75 - playerY) * 0.1;
+        
+        // Ball on bot paddle at waist height
+        ball.x = botX + 0.08;
+        ball.y = botY + 0.04;
+        ball.z = 0.12;
         
         if (botServeTimer > 0) {
           botServeTimer--;
@@ -411,7 +477,7 @@ class GameSimulation {
         gameMode: gameMode,
       );
       
-      // Let the player keep moving during dead ball!
+      // Let the player keep moving during dead ball, including outside the baseline!
       if (gameMode == GameMode.playerVsBot) {
         double jX = joystickX;
         double jY = joystickY;
@@ -421,8 +487,8 @@ class GameSimulation {
         }
         playerVelocityX += (jX * moveSpeed - playerVelocityX) * 0.15;
         playerVelocityY += (jY * moveSpeed - playerVelocityY) * 0.15;
-        playerX = (playerX + playerVelocityX).clamp(-courtWidth, courtWidth);
-        playerY = (playerY + playerVelocityY).clamp(0.05, courtLength);
+        playerX = (playerX + playerVelocityX).clamp(-courtWidth * 1.25, courtWidth * 1.25);
+        playerY = (playerY + playerVelocityY).clamp(0.05, courtLength * 1.35);
       }
       return null;
     }
@@ -433,12 +499,12 @@ class GameSimulation {
       if (bot2ReactionTimer > 0) {
         bot2ReactionTimer--;
       } else {
-        bot2ReactionTimer = 15.0;
+        bot2ReactionTimer = 10.0;
         if (ball.velocityY > 0) {
           // Ball is coming towards Bot2
-          bot2TargetX = ball.x + (math.Random().nextDouble() - 0.5) * 0.3;
+          bot2TargetX = ball.x.clamp(-courtWidth * 0.95, courtWidth * 0.95);
           if (bot2Aggression > 0.5 && ball.hasBounced) {
-             bot2TargetY = 0.3; // dash to kitchen
+             bot2TargetY = PickleballRules.kitchenDepth; // dash to kitchen
           } else {
              bot2TargetY = ball.y > 0.4 ? ball.y : 0.75;
           }
@@ -465,7 +531,7 @@ class GameSimulation {
         bot2IsDashing = false;
       }
       
-      if (dist > 0.1) {
+      if (dist > 0.05) {
         jX = dx / dist;
         jY = dy / dist;
       } else {
@@ -510,8 +576,8 @@ class GameSimulation {
       playerX = (playerX + playerVelocityX).clamp(-courtWidth * 5.0, courtWidth * 5.0);
       playerY = (playerY + playerVelocityY).clamp(-courtLength * 5.0, courtLength * 5.0);
     } else {
-      playerX = (playerX + playerVelocityX).clamp(-courtWidth, courtWidth);
-      playerY = (playerY + playerVelocityY).clamp(0.05, courtLength);
+      playerX = (playerX + playerVelocityX).clamp(-courtWidth * 1.25, courtWidth * 1.25);
+      playerY = (playerY + playerVelocityY).clamp(0.05, courtLength * 1.35);
     }
 
     ball.x += ball.velocityX;
@@ -522,7 +588,20 @@ class GameSimulation {
     if (ball.z <= 0) {
       if (gameMode != GameMode.freeRoamPractice) {
         if (!ball.hasBounced) {
-          if (!PickleballRules.isInsideCourt(ball.x, ball.y)) {
+          if (rallyLength == 0) {
+            // First bounce of the serve: Must land in correct cross-court service box!
+            final isEven = currentServerScore % 2 == 0;
+            final isCorrect = PickleballRules.isServeInCorrectBox(
+              x: ball.x,
+              y: ball.y,
+              playerServing: lastHitByPlayer,
+              serveFromLeft: !isEven,
+            );
+            if (!isCorrect) {
+              playPhase = MatchPlayPhase.deadBall;
+              return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
+            }
+          } else if (!PickleballRules.isInsideCourt(ball.x, ball.y)) {
             playPhase = MatchPlayPhase.deadBall;
             return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
           }
@@ -589,17 +668,17 @@ class GameSimulation {
       if (botReactionTimer > 0) {
         botReactionTimer--;
       } else {
-        botReactionTimer = 15.0;
+        botReactionTimer = 10.0;
         if (ball.velocityY < 0) {
-          // Approaching -> track ball with human error
-          botTargetX = ball.x + (math.Random().nextDouble() - 0.5) * 0.3;
+          // Approaching -> track ball smoothly without random jitter
+          botTargetX = ball.x.clamp(-courtWidth * 0.95, courtWidth * 0.95);
           if (bot1Aggression > 0.5 && ball.hasBounced) {
-             botTargetY = -0.3; // dash to kitchen
+             botTargetY = -PickleballRules.kitchenDepth; // stay just behind kitchen
           } else {
              botTargetY = ball.y < -0.4 ? ball.y : -0.75;
           }
         } else {
-          // Returning -> go to center
+          // Returning -> go to ready center
           botTargetX = 0;
           botTargetY = -0.75;
         }
@@ -628,12 +707,14 @@ class GameSimulation {
 
       final double speed = botIsDashing ? 0.05 : 0.015;
 
-      if (dist > 0.05) {
-        botX += (dx / dist) * speed;
-        botY += (dy / dist) * speed;
+      // Move smoothly to target without overshooting/vibrating
+      if (dist > 0.02) {
+        final step = math.min(speed, dist);
+        botX += (dx / dist) * step;
+        botY += (dy / dist) * step;
       }
-      botX = botX.clamp(-courtWidth, courtWidth);
-      botY = botY.clamp(-courtLength, -0.05);
+      botX = botX.clamp(-courtWidth * 1.25, courtWidth * 1.25);
+      botY = botY.clamp(-courtLength * 1.35, -0.05);
     }
 
     if (ball.velocityY < 0 &&

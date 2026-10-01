@@ -44,9 +44,15 @@ class PickleballRules {
     required bool playerServing,
     required bool serveFromLeft,
   }) {
-    final correctYSide = playerServing ? y < 0 : y > 0;
-    final correctXSide = serveFromLeft ? x > 0 : x < 0;
-    return isInsideCourt(x, y) && correctYSide && correctXSide;
+    // Official regulation: Serve must clear the Non-Volley Zone (kitchen line)
+    // and land in the diagonal cross-court service box
+    final correctYSide = playerServing
+        ? (y <= -kitchenDepth && y >= -courtLength)
+        : (y >= kitchenDepth && y <= courtLength);
+    final correctXSide = serveFromLeft
+        ? (x >= 0 && x <= courtWidth)
+        : (x <= 0 && x >= -courtWidth);
+    return correctYSide && correctXSide;
   }
 
   static bool isKitchenVolley({

@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 
 import 'game_debug_config.dart';
 import 'game_simulation.dart';
+import 'pickleball_rules.dart';
+import 'match_state.dart';
 
 class PickleballFlameGame extends FlameGame {
   PickleballFlameGame({
@@ -261,6 +263,8 @@ class BotVisualComponent extends Component {
   int facingRow = 2; // Default facing Down (front towards player)
   double _prevBotX = 0;
   double _prevBotY = -0.75;
+  double _smoothDx = 0.0;
+  double _smoothDy = 0.0;
   bool _isMoving = false;
   double _swingTimer = 0.0;
 
@@ -279,22 +283,27 @@ class BotVisualComponent extends Component {
     final isPractice = simulation.gameMode == GameMode.freeRoamPractice;
     if (isPractice) return;
 
-    final dx = simulation.botX - _prevBotX;
-    final dy = simulation.botY - _prevBotY;
+    final rawDx = simulation.botX - _prevBotX;
+    final rawDy = simulation.botY - _prevBotY;
     _prevBotX = simulation.botX;
     _prevBotY = simulation.botY;
 
-    final speed = (dt > 0) ? (math.sqrt(dx * dx + dy * dy) / dt) : 0.0;
-    _isMoving = speed > 0.03;
+    // Exponential smoothing filter to prevent single-frame flickering
+    _smoothDx = _smoothDx * 0.75 + rawDx * 0.25;
+    _smoothDy = _smoothDy * 0.75 + rawDy * 0.25;
+
+    final speed = (dt > 0) ? (math.sqrt(_smoothDx * _smoothDx + _smoothDy * _smoothDy) / dt) : 0.0;
+    _isMoving = speed > 0.04;
 
     if (_isMoving) {
-      if (dx.abs() > dy.abs()) {
-        facingRow = dx > 0 ? 3 : 1; // 3 = Right, 1 = Left
-      } else {
-        facingRow = dy > 0 ? 2 : 0; // 2 = Down (towards player), 0 = Up (away)
+      // Require clear horizontal dominance and significant speed before flipping left/right
+      if (_smoothDx.abs() > _smoothDy.abs() * 1.3 && _smoothDx.abs() > 0.003) {
+        facingRow = _smoothDx > 0 ? 3 : 1; // 3 = Right, 1 = Left
+      } else if (_smoothDy.abs() > 0.003) {
+        facingRow = _smoothDy > 0 ? 2 : 0; // 2 = Down (towards player), 0 = Up (away)
       }
     } else {
-      facingRow = 2; // Face towards player by default
+      facingRow = 2; // Face towards player by default when idle
     }
   }
 
@@ -877,7 +886,7 @@ class CourtVisualComponent extends Component {
   void render(Canvas canvas) {
     final width = GameSimulation.courtWidth;
     final length = GameSimulation.courtLength;
-    final kDepth = 0.3; // Kitchen depth
+    final kDepth = PickleballRules.kitchenDepth; // Regulation Kitchen depth (0.3182)
 
     // Draw floor
     final floorBack = -length * 6.0;
@@ -974,7 +983,7 @@ class CourtVisualComponent extends Component {
     final netShadowPaint = Paint()..color = const Color(0x66000000)..strokeWidth = 8;
     canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netShadowPaint);
 
-    final netHeight = 0.18;
+    final netHeight = PickleballRules.netHeight; // Regulation Net height (0.1364)
     final netPaint = Paint()..color = const Color(0xFFF8FAFC)..strokeWidth = 3..style = PaintingStyle.stroke;
     final netTapePaint = Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 4..style = PaintingStyle.stroke;
     final netMeshPaint = Paint()..color = const Color(0x44FFFFFF)..style = PaintingStyle.fill;
@@ -1013,6 +1022,82 @@ class CourtVisualComponent extends Component {
     // Referee Chair
     final refPaint = Paint()..color = const Color(0xFF94A3B8);
     _drawBench(canvas, -width * 1.5, 0, 0.2, 0.2, 0.8, refPaint);
+
+    // Serve Trajectory Guide during player serve
+    if (game.simulation.playPhase == MatchPlayPhase.waitingForServe &&
+        game.simulation.servingSide == MatchSide.player) {
+      _drawServeTrajectoryGuide(canvas);
+    }
+  }
+
+  void _drawServeTrajectoryGuide(Canvas canvas) {
+    final sim = game.simulation;
+    final traj = sim.getPlayerServeTrajectory();
+    
+    final themeColor = traj.isLegal ? const Color(0xFF00E5FF) : const Color(0xFFFF1744);
+    final coreColor = traj.isLegal ? const Color(0xFFE0F7FA) : const Color(0xFFFFEBEE);
+
+    // 1. Draw 3D glowing parabolic trajectory arc
+    final points = traj.points;
+    if (points.length >= 2) {
+      final glowPaint = Paint()
+        ..color = themeColor.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.0
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
+
+      final corePaint = Paint()
+        ..color = coreColor.withValues(alpha: 0.9)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+
+      final path = Path();
+      final p0 = _proj(points[0].x, points[0].y, points[0].z);
+      path.moveTo(p0.dx, p0.dy);
+      for (int i = 1; i < points.length; i++) {
+        final pt = _proj(points[i].x, points[i].y, points[i].z);
+        path.lineTo(pt.dx, pt.dy);
+      }
+      canvas.drawPath(path, glowPaint);
+      canvas.drawPath(path, corePaint);
+
+      // Trajectory bead pulses
+      final beadPaint = Paint()..color = themeColor..style = PaintingStyle.fill;
+      for (int i = 0; i < points.length; i += 4) {
+        final pt = _proj(points[i].x, points[i].y, points[i].z);
+        canvas.drawCircle(pt, 3.0, beadPaint);
+      }
+    }
+
+    // 2. Draw landing target crosshair on court floor
+    final targetCenter = _proj(traj.targetX, traj.targetY, 0.0);
+    final targetScale = sim.camera.project(x: traj.targetX, y: traj.targetY).scale;
+    
+    // Glowing target zone ring
+    final targetFill = Paint()
+      ..color = themeColor.withValues(alpha: 0.18)
+      ..style = PaintingStyle.fill;
+    final targetRing = Paint()
+      ..color = themeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5 * targetScale;
+    
+    final r = 18.0 * targetScale;
+    canvas.drawOval(Rect.fromCenter(center: targetCenter, width: r * 2.2, height: r * 1.1), targetFill);
+    canvas.drawOval(Rect.fromCenter(center: targetCenter, width: r * 2.2, height: r * 1.1), targetRing);
+    
+    // Crosshair ticks
+    final tickPaint = Paint()
+      ..color = coreColor
+      ..strokeWidth = 2.0 * targetScale
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(targetCenter.translate(-r * 1.4, 0), targetCenter.translate(-r * 0.4, 0), tickPaint);
+    canvas.drawLine(targetCenter.translate(r * 0.4, 0), targetCenter.translate(r * 1.4, 0), tickPaint);
+    canvas.drawLine(targetCenter.translate(0, -r * 0.8), targetCenter.translate(0, -r * 0.2), tickPaint);
+    canvas.drawLine(targetCenter.translate(0, r * 0.2), targetCenter.translate(0, r * 0.8), tickPaint);
+    
+    // Bullseye center dot
+    canvas.drawCircle(targetCenter, 3.5 * targetScale, Paint()..color = coreColor..style = PaintingStyle.fill);
   }
 }
 
