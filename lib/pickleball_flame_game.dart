@@ -19,6 +19,9 @@ class PickleballFlameGame extends FlameGame {
   final GameSimulation simulation;
   late final Image benchSprite;
   late final Image bleacherSprite;
+  late final Image maleFacingBack;
+  late final Image maleFacingBack2;
+  late final Image maleSideView;
   void Function(RallyEnd event)? onRallyEnd;
   double inputX = 0;
   double inputY = 0;
@@ -47,6 +50,9 @@ class PickleballFlameGame extends FlameGame {
     // Load external sprite assets (transparent PNGs)
     benchSprite = await images.load('stadium_bench-removebg-preview.png');
     bleacherSprite = await images.load('stadium_bleachers-removebg-preview.png');
+    maleFacingBack = await images.load('male facing back.png');
+    maleFacingBack2 = await images.load('male facing bak 2.png');
+    maleSideView = await images.load('male side view.png');
     
     await add(CourtVisualComponent(this));
     await add(BallVisualComponent(this));
@@ -385,33 +391,39 @@ class PlayerVisualComponent extends Component {
       (point.x + 1.0) / 2.0 * game.size.x,
       (point.y + 1.0) / 2.0 * game.size.y,
     );
-        // Hit flash: brighter body + amber glow ring while swinging
-    final bodyColor =
-        game.isSwinging ? const Color(0xFF82B1FF) : const Color(0xFF448AFF);
-    final highlightColor =
-        game.isSwinging ? const Color(0xFFB3E5FC) : const Color(0xFF82B1FF);
-    final shadowColor =
-        game.isSwinging ? const Color(0xFF1976D2) : const Color(0xFF0D47A1);
-
     final shadowPaintFloor = Paint()..color = const Color(0x40000000)..style = PaintingStyle.fill;
     canvas.drawOval(
       Rect.fromCenter(center: center.translate(0, 10 * scale), width: 45 * scale, height: 18 * scale),
       shadowPaintFloor,
     );
 
-    final playerPaint = Paint()
-      ..shader = Gradient.radial(
-        center.translate(-6 * scale, -6 * scale),
-        25 * scale,
-        [highlightColor, bodyColor, shadowColor],
-        [0.0, 0.5, 1.0],
-      );
-    canvas.drawCircle(center, 25 * scale, playerPaint);
-    final outlinePaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2 * scale;
-    canvas.drawCircle(center, 25 * scale, outlinePaint);
+    Image spriteToDraw = game.maleFacingBack;
+    bool flipX = false;
+    
+    if (game.isSwinging) {
+      spriteToDraw = game.maleFacingBack2; 
+    } else if (game.inputX.abs() > 0.1) {
+      spriteToDraw = game.maleSideView;
+      flipX = game.inputX > 0;
+    }
+
+    final drawWidth = spriteToDraw.width * 0.15 * scale;
+    final drawHeight = spriteToDraw.height * 0.15 * scale;
+    final src = Rect.fromLTWH(0, 0, spriteToDraw.width.toDouble(), spriteToDraw.height.toDouble());
+    final dst = Rect.fromCenter(center: center.translate(0, -10 * scale), width: drawWidth, height: drawHeight);
+
+    if (flipX) {
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.scale(-1, 1);
+      canvas.translate(-center.dx, -center.dy);
+    }
+    
+    canvas.drawImageRect(spriteToDraw, src, dst, Paint());
+    
+    if (flipX) {
+      canvas.restore();
+    }
     if (game.isSwinging) {
       final glowPaint = Paint()
         ..color = const Color(0x99FFC107)
