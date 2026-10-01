@@ -240,6 +240,58 @@ void main() {
     expect(simulation.rallyPhase, RallyPhase.deadBall);
   });
 
+  test('simulation emits player hit events', () {
+    final simulation = GameSimulation();
+    simulation
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..playerX = 0
+      ..playerY = 0.75;
+    simulation.ball
+      ..x = 0
+      ..y = 0.6
+      ..z = 0.2
+      ..velocityY = 0.01
+      ..hasBounced = true;
+
+    expect(simulation.swing(), SwingResult.hit);
+    final events = simulation.drainEvents();
+
+    expect(
+      events.any((event) => event.type == GameplayEventType.playerHit),
+      isTrue,
+    );
+    expect(simulation.drainEvents(), isEmpty);
+  });
+
+  test('rally faults emit their cause and rally-end events', () {
+    final simulation = GameSimulation();
+    simulation
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..lastHitByPlayer = true;
+    simulation.ball
+      ..x = PickleballRules.courtWidth + 0.05
+      ..y = -0.7
+      ..z = -0.001
+      ..velocityX = 0
+      ..velocityY = -0.001
+      ..velocityZ = -0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), RallyEnd.playerFault);
+    final events = simulation.drainEvents();
+
+    expect(
+      events.any((event) => event.type == GameplayEventType.outOfBounds),
+      isTrue,
+    );
+    expect(
+      events.any((event) => event.type == GameplayEventType.rallyEnd),
+      isTrue,
+    );
+  });
+
   test('ball speed is reported in miles per hour', () {
     final simulation = GameSimulation();
     simulation.ball
