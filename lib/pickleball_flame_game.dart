@@ -9,6 +9,7 @@ import 'game_debug_config.dart';
 import 'game_simulation.dart';
 import 'pickleball_rules.dart';
 import 'match_state.dart';
+import 'settings_manager.dart';
 
 class PickleballFlameGame extends FlameGame {
   PickleballFlameGame({
@@ -35,6 +36,7 @@ class PickleballFlameGame extends FlameGame {
   double _dashVfxTimer = 0.0;
 
   void spawnDashEffect({required double x, required double y, required bool isPlayer}) {
+    if (!SettingsManager().showEffects) return;
     final point = simulation.camera.project(x: x, y: y);
     final center = Offset(
       (point.x + 1.0) / 2.0 * size.x,
@@ -65,6 +67,7 @@ class PickleballFlameGame extends FlameGame {
   }
 
   void spawnHitEffect({required bool isSmash}) {
+    if (!SettingsManager().showEffects) return;
     final point = simulation.camera.project(
       x: simulation.ball.x,
       y: simulation.ball.y,
@@ -77,11 +80,26 @@ class PickleballFlameGame extends FlameGame {
     add(HitEffectComponent(center: center, isSmash: isSmash, scale: point.scale));
     
     // Add camera shake for impact
-    if (isSmash) {
-      simulation.camera.addShake(1.0);
-    } else {
-      simulation.camera.addShake(0.3);
+    if (!SettingsManager().reducedMotion) {
+      if (isSmash) {
+        simulation.camera.addShake(1.0);
+      } else {
+        simulation.camera.addShake(0.3);
+      }
     }
+  }
+
+  void spawnBounceEffect() {
+    if (!SettingsManager().showEffects) return;
+    final point = simulation.camera.project(
+      x: simulation.ball.x,
+      y: simulation.ball.y,
+    );
+    final center = Offset(
+      (point.x + 1.0) / 2.0 * size.x,
+      (point.y + 1.0) / 2.0 * size.y,
+    );
+    add(BounceEffectComponent(center: center, scale: point.scale));
   }
 
   void stop() {
@@ -149,10 +167,15 @@ class PickleballFlameGame extends FlameGame {
               isBotSwinging = true;
               botSwingTimer = 0.15;
             }
-            simulation.camera.addShake(event.isSmash ? 0.7 : 0.4);
+            if (!SettingsManager().reducedMotion) {
+              simulation.camera.addShake(event.isSmash ? 0.7 : 0.4);
+            }
             break;
           case GameplayEventType.playerHit:
+            break;
           case GameplayEventType.bounce:
+            spawnBounceEffect();
+            break;
           case GameplayEventType.netFault:
           case GameplayEventType.outOfBounds:
           case GameplayEventType.doubleBounce:
@@ -206,8 +229,10 @@ class BallVisualComponent extends Component {
       (ballPoint.y + 1.0) / 2.0 * game.size.y,
     );
     
-    // Only add to trail if ball is moving fast enough
-    if (simulation.ball.velocityX.abs() > 0.005 || simulation.ball.velocityY.abs() > 0.005) {
+    // Only add to trail if ball is moving fast enough and effects are enabled.
+    if (SettingsManager().showEffects &&
+        (simulation.ball.velocityX.abs() > 0.005 ||
+            simulation.ball.velocityY.abs() > 0.005)) {
       _trail.add(ballCenter);
       _trailScales.add(ballPoint.scale * simulation.ballScale());
       if (_trail.length > 8) {
@@ -264,13 +289,23 @@ class BallVisualComponent extends Component {
     // Draw trail
     for (int i = 0; i < _trail.length; i++) {
       final progress = (i + 1) / _trail.length;
-      final opacity = progress * 0.4;
-      final sizeMult = progress; 
+      final opacity = progress * 0.34;
+      final sizeMult = 0.35 + progress * 0.65;
       final trailPaint = Paint()
-        ..color = Color.fromRGBO(255, 255, 0, opacity)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(_trail[i], 22.5 * _trailScales[i] * sizeMult, trailPaint);
+        ..color = Color.fromRGBO(216, 240, 106, opacity)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+      canvas.drawCircle(
+        _trail[i],
+        8 * _trailScales[i] * sizeMult,
+        trailPaint,
+      );
     }
+
+    final glowPaint = Paint()
+      ..color = const Color(0x66D8F06A)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(ballCenter, 14 * ballScale, glowPaint);
 
     final ballPaint = Paint()
       ..shader = Gradient.radial(
@@ -281,6 +316,33 @@ class BallVisualComponent extends Component {
       )
       ..style = PaintingStyle.fill;
     canvas.drawCircle(ballCenter, 11 * ballScale, ballPaint);
+
+    final outlinePaint = Paint()
+      ..color = SettingsManager().highContrast
+          ? const Color(0xFFFFFFFF)
+          : const Color(0xE6F8FFD0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (SettingsManager().highContrast ? 2.8 : 1.4) * ballScale;
+    canvas.drawCircle(ballCenter, 11 * ballScale, outlinePaint);
+
+    // A few high-contrast perforations keep the projectile readable as a
+    // pickleball instead of a generic glowing orb.
+    final holePaint = Paint()..color = const Color(0xAA76851D);
+    canvas.drawCircle(
+      ballCenter.translate(-3.2 * ballScale, -2.2 * ballScale),
+      1.25 * ballScale,
+      holePaint,
+    );
+    canvas.drawCircle(
+      ballCenter.translate(3.4 * ballScale, 1.6 * ballScale),
+      1.05 * ballScale,
+      holePaint,
+    );
+    canvas.drawCircle(
+      ballCenter.translate(-1.0 * ballScale, 4.0 * ballScale),
+      0.9 * ballScale,
+      holePaint,
+    );
   }
 }
 
@@ -355,6 +417,23 @@ class BotVisualComponent extends Component {
       Rect.fromCenter(center: center.translate(0, 10 * scale), width: 40 * scale, height: 16 * scale),
       shadowPaint,
     );
+
+    if (!isPractice) {
+      final active = simulation.ball.velocityY < 0;
+      final teamRingPaint = Paint()
+        ..color = const Color(0xFFFF5D73)
+            .withValues(alpha: active ? 0.72 : 0.30)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (active ? 2.4 : 1.4) * scale;
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: center.translate(0, 10 * scale),
+          width: 46 * scale,
+          height: 19 * scale,
+        ),
+        teamRingPaint,
+      );
+    }
 
     if (isPractice) {
       // Draw ball machine
@@ -551,6 +630,21 @@ class PlayerVisualComponent extends Component {
     canvas.drawOval(
       Rect.fromCenter(center: center.translate(0, 10 * scale), width: 45 * scale, height: 18 * scale),
       shadowPaintFloor,
+    );
+
+    final active = simulation.ball.velocityY > 0;
+    final teamRingPaint = Paint()
+      ..color = const Color(0xFFFFB84D)
+          .withValues(alpha: active ? 0.72 : 0.30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (active ? 2.4 : 1.4) * scale;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: center.translate(0, 10 * scale),
+        width: 51 * scale,
+        height: 21 * scale,
+      ),
+      teamRingPaint,
     );
 
     final vx = game.simulation.playerVelocityX;
@@ -999,34 +1093,67 @@ class CourtVisualComponent extends Component {
     _drawVerticalWall(canvas, boundsW, boundsBack, boundsW, boundsFront, 1.5, wallLinesPaint);
 
     // Outer bounds (Tournament slate outer run-off)
-    final outerFloorPaint = Paint()..color = const Color(0xFF162544);
+    final outerFloorPaint = Paint()
+      ..shader = Gradient.linear(
+        _proj(0, boundsBack),
+        _proj(0, boundsFront),
+        const [Color(0xFF091827), Color(0xFF17394B)],
+      );
     canvas.drawPath(
       _quad(-boundsW, boundsBack, boundsW, boundsBack, boundsW, boundsFront, -boundsW, boundsFront),
       outerFloorPaint,
     );
 
     // Court floor (Pacific Blue)
-    final courtFloorPaint = Paint()..color = const Color(0xFF0284C7)..style = PaintingStyle.fill;
+    final courtFloorPaint = Paint()
+      ..shader = Gradient.linear(
+        _proj(0, -length),
+        _proj(0, length),
+        const [Color(0xFF116B82), Color(0xFF19A6A1)],
+      )
+      ..style = PaintingStyle.fill;
     canvas.drawPath(
       _quad(-width, -length, width, -length, width, length, -width, length),
       courtFloorPaint,
     );
 
     // Kitchen floor (Precision Kitchen Teal)
-    final kitchenFloorPaint = Paint()..color = const Color(0xFF0369A1)..style = PaintingStyle.fill;
+    final kitchenFloorPaint = Paint()
+      ..shader = Gradient.linear(
+        _proj(0, -kDepth),
+        _proj(0, kDepth),
+        const [Color(0xFF0D536B), Color(0xFF11748A)],
+      )
+      ..style = PaintingStyle.fill;
     canvas.drawPath(
       _quad(-width, -kDepth, width, -kDepth, width, kDepth, -width, kDepth),
       kitchenFloorPaint,
     );
 
     // Court outline & lines (Crisp regulation white)
+    final lineShadowPaint = Paint()
+      ..color = const Color(0x6607111F)
+      ..strokeWidth = 6.0
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
     final linePaint = Paint()
       ..color = const Color(0xFFFFFFFF)
-      ..strokeWidth = 3.0
+      ..strokeWidth = 2.4
       ..style = PaintingStyle.stroke;
 
     final courtPath = _quad(-width, -length, width, -length, width, length, -width, length);
+    canvas.drawPath(courtPath, lineShadowPaint);
     canvas.drawPath(courtPath, linePaint);
+
+    // Subtle surface bands give the flat court depth without relying on a
+    // bitmap texture that would blur at different resolutions.
+    final surfaceBandPaint = Paint()
+      ..color = const Color(0x12FFFFFF)
+      ..strokeWidth = 1;
+    for (var index = -8; index <= 8; index++) {
+      final y = index * length / 8;
+      canvas.drawLine(_proj(-width, y), _proj(width, y), surfaceBandPaint);
+    }
 
     // Center line
     // Bot side
@@ -1055,6 +1182,23 @@ class CourtVisualComponent extends Component {
       ..lineTo(_proj(-width * 1.1, 0, netHeight).dx, _proj(-width * 1.1, 0, netHeight).dy)
       ..close();
     canvas.drawPath(netPath, netMeshPaint);
+
+    final netGridPaint = Paint()
+      ..color = const Color(0x66F7FBFF)
+      ..strokeWidth = 0.7
+      ..style = PaintingStyle.stroke;
+    for (var index = 1; index < 10; index++) {
+      final x = -width * 1.1 + (width * 2.2 * index / 10);
+      canvas.drawLine(_proj(x, 0, 0), _proj(x, 0, netHeight), netGridPaint);
+    }
+    for (var index = 1; index < 4; index++) {
+      final z = netHeight * index / 4;
+      canvas.drawLine(
+        _proj(-width * 1.1, 0, z),
+        _proj(width * 1.1, 0, z),
+        netGridPaint,
+      );
+    }
 
     // Bottom of net
     canvas.drawLine(_proj(-width * 1.1, 0, 0), _proj(width * 1.1, 0, 0), netTapePaint);
@@ -1214,6 +1358,41 @@ class HitEffectComponent extends Component {
         canvas.drawCircle(sparkOffset, sparkRadius, sparkPaint);
       }
     }
+  }
+}
+
+class BounceEffectComponent extends Component {
+  BounceEffectComponent({required this.center, required this.scale});
+
+  final Offset center;
+  final double scale;
+  double _lifetime = 0;
+  static const double _maxLifetime = 0.28;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _lifetime += dt;
+    if (_lifetime >= _maxLifetime) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final progress = (_lifetime / _maxLifetime).clamp(0.0, 1.0);
+    final alpha = ((1 - progress) * 150).round().clamp(0, 255);
+    final radius = (8 + progress * 25) * scale;
+    final ringPaint = Paint()
+      ..color = const Color(0xFFD8F06A).withAlpha(alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (2.4 - progress) * scale;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: center,
+        width: radius * 2.2,
+        height: radius * 0.8,
+      ),
+      ringPaint,
+    );
   }
 }
 

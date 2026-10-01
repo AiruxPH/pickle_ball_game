@@ -3,8 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'dart:math' as math;
+
 import 'package:firebase_core/firebase_core.dart';
+
 import 'firebase_options.dart';
 import 'game_debug_config.dart';
 import 'game_input_adapter.dart';
@@ -13,10 +16,12 @@ import 'match_state.dart';
 import 'pickleball_flame_game.dart';
 import 'screens/loading_screen.dart';
 import 'settings_manager.dart';
+import 'theme/app_theme.dart';
+import 'widgets/match_hud.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await SettingsManager().init();
 
   await SystemChrome.setPreferredOrientations([
@@ -24,14 +29,13 @@ void main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
-    const MaterialApp(
+    MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LoadingScreen(),
+      theme: AppTheme.theme,
+      home: const LoadingScreen(),
     ),
   );
 }
@@ -80,7 +84,7 @@ class _PickleballGameState extends State<PickleballGame> {
       mode = GameMode.freeRoamPractice;
       map = MapType.practiceFacility;
     }
-    
+
     flameGame = PickleballFlameGame(
       simulation: GameSimulation(
         gameMode: mode,
@@ -94,11 +98,19 @@ class _PickleballGameState extends State<PickleballGame> {
     };
     flameGame.simulation.onPlayerHit = (isSmash) {
       if (!mounted) return;
+      if (SettingsManager().hapticsEnabled) {
+        if (isSmash) {
+          HapticFeedback.heavyImpact();
+        } else {
+          HapticFeedback.mediumImpact();
+        }
+      }
       setState(() {
         feedbackText = isSmash ? 'SMASH!' : 'GOOD HIT';
         flameGame.spawnHitEffect(isSmash: isSmash);
         Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted && (feedbackText == 'SMASH!' || feedbackText == 'GOOD HIT')) {
+          if (mounted &&
+              (feedbackText == 'SMASH!' || feedbackText == 'GOOD HIT')) {
             setState(() => feedbackText = '');
           }
         });
@@ -125,7 +137,9 @@ class _PickleballGameState extends State<PickleballGame> {
       _isPaused = false;
       simulation.resetRally(
         servingSide: match.servingSide,
-        serverScore: match.servingSide == MatchSide.player ? match.playerScore : match.botScore,
+        serverScore: match.servingSide == MatchSide.player
+            ? match.playerScore
+            : match.botScore,
       );
       feedbackText = '';
     });
@@ -145,8 +159,9 @@ class _PickleballGameState extends State<PickleballGame> {
     setState(() {
       final previousPlayerScore = playerScore;
       final previousBotScore = botScore;
-      final pointWinner =
-          rallyEnd == RallyEnd.playerFault ? MatchSide.bot : MatchSide.player;
+      final pointWinner = rallyEnd == RallyEnd.playerFault
+          ? MatchSide.bot
+          : MatchSide.player;
       match.resolveRally(rallyWinner: pointWinner);
       if (match.isComplete) {
         feedbackText = playerScore > botScore ? 'YOU WIN!' : 'CPU WINS';
@@ -157,17 +172,21 @@ class _PickleballGameState extends State<PickleballGame> {
       } else {
         feedbackText = 'SIDE OUT!';
       }
-      
+
       if (!match.isComplete) {
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
-            if (feedbackText == 'POINT FOR YOU!' || feedbackText == 'POINT FOR CPU!' || feedbackText == 'SIDE OUT!') {
+            if (feedbackText == 'POINT FOR YOU!' ||
+                feedbackText == 'POINT FOR CPU!' ||
+                feedbackText == 'SIDE OUT!') {
               setState(() => feedbackText = '');
             }
             setState(() {
               simulation.resetRally(
                 servingSide: match.servingSide,
-                serverScore: match.servingSide == MatchSide.player ? match.playerScore : match.botScore,
+                serverScore: match.servingSide == MatchSide.player
+                    ? match.playerScore
+                    : match.botScore,
               );
             });
           }
@@ -175,7 +194,7 @@ class _PickleballGameState extends State<PickleballGame> {
       } else {
         isPlaying = false;
       }
-      
+
       _isPaused = false;
     });
   }
@@ -220,62 +239,80 @@ class _PickleballGameState extends State<PickleballGame> {
             color: Colors.black.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(8),
           ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'SANDBOX CONTROLS',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Show Hitboxes', style: TextStyle(color: Colors.white)),
-              value: GameDebugConfig.showHitboxes,
-              onChanged: (val) => setState(() => GameDebugConfig.showHitboxes = val),
-            ),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Freeze AI', style: TextStyle(color: Colors.white)),
-              value: GameDebugConfig.freezeAI,
-              onChanged: (val) => setState(() => GameDebugConfig.freezeAI = val),
-            ),
-            Text('Speed: ${GameDebugConfig.gameSpeed.toStringAsFixed(1)}x',
-                style: const TextStyle(color: Colors.white70)),
-            Slider(
-              min: 0.0,
-              max: 2.0,
-              divisions: 20,
-              value: GameDebugConfig.gameSpeed,
-              onChanged: (val) => setState(() => GameDebugConfig.gameSpeed = val),
-            ),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Bypass Kitchen Rules', style: TextStyle(color: Colors.white, fontSize: 12)),
-              value: GameDebugConfig.bypassKitchenRules,
-              onChanged: (val) => setState(() => GameDebugConfig.bypassKitchenRules = val),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    match.playerScore = 10;
-                    match.botScore = 10;
-                    simulation.currentServerScore = 10;
-                  });
-                },
-                child: const Text('Fast Forward (10-10)'),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'SANDBOX CONTROLS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Show Hitboxes',
+                  style: TextStyle(color: Colors.white),
+                ),
+                value: GameDebugConfig.showHitboxes,
+                onChanged: (val) =>
+                    setState(() => GameDebugConfig.showHitboxes = val),
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Freeze AI',
+                  style: TextStyle(color: Colors.white),
+                ),
+                value: GameDebugConfig.freezeAI,
+                onChanged: (val) =>
+                    setState(() => GameDebugConfig.freezeAI = val),
+              ),
+              Text(
+                'Speed: ${GameDebugConfig.gameSpeed.toStringAsFixed(1)}x',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              Slider(
+                min: 0.0,
+                max: 2.0,
+                divisions: 20,
+                value: GameDebugConfig.gameSpeed,
+                onChanged: (val) =>
+                    setState(() => GameDebugConfig.gameSpeed = val),
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Bypass Kitchen Rules',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                value: GameDebugConfig.bypassKitchenRules,
+                onChanged: (val) =>
+                    setState(() => GameDebugConfig.bypassKitchenRules = val),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      match.playerScore = 10;
+                      match.botScore = 10;
+                      simulation.currentServerScore = 10;
+                    });
+                  },
+                  child: const Text('Fast Forward (10-10)'),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -288,15 +325,19 @@ class _PickleballGameState extends State<PickleballGame> {
         focusNode: _focusNode,
         autofocus: true,
         onKeyEvent: (node, event) {
-          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.space) {
             _executeSwing();
             return KeyEventResult.handled;
           }
-          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
             if (isPlaying) _togglePause();
             return KeyEventResult.handled;
           }
-          if (event is KeyDownEvent && (event.logicalKey == LogicalKeyboardKey.shiftLeft || event.logicalKey == LogicalKeyboardKey.shiftRight)) {
+          if (event is KeyDownEvent &&
+              (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
+                  event.logicalKey == LogicalKeyboardKey.shiftRight)) {
             if (widget.gameMode != 1) {
               flameGame.simulation.dashPlayer();
             }
@@ -317,172 +358,196 @@ class _PickleballGameState extends State<PickleballGame> {
                   aspectRatio: 9 / 16,
                   child: GestureDetector(
                     onScaleStart: (details) {
-                       _initialZoomZ = simulation.camera.freeRoamZ;
+                      _initialZoomZ = simulation.camera.freeRoamZ;
                     },
                     onScaleUpdate: (details) {
                       if (simulation.camera.mode == CameraMode.freeRoam) {
                         if (details.scale != 1.0) {
-                           simulation.camera.freeRoamZ = (_initialZoomZ / details.scale).clamp(1.0, 10.0);
+                          simulation.camera.freeRoamZ =
+                              (_initialZoomZ / details.scale).clamp(1.0, 10.0);
                         }
                         // Handle panning directly without triggering a Flutter rebuild.
                         // The Flame game loop will naturally pick up these changes.
-                        simulation.camera.freeRoamYaw -= details.focalPointDelta.dx * 0.01;
-                        simulation.camera.freeRoamPitch -= details.focalPointDelta.dy * 0.01;
-                        simulation.camera.freeRoamPitch = simulation.camera.freeRoamPitch.clamp(-math.pi / 2.1, math.pi / 2.1);
+                        simulation.camera.freeRoamYaw -=
+                            details.focalPointDelta.dx * 0.01;
+                        simulation.camera.freeRoamPitch -=
+                            details.focalPointDelta.dy * 0.01;
+                        simulation.camera.freeRoamPitch = simulation
+                            .camera
+                            .freeRoamPitch
+                            .clamp(-math.pi / 2.1, math.pi / 2.1);
                       }
                     },
                     child: GameWidget(game: flameGame),
                   ),
                 ),
               ),
-              
+
               // 2. The full-screen UI overlay
               Positioned.fill(
                 child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              if (isPlaying)
-                                IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                  icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 22),
-                                  tooltip: _isPaused ? 'Resume game' : 'Pause game',
-                                  onPressed: _togglePause,
-                                )
-                              else
-                                const SizedBox(width: 36),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            if (isPlaying)
                               IconButton(
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                icon: const Icon(Icons.bug_report, color: Colors.white70, size: 22),
-                                tooltip: 'Debug menu',
-                                onPressed: () => setState(() => _showDebugMenu = !_showDebugMenu),
+                                constraints: const BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                                icon: Icon(
+                                  _isPaused ? Icons.play_arrow : Icons.pause,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                                tooltip: _isPaused
+                                    ? 'Resume game'
+                                    : 'Pause game',
+                                onPressed: _togglePause,
+                              )
+                            else
+                              const SizedBox(width: 36),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 36,
                               ),
-                              if (widget.gameMode != 2) Expanded(
+                              icon: const Icon(
+                                Icons.bug_report,
+                                color: Colors.white70,
+                                size: 22,
+                              ),
+                              tooltip: 'Debug menu',
+                              onPressed: () => setState(
+                                () => _showDebugMenu = !_showDebugMenu,
+                              ),
+                            ),
+                            if (widget.gameMode != 2)
+                              Expanded(
                                 child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF1A1F24).withValues(alpha: 0.75),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
-                                    ),
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Semantics(
-                                            liveRegion: true,
-                                            label: 'CPU score $botScore',
-                                            child: Text('CPU: $botScore',
-                                                style: const TextStyle(color: Color(0xFFE11D48), fontSize: 14, fontWeight: FontWeight.bold)),
-                                          ),
-                                          const Padding(
-                                            padding: EdgeInsets.symmetric(horizontal: 8),
-                                            child: Text('•', style: TextStyle(color: Colors.white24, fontSize: 14)),
-                                          ),
-                                          Semantics(
-                                            liveRegion: true,
-                                            label: 'Your score $playerScore',
-                                            child: Text('YOU: $playerScore',
-                                                style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 14, fontWeight: FontWeight.bold)),
-                                          ),
-                                        ],
-                                      ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: MatchScoreboard(
+                                      leftLabel: widget.gameMode == 1
+                                          ? 'TOP'
+                                          : 'CPU',
+                                      leftScore: botScore,
+                                      leftColor: AppTheme.teamCpu,
+                                      rightLabel: widget.gameMode == 1
+                                          ? 'BOTTOM'
+                                          : 'YOU',
+                                      rightScore: playerScore,
+                                      rightColor: AppTheme.teamPlayer,
+                                      leftServing:
+                                          match.servingSide == MatchSide.bot,
+                                      rightServing:
+                                          match.servingSide == MatchSide.player,
+                                      rallyLength: simulation.rallyLength,
                                     ),
                                   ),
                                 ),
-                              ) else const Spacer(),
-                              const SizedBox(width: 36),
-                            ],
-                          ),
-                          // Removed old feedbackText widget
-                        ],
-                      ),
+                              )
+                            else
+                              const Spacer(),
+                            const SizedBox(width: 36),
+                          ],
+                        ),
+                        // Removed old feedbackText widget
+                      ],
                     ),
                   ),
-                  ),
-                  if (feedbackText.isNotEmpty)
-                    Positioned(
-                      bottom: 120, // above the joystick and hit button
-                      left: 16,
-                      child: IgnorePointer(
-                        child: RefereePopupWidget(text: feedbackText),
-                      ),
-                    ),
-                  if (isPlaying && !_isPaused && (widget.gameMode == 0 || widget.gameMode == 2))
-                    Positioned(
-                      bottom: 24,
-                      left: 20,
-                      right: 20,
-                      child: ListenableBuilder(
-                        listenable: SettingsManager(),
-                        builder: (context, child) {
-                          final settings = SettingsManager();
-                          final joystick = _buildJoystick();
-                          final actionButtons = Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildDashButton(),
-                              const SizedBox(width: 16),
-                              _buildHitButton(),
-                            ],
-                          );
-                          
-                          return Opacity(
-                            opacity: settings.buttonOpacity,
-                            child: Transform.scale(
-                              scale: settings.buttonScale,
-                              alignment: Alignment.bottomCenter,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: settings.isLeftHanded
-                                    ? [actionButtons, joystick]
-                                    : [joystick, actionButtons],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  if (isPlaying && !_isPaused && widget.gameMode == 1)
-                    Positioned(
-                      top: 16,
-                      right: 16,
-                      child: _buildSpectatorStatsOverlay(),
-                    ),
-                  if (isPlaying && !_isPaused && widget.gameMode == 1)
-                    Positioned(
-                      bottom: 24,
-                      left: 20,
-                      right: 20,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          if (simulation.camera.mode == CameraMode.freeRoam) _buildJoystick() else const SizedBox(width: 80, height: 80),
-                          Row(
-                            children: [
-                              if (simulation.camera.mode == CameraMode.freeRoam) _buildAltitudeSlider(),
-                              const SizedBox(width: 16),
-                              _buildCameraButton(),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (_isPaused) _buildPauseOverlay(),
-                  if (match.isComplete) _buildMatchCompleteOverlay(),
-                  if (_showDebugMenu) _buildDebugPanel(),
-                ],
+                ),
               ),
+              if (feedbackText.isNotEmpty)
+                Positioned(
+                  bottom: 120, // above the joystick and hit button
+                  left: 16,
+                  child: IgnorePointer(
+                    child: RefereePopupWidget(text: feedbackText),
+                  ),
+                ),
+              if (isPlaying &&
+                  !_isPaused &&
+                  (widget.gameMode == 0 || widget.gameMode == 2))
+                Positioned(
+                  bottom: 24,
+                  left: 20,
+                  right: 20,
+                  child: ListenableBuilder(
+                    listenable: SettingsManager(),
+                    builder: (context, child) {
+                      final settings = SettingsManager();
+                      final joystick = _buildJoystick();
+                      final actionButtons = Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildDashButton(),
+                          const SizedBox(width: 16),
+                          _buildHitButton(),
+                        ],
+                      );
+
+                      return Opacity(
+                        opacity: settings.buttonOpacity,
+                        child: Transform.scale(
+                          scale: settings.buttonScale,
+                          alignment: Alignment.bottomCenter,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: settings.isLeftHanded
+                                ? [actionButtons, joystick]
+                                : [joystick, actionButtons],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              if (isPlaying && !_isPaused && widget.gameMode == 1)
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: _buildSpectatorStatsOverlay(),
+                ),
+              if (isPlaying && !_isPaused && widget.gameMode == 1)
+                Positioned(
+                  bottom: 24,
+                  left: 20,
+                  right: 20,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (simulation.camera.mode == CameraMode.freeRoam)
+                        _buildJoystick()
+                      else
+                        const SizedBox(width: 80, height: 80),
+                      Row(
+                        children: [
+                          if (simulation.camera.mode == CameraMode.freeRoam)
+                            _buildAltitudeSlider(),
+                          const SizedBox(width: 16),
+                          _buildCameraButton(),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              if (_isPaused) _buildPauseOverlay(),
+              if (match.isComplete) _buildMatchCompleteOverlay(),
+              if (_showDebugMenu) _buildDebugPanel(),
+            ],
+          ),
         ),
       ),
     );
@@ -514,7 +579,10 @@ class _PickleballGameState extends State<PickleballGame> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A1F24).withValues(alpha: 0.6),
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), width: 2),
+            border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+              width: 2,
+            ),
           ),
           child: Center(
             child: Transform.translate(
@@ -526,8 +594,16 @@ class _PickleballGameState extends State<PickleballGame> {
                   color: const Color(0xFFF59E0B).withValues(alpha: 0.85),
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 2),
-                    const BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2)),
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                    const BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
                   ],
                 ),
               ),
@@ -539,9 +615,13 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   Widget _buildHitButton() {
-    final isPlayerServing = simulation.playPhase == MatchPlayPhase.waitingForServe && simulation.servingSide == MatchSide.player;
+    final isPlayerServing =
+        simulation.playPhase == MatchPlayPhase.waitingForServe &&
+        simulation.servingSide == MatchSide.player;
     final buttonText = isPlayerServing ? 'SERVE' : 'HIT';
-    final buttonColor = isPlayerServing ? const Color(0xFFFF6D00) : const Color(0xFFF59E0B);
+    final buttonColor = isPlayerServing
+        ? const Color(0xFFFF6D00)
+        : const Color(0xFFF59E0B);
     final textColor = isPlayerServing ? Colors.white : Colors.black;
 
     return Semantics(
@@ -556,14 +636,32 @@ class _PickleballGameState extends State<PickleballGame> {
             color: buttonColor,
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: buttonColor.withValues(alpha: 0.5), blurRadius: 15, spreadRadius: 3),
-              const BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+              BoxShadow(
+                color: buttonColor.withValues(alpha: 0.5),
+                blurRadius: 15,
+                spreadRadius: 3,
+              ),
+              const BoxShadow(
+                color: Colors.black54,
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
             ],
-            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2.5),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.5),
+              width: 2.5,
+            ),
           ),
           child: Center(
-            child: Text(buttonText,
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: textColor, letterSpacing: 1.2)),
+            child: Text(
+              buttonText,
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 22,
+                color: textColor,
+                letterSpacing: 1.2,
+              ),
+            ),
           ),
         ),
       ),
@@ -585,10 +683,21 @@ class _PickleballGameState extends State<PickleballGame> {
             color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: const Color(0xFFFB923C).withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
-              const BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
+              BoxShadow(
+                color: const Color(0xFFFB923C).withValues(alpha: 0.3),
+                blurRadius: 10,
+                spreadRadius: 1,
+              ),
+              const BoxShadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
             ],
-            border: Border.all(color: const Color(0xFFFB923C).withValues(alpha: 0.6), width: 2.0),
+            border: Border.all(
+              color: const Color(0xFFFB923C).withValues(alpha: 0.6),
+              width: 2.0,
+            ),
           ),
           child: const Center(
             child: Icon(Icons.bolt, color: Color(0xFFFB923C), size: 36),
@@ -614,10 +723,21 @@ class _PickleballGameState extends State<PickleballGame> {
           color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
-            const BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+            const BoxShadow(
+              color: Colors.black54,
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
           ],
-          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 2.0),
+          border: Border.all(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+            width: 2.0,
+          ),
         ),
         child: const Center(
           child: Icon(Icons.videocam, color: Color(0xFFF59E0B), size: 36),
@@ -627,23 +747,69 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   Widget _buildSpectatorStatsOverlay() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('LIVE BROADCAST', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold, fontSize: 12)),
-          const SizedBox(height: 4),
-          Text('RALLY: ${simulation.rallyLength}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
-          Text('BALL SPEED: ${simulation.ballSpeed.toStringAsFixed(0)} MPH', style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 14)),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: AppTheme.panel(
+            accent: AppTheme.danger,
+            radius: AppTheme.radiusSmall,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: AppTheme.danger,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 7),
+              const Text(
+                'LIVE  •  SPECTATE',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${simulation.ballSpeed.toStringAsFixed(0)} MPH',
+                style: const TextStyle(
+                  color: AppTheme.accentLime,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SpectatorBotCard(
+              agent: simulation.topBotAgent,
+              label: 'TOP BOT',
+              color: AppTheme.teamCpu,
+              isIncoming: simulation.ball.velocityY < 0,
+            ),
+            const SizedBox(width: 8),
+            SpectatorBotCard(
+              agent: simulation.bottomBotAgent,
+              label: 'BOTTOM BOT',
+              color: AppTheme.teamPlayer,
+              isIncoming: simulation.ball.velocityY > 0,
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -656,7 +822,9 @@ class _PickleballGameState extends State<PickleballGame> {
         decoration: BoxDecoration(
           color: const Color(0xFF1A1F24).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
+          border: Border.all(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+          ),
         ),
         child: Slider(
           min: 1.0,
@@ -686,17 +854,35 @@ class _PickleballGameState extends State<PickleballGame> {
             decoration: BoxDecoration(
               color: const Color(0xFF1A1F24),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 1.5),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                width: 1.5,
+              ),
               boxShadow: [
-                BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.15), blurRadius: 30, spreadRadius: 5),
-                BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+                BoxShadow(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.8),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
               ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('PAUSED',
-                    style: TextStyle(color: Color(0xFFF59E0B), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 4)),
+                const Text(
+                  'PAUSED',
+                  style: TextStyle(
+                    color: Color(0xFFF59E0B),
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 4,
+                  ),
+                ),
                 const SizedBox(height: 32),
                 _buildPauseButton(
                   icon: Icons.play_arrow,
@@ -733,7 +919,8 @@ class _PickleballGameState extends State<PickleballGame> {
                   onTap: () {
                     _showConfirmationDialog(
                       title: 'Quit Game',
-                      content: 'Are you sure you want to quit to the main menu?',
+                      content:
+                          'Are you sure you want to quit to the main menu?',
                       onConfirm: () {
                         Navigator.of(context).pop();
                       },
@@ -764,21 +951,35 @@ class _PickleballGameState extends State<PickleballGame> {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(10),
-          border: borderColor != null ? Border.all(color: borderColor, width: 1.5) : null,
+          border: borderColor != null
+              ? Border.all(color: borderColor, width: 1.5)
+              : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: textColor, size: 22),
             const SizedBox(width: 10),
-            Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: 1)),
+            Text(
+              label,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                letterSpacing: 1,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  void _showConfirmationDialog({required String title, required String content, required VoidCallback onConfirm}) {
+  void _showConfirmationDialog({
+    required String title,
+    required String content,
+    required VoidCallback onConfirm,
+  }) {
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
@@ -790,17 +991,36 @@ class _PickleballGameState extends State<PickleballGame> {
             decoration: BoxDecoration(
               color: const Color(0xFF1A1F24),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 1.5),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                width: 1.5,
+              ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.8),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
               ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title.toUpperCase(), style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFFF59E0B),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                Text(content, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
+                Text(
+                  content,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -808,12 +1028,21 @@ class _PickleballGameState extends State<PickleballGame> {
                     GestureDetector(
                       onTap: () => Navigator.of(ctx).pop(),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.white24),
                         ),
-                        child: const Text('CANCEL', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.w700)),
+                        child: const Text(
+                          'CANCEL',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                     GestureDetector(
@@ -822,12 +1051,21 @@ class _PickleballGameState extends State<PickleballGame> {
                         onConfirm();
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF59E0B),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text('YES', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+                        child: const Text(
+                          'YES',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -854,16 +1092,24 @@ class _PickleballGameState extends State<PickleballGame> {
               color: const Color(0xFF1A1F24),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: playerWon ? const Color(0xFFF59E0B).withValues(alpha: 0.4) : const Color(0xFFE11D48).withValues(alpha: 0.4),
+                color: playerWon
+                    ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                    : const Color(0xFFE11D48).withValues(alpha: 0.4),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: playerWon ? const Color(0xFFF59E0B).withValues(alpha: 0.2) : const Color(0xFFE11D48).withValues(alpha: 0.2),
+                  color: playerWon
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                      : const Color(0xFFE11D48).withValues(alpha: 0.2),
                   blurRadius: 30,
                   spreadRadius: 5,
                 ),
-                BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.8),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
               ],
             ),
             child: Column(
@@ -872,14 +1118,23 @@ class _PickleballGameState extends State<PickleballGame> {
                 Text(
                   playerWon ? '🏆 VICTORY' : 'DEFEAT',
                   style: TextStyle(
-                      color: playerWon ? const Color(0xFFF59E0B) : const Color(0xFFE11D48),
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 3),
+                    color: playerWon
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFFE11D48),
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 3,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Text('$playerScore - $botScore',
-                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                Text(
+                  '$playerScore - $botScore',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 36),
                 GestureDetector(
                   onTap: () {
@@ -894,8 +1149,15 @@ class _PickleballGameState extends State<PickleballGame> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Center(
-                      child: Text('PLAY AGAIN',
-                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 1)),
+                      child: Text(
+                        'PLAY AGAIN',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          letterSpacing: 1,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -910,8 +1172,14 @@ class _PickleballGameState extends State<PickleballGame> {
                       border: Border.all(color: Colors.white24, width: 1.5),
                     ),
                     child: const Center(
-                      child: Text('BACK TO MENU',
-                          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: 16)),
+                      child: Text(
+                        'BACK TO MENU',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -932,7 +1200,8 @@ class RefereePopupWidget extends StatefulWidget {
   State<RefereePopupWidget> createState() => _RefereePopupWidgetState();
 }
 
-class _RefereePopupWidgetState extends State<RefereePopupWidget> with SingleTickerProviderStateMixin {
+class _RefereePopupWidgetState extends State<RefereePopupWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -940,10 +1209,19 @@ class _RefereePopupWidgetState extends State<RefereePopupWidget> with SingleTick
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    _opacityAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
     if (widget.text.isNotEmpty) {
       _controller.forward();
     }
@@ -983,7 +1261,9 @@ class _RefereePopupWidgetState extends State<RefereePopupWidget> with SingleTick
                 color: Colors.black87,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.amberAccent, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10)],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black54, blurRadius: 10),
+                ],
               ),
               child: Text(
                 widget.text,

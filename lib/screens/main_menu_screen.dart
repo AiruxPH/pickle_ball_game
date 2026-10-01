@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show PickleballGame; // To navigate to the game
 import '../game_simulation.dart' show BotDifficulty;
+import '../theme/app_theme.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/background_painter.dart';
@@ -129,6 +130,57 @@ class MainMenuScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+
+                  Positioned(
+                    left: 32,
+                    top: 100,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 470),
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: AppTheme.panel(
+                          accent: AppTheme.accentLime,
+                          radius: AppTheme.radiusLarge,
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'PICKLEBALL',
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 42,
+                                height: 0.95,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2.5,
+                              ),
+                            ),
+                            Text(
+                              'MASTERS',
+                              style: TextStyle(
+                                color: AppTheme.accentLime,
+                                fontSize: 42,
+                                height: 1.05,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 4,
+                              ),
+                            ),
+                            SizedBox(height: 14),
+                            Text(
+                              'READ THE BOUNCE. OWN THE KITCHEN.',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   
                   // Bottom Right: Start Match Button
                   Positioned(
@@ -160,13 +212,13 @@ class MainMenuScreen extends StatelessWidget {
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
-              colors: [Color(0xFFF59E0B), Colors.teal],
+              colors: [AppTheme.accentLime, AppTheme.accentTeal],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
           child: const Center(
-            child: Icon(Icons.sports_soccer, color: Colors.white, size: 28), // Placeholder for avatar
+            child: Icon(Icons.sports_tennis, color: AppTheme.ink, size: 28),
           ),
         ),
         const SizedBox(width: 12),
@@ -201,7 +253,7 @@ class MainMenuScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
+        color: AppTheme.panelBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white12),
       ),
@@ -234,11 +286,11 @@ class MainMenuScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
+          color: AppTheme.panelBg,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white12),
         ),
-        child: Icon(icon, color: const Color(0xFFF59E0B), size: 22),
+        child: Icon(icon, color: AppTheme.accentLime, size: 22),
       ),
     );
   }
@@ -322,12 +374,14 @@ class MainMenuScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 2),
+          gradient: const LinearGradient(
+            colors: [AppTheme.accentLime, AppTheme.accentGold],
+          ),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+              color: AppTheme.accentLime.withValues(alpha: 0.35),
               blurRadius: 15,
               spreadRadius: 2,
             ),
@@ -336,7 +390,7 @@ class MainMenuScreen extends StatelessWidget {
         child: const Text(
           'START A MATCH',
           style: TextStyle(
-            color: Colors.white,
+            color: AppTheme.ink,
             fontSize: 20,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.5,

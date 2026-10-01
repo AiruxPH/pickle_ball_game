@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
+
 import '../theme/app_theme.dart';
 import '../widgets/game_scaffold.dart';
 
@@ -16,8 +17,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   static const List<_ModelEntry> _models = [
     _ModelEntry(
-      label: 'Pickleball',
-      path: 'assets/models/pickleball.glb',
+      label: 'Court',
+      path: 'assets/models/pickleball-court.glb',
       icon: Icons.sports_tennis,
     ),
     _ModelEntry(
@@ -64,7 +65,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: const Icon(Icons.person, size: 48, color: Colors.white),
+                      child: const Icon(
+                        Icons.person,
+                        size: 48,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(width: 24),
                     const Expanded(
@@ -86,11 +91,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // ── Stats row ─────────────────────────────────────────────
               Row(
                 children: [
-                  Expanded(child: _buildStatCard('MATCHES', '0', Icons.sports_tennis)),
+                  Expanded(
+                    child: _buildStatCard('MATCHES', '0', Icons.sports_tennis),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildStatCard('WINS', '0', Icons.emoji_events)),
+                  Expanded(
+                    child: _buildStatCard('WINS', '0', Icons.emoji_events),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildStatCard('LONGEST RALLY', '0', Icons.timeline)),
+                  Expanded(
+                    child: _buildStatCard('LONGEST RALLY', '0', Icons.timeline),
+                  ),
                 ],
               ),
 
@@ -103,7 +114,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('EQUIPMENT SHOWCASE', style: AppTheme.headingStyle),
+                    const Text(
+                      'EQUIPMENT SHOWCASE',
+                      style: AppTheme.headingStyle,
+                    ),
                     const SizedBox(height: 12),
 
                     // Model selector tabs
@@ -115,14 +129,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
-                              onTap: () => setState(() => _selectedModelIndex = i),
+                              onTap: () =>
+                                  setState(() => _selectedModelIndex = i),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   color: selected
-                                      ? AppTheme.accentCyan.withValues(alpha: 0.25)
+                                      ? AppTheme.accentCyan.withValues(
+                                          alpha: 0.25,
+                                        )
                                       : Colors.transparent,
                                   border: Border.all(
                                     color: selected

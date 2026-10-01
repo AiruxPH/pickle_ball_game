@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'main_menu_screen.dart';
+import '../theme/app_theme.dart';
 import '../widgets/background_painter.dart';
 
 class LoadingScreen extends StatefulWidget {
@@ -71,19 +71,13 @@ class _LoadingScreenState extends State<LoadingScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // ── 3D spinning pickleball ─────────────────────────────
-              SizedBox(
-                width: 220,
-                height: 220,
-                child: ClipOval(
-                  child: ModelViewer(
-                    src: 'assets/models/pickleball.glb',
-                    alt: 'A 3D pickleball',
-                    autoRotate: true,
-                    cameraControls: false,
-                    backgroundColor: Colors.transparent,
-                    autoPlay: true,
-                  ),
+              AnimatedBuilder(
+                animation: _dotController,
+                builder: (context, child) => Transform.rotate(
+                  angle: _dotController.value * 0.7,
+                  child: child,
                 ),
+                child: const _PickleballBrandMark(),
               ),
 
               const SizedBox(height: 32),
@@ -95,7 +89,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                 style: TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.w900,
-                  color: const Color(0xFFD4E157),
+                      color: AppTheme.accentLime,
                   letterSpacing: 4,
                   shadows: [
                     Shadow(
@@ -123,7 +117,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFF18FFFF)),
+                          AlwaysStoppedAnimation<Color>(AppTheme.accentCyan),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -141,6 +135,83 @@ class _LoadingScreenState extends State<LoadingScreen>
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PickleballBrandMark extends StatelessWidget {
+  const _PickleballBrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 170,
+      height: 170,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          center: Alignment(-0.35, -0.4),
+          colors: [Color(0xFFF4FFB0), AppTheme.accentLime, Color(0xFF849B20)],
+          stops: [0, 0.55, 1],
+        ),
+        border: Border.all(color: const Color(0xFFF8FFD8), width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.accentLime.withValues(alpha: 0.4),
+            blurRadius: 36,
+            spreadRadius: 7,
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 16,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: const Stack(
+        children: [
+          _BallHole(left: 38, top: 30, size: 17),
+          _BallHole(right: 33, top: 47, size: 14),
+          _BallHole(left: 53, bottom: 30, size: 14),
+          _BallHole(right: 48, bottom: 42, size: 12),
+          _BallHole(left: 77, top: 72, size: 13),
+        ],
+      ),
+    );
+  }
+}
+
+class _BallHole extends StatelessWidget {
+  const _BallHole({
+    this.left,
+    this.right,
+    this.top,
+    this.bottom,
+    required this.size,
+  });
+
+  final double? left;
+  final double? right;
+  final double? top;
+  final double? bottom;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      right: right,
+      top: top,
+      bottom: bottom,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFF657715),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0x88748718)),
+        ),
       ),
     );
   }
