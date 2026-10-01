@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../main.dart' show PickleballGame; // To navigate to the game
 import '../game_simulation.dart' show BotDifficulty;
 import '../theme/app_theme.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
+import '../widgets/angular_frame.dart';
 import '../widgets/background_painter.dart';
 
 class MainMenuScreen extends StatelessWidget {
@@ -103,7 +105,7 @@ class MainMenuScreen extends StatelessWidget {
         children: [
           // Background layer
           const AnimatedBackground(),
-          
+
           // SafeArea for UI elements
           SafeArea(
             child: Padding(
@@ -124,7 +126,12 @@ class MainMenuScreen extends StatelessWidget {
                           _buildCurrencyPill(),
                           const SizedBox(width: 12),
                           _buildIconButton(Icons.settings, () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SettingsScreen(),
+                              ),
+                            );
                           }),
                         ],
                       ),
@@ -136,12 +143,10 @@ class MainMenuScreen extends StatelessWidget {
                     top: 100,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 470),
-                      child: Container(
+                      child: AngularFrame(
                         padding: const EdgeInsets.all(24),
-                        decoration: AppTheme.panel(
-                          accent: AppTheme.accentLime,
-                          radius: AppTheme.radiusLarge,
-                        ),
+                        accent: AppTheme.accentLime,
+                        cut: 22,
                         child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
@@ -181,7 +186,7 @@ class MainMenuScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   // Bottom Right: Start Match Button
                   Positioned(
                     bottom: 16,
@@ -200,52 +205,52 @@ class MainMenuScreen extends StatelessWidget {
   Widget _buildProfilePill(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+        );
       },
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-        // Avatar
-        Container(
-          width: 50,
-          height: 50,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [AppTheme.accentLime, AppTheme.accentTeal],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: const Center(
-            child: Icon(Icons.sports_tennis, color: AppTheme.ink, size: 28),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Name & Level
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Guest00012',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+          // Avatar
+          Container(
+            width: 50,
+            height: 50,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [AppTheme.accentLime, AppTheme.accentTeal],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            Text(
-              'LV 01',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
+            child: const Center(
+              child: Icon(Icons.sports_tennis, color: AppTheme.ink, size: 28),
             ),
-          ],
-        ),
-      ],
-    ),
+          ),
+          const SizedBox(width: 12),
+          // Name & Level
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Guest00012',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              Text(
+                'LV 01',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -264,7 +269,11 @@ class MainMenuScreen extends StatelessWidget {
           const SizedBox(width: 8),
           const Text(
             '340',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
           ),
           const SizedBox(width: 12),
           Container(
@@ -308,9 +317,16 @@ class MainMenuScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1F24),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 1.5),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 20, spreadRadius: 5),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.8),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
                   ],
                 ),
                 child: Column(
@@ -321,12 +337,19 @@ class MainMenuScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(15),
+                        ),
                       ),
                       child: const Text(
                         'SELECT GAME MODE',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -347,7 +370,9 @@ class MainMenuScreen extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(ctx);
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 1)),
+                          MaterialPageRoute(
+                            builder: (_) => const PickleballGame(gameMode: 1),
+                          ),
                         );
                       },
                     ),
@@ -359,7 +384,9 @@ class MainMenuScreen extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(ctx);
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 2)),
+                          MaterialPageRoute(
+                            builder: (_) => const PickleballGame(gameMode: 2),
+                          ),
                         );
                       },
                     ),
@@ -368,25 +395,14 @@ class MainMenuScreen extends StatelessWidget {
                 ),
               ),
             );
-          }
+          },
         );
       },
-      child: Container(
+      child: AngularFrame(
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.accentLime, AppTheme.accentGold],
-          ),
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.accentLime.withValues(alpha: 0.35),
-              blurRadius: 15,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
+        accent: Colors.white,
+        fillColors: const [AppTheme.accentLime, AppTheme.accentGold],
+        cut: 12,
         child: const Text(
           'START A MATCH',
           style: TextStyle(
@@ -424,8 +440,18 @@ class MainMenuScreen extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
               ],
             ),
           ],
@@ -434,4 +460,3 @@ class MainMenuScreen extends StatelessWidget {
     );
   }
 }
-
