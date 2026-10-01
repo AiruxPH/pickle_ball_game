@@ -331,19 +331,19 @@ class GameSimulation {
     onPlayerDash?.call(playerX, playerY);
   }
 
-  // Asymmetric Player Hitbox (generous forward reach towards net)
-  double playerHitRadiusX = 0.42;
-  double playerHitFrontY = 0.50; // In front towards net (ball.y < playerY)
-  double playerHitBackY = 0.22;  // Behind player (ball.y > playerY)
+  // Directional player hitbox, kept close to the character and racket.
+  double playerHitRadiusX = 0.35;
+  double playerHitFrontY = 0.32; // In front towards net (ball.y < playerY)
+  double playerHitBackY = 0.32;  // Behind player (ball.y > playerY)
   double playerHitZMin = 0.0;
-  double playerHitZMax = 0.95;
+  double playerHitZMax = 0.85;
   
-  // Asymmetric Bot Hitbox (forward reach towards net: ball.y > botY)
-  double botHitRadiusX = 0.42;
-  double botHitFrontY = 0.50;
-  double botHitBackY = 0.22;
+  // Directional bot hitbox (forward is toward the net: ball.y > botY).
+  double botHitRadiusX = 0.35;
+  double botHitFrontY = 0.32;
+  double botHitBackY = 0.32;
   double botHitZMin = 0.0;
-  double botHitZMax = 0.95;
+  double botHitZMax = 0.85;
   double get playerHitRadiusY => playerHitFrontY;
   double get botHitRadiusY => botHitFrontY;
 

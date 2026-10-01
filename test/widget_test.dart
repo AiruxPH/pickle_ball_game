@@ -120,6 +120,39 @@ void main() {
     expect(simulation.update(), RallyEnd.botFault);
   });
 
+  test('player and bot hitboxes stay close to their racket reach', () {
+    final simulation = GameSimulation();
+    simulation.playerX = 0;
+    simulation.playerY = 0.75;
+    simulation.ball
+      ..x = 0.34
+      ..y = 0.44
+      ..z = 0.84;
+    expect(simulation.canPlayerHitBall(), isTrue);
+
+    simulation.ball.x = 0.36;
+    expect(simulation.canPlayerHitBall(), isFalse);
+    simulation.ball
+      ..x = 0
+      ..y = 0.42;
+    expect(simulation.canPlayerHitBall(), isFalse);
+    simulation.ball
+      ..y = 0.75
+      ..z = 0.86;
+    expect(simulation.canPlayerHitBall(), isFalse);
+
+    simulation.botX = 0;
+    simulation.botY = -0.75;
+    simulation.ball
+      ..x = 0.34
+      ..y = -0.44
+      ..z = 0.84;
+    expect(simulation.canBotHitBall(), isTrue);
+
+    simulation.ball.y = -0.42;
+    expect(simulation.canBotHitBall(), isFalse);
+  });
+
   test('rally state controls the two-bounce rule', () {
     final simulation = GameSimulation();
 
