@@ -17,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).height < 500;
     return GameScaffold(
       title: 'Settings',
       child: ListenableBuilder(
@@ -31,8 +32,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   AngularFrame(
                     accent: AppTheme.accentCyan,
                     cut: 18,
-                    padding: const EdgeInsets.all(24),
-                    fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
+                    padding: EdgeInsets.all(compact ? 16 : 24),
+                    fillColors: const [
+                      AppTheme.surfaceRaised,
+                      AppTheme.panelBg,
+                    ],
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -50,7 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 32),
+                        SizedBox(height: compact ? 18 : 32),
 
                         // Opacity Slider
                         Row(
@@ -74,7 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           inactiveColor: AppTheme.borderSubtle,
                           onChanged: (val) => _settings.setButtonOpacity(val),
                         ),
-                        const SizedBox(height: 24),
+                        SizedBox(height: compact ? 12 : 24),
 
                         // Scale Slider
                         Row(
@@ -116,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           inactiveTrackColor: AppTheme.borderSubtle,
                           onChanged: (val) => _settings.setIsLeftHanded(val),
                         ),
-                        const Divider(height: 32),
+                        Divider(height: compact ? 20 : 32),
                         const Row(
                           children: [
                             Icon(

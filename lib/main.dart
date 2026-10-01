@@ -31,6 +31,19 @@ void main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
+  // Use the full landscape display on mobile. SafeArea still keeps interactive
+  // UI clear of notches, camera cutouts, and rounded corners.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
@@ -74,6 +87,8 @@ class _PickleballGameState extends State<PickleballGame> {
 
   int get playerScore => match.playerScore;
   int get botScore => match.botScore;
+  double get _uiScale =>
+      (MediaQuery.sizeOf(context).height / 600).clamp(0.68, 1.0);
 
   @override
   void initState() {
@@ -552,14 +567,15 @@ class _PickleballGameState extends State<PickleballGame> {
                                       simulation.launchBallMachine();
                                       setState(() {});
                                     },
-                                    onOpenDrillSettings: _showPracticeDrillDialog,
+                                    onOpenDrillSettings:
+                                        _showPracticeDrillDialog,
                                     onCycleDrill: () {
                                       setState(() {
                                         final drills = PracticeDrill.values;
                                         final nextIdx =
                                             (simulation.practiceDrill.index +
-                                                    1) %
-                                                drills.length;
+                                                1) %
+                                            drills.length;
                                         simulation.practiceDrill =
                                             drills[nextIdx];
                                       });
@@ -567,8 +583,7 @@ class _PickleballGameState extends State<PickleballGame> {
                                   ),
                                 ),
                               ),
-                            if (widget.gameMode != 2)
-                              const SizedBox(width: 36),
+                            if (widget.gameMode != 2) const SizedBox(width: 36),
                           ],
                         ),
                         // Removed old feedbackText widget
@@ -579,7 +594,7 @@ class _PickleballGameState extends State<PickleballGame> {
               ),
               if (feedbackText.isNotEmpty)
                 Positioned(
-                  bottom: 120, // above the joystick and hit button
+                  bottom: 120 * _uiScale,
                   left: 16,
                   child: IgnorePointer(
                     child: RefereePopupWidget(text: feedbackText),
@@ -589,9 +604,9 @@ class _PickleballGameState extends State<PickleballGame> {
                   !_isPaused &&
                   (widget.gameMode == 0 || widget.gameMode == 2))
                 Positioned(
-                  bottom: 24,
-                  left: 20,
-                  right: 20,
+                  bottom: 16 * _uiScale,
+                  left: 14,
+                  right: 14,
                   child: ListenableBuilder(
                     listenable: SettingsManager(),
                     builder: (context, child) {
@@ -601,7 +616,7 @@ class _PickleballGameState extends State<PickleballGame> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildDashButton(),
-                          const SizedBox(width: 16),
+                          SizedBox(width: 16 * _uiScale),
                           _buildHitButton(),
                         ],
                       );
@@ -625,15 +640,19 @@ class _PickleballGameState extends State<PickleballGame> {
                 ),
               if (isPlaying && !_isPaused && widget.gameMode == 1)
                 Positioned(
-                  top: 16,
-                  right: 16,
-                  child: _buildSpectatorStatsOverlay(),
+                  top: 10,
+                  right: 10,
+                  child: Transform.scale(
+                    scale: _uiScale,
+                    alignment: Alignment.topRight,
+                    child: _buildSpectatorStatsOverlay(),
+                  ),
                 ),
               if (isPlaying && !_isPaused && widget.gameMode == 1)
                 Positioned(
-                  bottom: 24,
-                  left: 20,
-                  right: 20,
+                  bottom: 16 * _uiScale,
+                  left: 14,
+                  right: 14,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -641,12 +660,12 @@ class _PickleballGameState extends State<PickleballGame> {
                       if (simulation.camera.mode == CameraMode.freeRoam)
                         _buildJoystick()
                       else
-                        const SizedBox(width: 80, height: 80),
+                        SizedBox(width: 80 * _uiScale, height: 80 * _uiScale),
                       Row(
                         children: [
                           if (simulation.camera.mode == CameraMode.freeRoam)
                             _buildAltitudeSlider(),
-                          const SizedBox(width: 16),
+                          SizedBox(width: 16 * _uiScale),
                           _buildCameraButton(),
                         ],
                       ),
@@ -664,6 +683,7 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   Widget _buildJoystick() {
+    final scale = _uiScale;
     return Semantics(
       label: 'Move player',
       child: Listener(
@@ -684,8 +704,8 @@ class _PickleballGameState extends State<PickleballGame> {
           setState(() {});
         },
         child: Container(
-          width: 140,
-          height: 140,
+          width: 140 * scale,
+          height: 140 * scale,
           decoration: BoxDecoration(
             color: const Color(0xFF1A1F24).withValues(alpha: 0.6),
             shape: BoxShape.circle,
@@ -696,10 +716,10 @@ class _PickleballGameState extends State<PickleballGame> {
           ),
           child: Center(
             child: Transform.translate(
-              offset: _input.knobOffset,
+              offset: _input.knobOffset * scale,
               child: Container(
-                width: 50,
-                height: 50,
+                width: 50 * scale,
+                height: 50 * scale,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF59E0B).withValues(alpha: 0.85),
                   shape: BoxShape.circle,
@@ -725,6 +745,7 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   Widget _buildHitButton() {
+    final scale = _uiScale;
     final isPlayerServing =
         simulation.playPhase == MatchPlayPhase.waitingForServe &&
         simulation.servingSide == MatchSide.player;
@@ -740,8 +761,8 @@ class _PickleballGameState extends State<PickleballGame> {
       child: GestureDetector(
         onTap: _executeSwing,
         child: Container(
-          width: 90,
-          height: 90,
+          width: 90 * scale,
+          height: 90 * scale,
           decoration: BoxDecoration(
             color: buttonColor,
             shape: BoxShape.circle,
@@ -767,7 +788,7 @@ class _PickleballGameState extends State<PickleballGame> {
               buttonText,
               style: TextStyle(
                 fontWeight: FontWeight.w900,
-                fontSize: 22,
+                fontSize: 22 * scale,
                 color: textColor,
                 letterSpacing: 1.2,
               ),
@@ -779,6 +800,7 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   Widget _buildDashButton() {
+    final scale = _uiScale;
     return Semantics(
       button: true,
       label: 'Dash',
@@ -787,8 +809,8 @@ class _PickleballGameState extends State<PickleballGame> {
           flameGame.simulation.dashPlayer();
         },
         child: Container(
-          width: 60,
-          height: 60,
+          width: 60 * scale,
+          height: 60 * scale,
           decoration: BoxDecoration(
             color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
             shape: BoxShape.circle,
@@ -809,8 +831,12 @@ class _PickleballGameState extends State<PickleballGame> {
               width: 2.0,
             ),
           ),
-          child: const Center(
-            child: Icon(Icons.bolt, color: Color(0xFFFB923C), size: 36),
+          child: Center(
+            child: Icon(
+              Icons.bolt,
+              color: const Color(0xFFFB923C),
+              size: 36 * scale,
+            ),
           ),
         ),
       ),
@@ -818,6 +844,7 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   Widget _buildCameraButton() {
+    final scale = _uiScale;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -827,8 +854,8 @@ class _PickleballGameState extends State<PickleballGame> {
         });
       },
       child: Container(
-        width: 70,
-        height: 70,
+        width: 70 * scale,
+        height: 70 * scale,
         decoration: BoxDecoration(
           color: const Color(0xFF1A1F24).withValues(alpha: 0.8),
           shape: BoxShape.circle,
@@ -849,8 +876,12 @@ class _PickleballGameState extends State<PickleballGame> {
             width: 2.0,
           ),
         ),
-        child: const Center(
-          child: Icon(Icons.videocam, color: Color(0xFFF59E0B), size: 36),
+        child: Center(
+          child: Icon(
+            Icons.videocam,
+            color: const Color(0xFFF59E0B),
+            size: 36 * scale,
+          ),
         ),
       ),
     );

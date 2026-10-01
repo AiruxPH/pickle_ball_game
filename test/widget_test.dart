@@ -15,6 +15,7 @@ import 'package:pickle_ball_game/match_state.dart';
 import 'package:pickle_ball_game/pickleball_flame_game.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
 import 'package:pickle_ball_game/screens/main_menu_screen.dart';
+import 'package:pickle_ball_game/screens/settings_screen.dart';
 
 void main() {
   test('court and match rules use shared boundaries', () {
@@ -827,42 +828,46 @@ void main() {
     expect(simulation.practiceTargetHits, 1);
   });
 
-  test('cloth net collision absorbs energy, rebounds gently, and sets ripple', () {
-    final simulation = GameSimulation(gameMode: GameMode.playerVsBot);
-    simulation.resetRally(servingSide: MatchSide.player);
-    simulation.playPhase = MatchPlayPhase.inRally;
-    simulation.rallyPhase = RallyPhase.openRally;
+  test(
+    'cloth net collision absorbs energy, rebounds gently, and sets ripple',
+    () {
+      final simulation = GameSimulation(gameMode: GameMode.playerVsBot);
+      simulation.resetRally(servingSide: MatchSide.player);
+      simulation.playPhase = MatchPlayPhase.inRally;
+      simulation.rallyPhase = RallyPhase.openRally;
 
-    var netHitCallbackFired = false;
-    simulation.onNetHit = () => netHitCallbackFired = true;
+      var netHitCallbackFired = false;
+      simulation.onNetHit = () => netHitCallbackFired = true;
 
-    // Ball traveling from player side (y > 0) towards net (velocityY < 0)
-    // Low shot that will collide into the net below regulation net height
-    simulation.ball
-      ..x = 0.05
-      ..y = 0.02
-      ..z = 0.08 // Below netHeight (0.1364)
-      ..velocityX = 0.01
-      ..velocityY = -0.03
-      ..velocityZ = -0.002
-      ..hasBounced = false;
+      // Ball traveling from player side (y > 0) towards net (velocityY < 0)
+      // Low shot that will collide into the net below regulation net height
+      simulation.ball
+        ..x = 0.05
+        ..y = 0.02
+        ..z =
+            0.08 // Below netHeight (0.1364)
+        ..velocityX = 0.01
+        ..velocityY = -0.03
+        ..velocityZ = -0.002
+        ..hasBounced = false;
 
-    final rallyEnd = simulation.update();
+      final rallyEnd = simulation.update();
 
-    expect(rallyEnd, RallyEnd.playerFault);
-    expect(netHitCallbackFired, isTrue);
-    expect(simulation.ball.y, greaterThan(0)); // Stayed on player side
-    expect(simulation.ball.velocityY, greaterThan(0)); // Reversed gently
-    expect(simulation.ball.velocityY, lessThan(0.01)); // Heavily damped (~88% absorbed)
-    expect(simulation.netImpactIntensity, greaterThan(0));
-    expect(simulation.netImpactDirection, -1.0); // Deflected towards bot
+      expect(rallyEnd, RallyEnd.playerFault);
+      expect(netHitCallbackFired, isTrue);
+      expect(simulation.ball.y, greaterThan(0)); // Stayed on player side
+      expect(simulation.ball.velocityY, greaterThan(0)); // Reversed gently
+      expect(
+        simulation.ball.velocityY,
+        lessThan(0.01),
+      ); // Heavily damped (~88% absorbed)
+      expect(simulation.netImpactIntensity, greaterThan(0));
+      expect(simulation.netImpactDirection, -1.0); // Deflected towards bot
 
-    final events = simulation.drainEvents();
-    expect(
-      events.any((e) => e.type == GameplayEventType.netFault),
-      isTrue,
-    );
-  });
+      final events = simulation.drainEvents();
+      expect(events.any((e) => e.type == GameplayEventType.netFault), isTrue);
+    },
+  );
 
   test('practice mode cloth net collision resets streak and drops softly', () {
     final simulation = GameSimulation(gameMode: GameMode.freeRoamPractice);
@@ -875,7 +880,8 @@ void main() {
     simulation.ball
       ..x = -0.1
       ..y = 0.025
-      ..z = 0.06 // Below netHeight
+      ..z =
+          0.06 // Below netHeight
       ..velocityX = 0.0
       ..velocityY = -0.035
       ..velocityZ = 0.0
@@ -898,7 +904,9 @@ void main() {
     simulation.ball
       ..x = 0.0
       ..y = 0.02
-      ..z = PickleballRules.netHeight + 0.05 // Safely above net
+      ..z =
+          PickleballRules.netHeight +
+          0.05 // Safely above net
       ..velocityX = 0.0
       ..velocityY = -0.03
       ..velocityZ = 0.005
@@ -910,5 +918,29 @@ void main() {
     expect(simulation.ball.y, lessThan(0)); // Crosses over into bot court
     expect(simulation.netImpactIntensity, 0.0); // No net deflection
   });
-}
 
+  testWidgets('phone landscape layouts do not overflow', (
+    WidgetTester tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(844, 390);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const MaterialApp(home: MainMenuScreen()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('START A MATCH'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const MaterialApp(home: PickleballGame()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+}

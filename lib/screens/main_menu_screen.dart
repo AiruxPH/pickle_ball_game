@@ -96,6 +96,10 @@ class MainMenuScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final compact = size.height < 500;
+    final heroWidth = compact ? (size.width * 0.46).clamp(280.0, 380.0) : 470.0;
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -106,7 +110,7 @@ class MainMenuScreen extends StatelessWidget {
           // SafeArea for UI elements
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(compact ? 10 : 16),
               child: Stack(
                 children: [
                   // Top Bar
@@ -136,15 +140,15 @@ class MainMenuScreen extends StatelessWidget {
                   ),
 
                   Positioned(
-                    left: 32,
-                    top: 100,
+                    left: compact ? 14 : 32,
+                    top: compact ? 62 : 100,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 470),
+                      constraints: BoxConstraints(maxWidth: heroWidth),
                       child: AngularFrame(
-                        padding: const EdgeInsets.all(24),
+                        padding: EdgeInsets.all(compact ? 16 : 24),
                         accent: AppTheme.accentLime,
                         cut: 22,
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -152,7 +156,7 @@ class MainMenuScreen extends StatelessWidget {
                               'PICKLEBALL',
                               style: TextStyle(
                                 color: AppTheme.textPrimary,
-                                fontSize: 42,
+                                fontSize: compact ? 28 : 42,
                                 height: 0.95,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 2.5,
@@ -162,18 +166,18 @@ class MainMenuScreen extends StatelessWidget {
                               'MASTERS',
                               style: TextStyle(
                                 color: AppTheme.accentLime,
-                                fontSize: 42,
+                                fontSize: compact ? 28 : 42,
                                 height: 1.05,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 4,
                               ),
                             ),
-                            SizedBox(height: 14),
+                            SizedBox(height: compact ? 8 : 14),
                             Text(
                               'READ THE BOUNCE. OWN THE KITCHEN.',
                               style: TextStyle(
                                 color: AppTheme.textSecondary,
-                                fontSize: 12,
+                                fontSize: compact ? 9 : 12,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.6,
                               ),
@@ -302,6 +306,7 @@ class MainMenuScreen extends StatelessWidget {
   }
 
   Widget _buildStartMatchButton(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).height < 500;
     return GestureDetector(
       onTap: () {
         showDialog(
@@ -319,7 +324,10 @@ class MainMenuScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
                       child: Text(
                         'SELECT GAME MODE',
                         textAlign: TextAlign.center,
@@ -378,15 +386,18 @@ class MainMenuScreen extends StatelessWidget {
         );
       },
       child: AngularFrame(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 26 : 40,
+          vertical: compact ? 11 : 16,
+        ),
         accent: Colors.white,
         fillColors: const [AppTheme.accentLime, AppTheme.accentGold],
         cut: 12,
-        child: const Text(
+        child: Text(
           'START A MATCH',
           style: TextStyle(
             color: AppTheme.ink,
-            fontSize: 20,
+            fontSize: compact ? 16 : 20,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.5,
           ),

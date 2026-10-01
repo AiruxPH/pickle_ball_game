@@ -41,6 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).height < 500;
     return GameScaffold(
       title: 'Player Profile',
       child: Center(
@@ -53,13 +54,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               AngularFrame(
                 accent: AppTheme.accentCyan,
                 cut: 16,
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(compact ? 16 : 24),
                 fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
                 child: Row(
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: compact ? 60 : 80,
+                      height: compact ? 60 : 80,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
@@ -68,13 +69,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person,
-                        size: 48,
+                        size: compact ? 36 : 48,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(width: 24),
+                    SizedBox(width: compact ? 16 : 24),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: compact ? 14 : 24),
 
               // ── Stats row ─────────────────────────────────────────────
               Row(
@@ -108,13 +109,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: compact ? 14 : 24),
 
               // ── 3D Equipment Viewer ───────────────────────────────────
               AngularFrame(
                 accent: AppTheme.accentCyan,
                 cut: 16,
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(compact ? 14 : 20),
                 fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: SizedBox(
-                        height: 300,
+                        height: compact ? 210 : 300,
                         child: ModelViewer(
                           key: ValueKey(_selectedModelIndex),
                           src: _models[_selectedModelIndex].path,
@@ -236,7 +237,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Icon(icon, color: AppTheme.accentCyan, size: 32),
           const SizedBox(height: 12),
-          Text(title, style: AppTheme.subtitleStyle, textAlign: TextAlign.center),
+          Text(
+            title,
+            style: AppTheme.subtitleStyle,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 4),
           Text(value, style: AppTheme.titleStyle.copyWith(fontSize: 24)),
         ],
