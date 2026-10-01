@@ -180,7 +180,10 @@ class _PickleballGameState extends State<PickleballGame> {
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) setState(() => flameGame.isSwinging = false);
     });
-    final swingResult = simulation.swing(joystickX: flameGame.effectiveInputX);
+    final swingResult = simulation.swing(
+      joystickX: flameGame.effectiveInputX,
+      joystickY: flameGame.effectiveInputY,
+    );
     setState(() {
       if (swingResult == SwingResult.twoBounceFault) {
         feedbackText = 'TWO-BOUNCE FAULT!';
