@@ -197,6 +197,44 @@ enum RallyPhase {
 
 enum ShotQuality { early, good, perfect }
 
+enum BotShotType { safeReturn, drive, smash }
+
+enum BotDifficulty { easy, normal, hard }
+
+class BotDifficultySettings {
+  const BotDifficultySettings({
+    required this.reactionTicks,
+    required this.moveSpeed,
+    required this.dashSpeed,
+    required this.aggression,
+    required this.errorRate,
+    required this.aimError,
+  });
+
+  final double reactionTicks;
+  final double moveSpeed;
+  final double dashSpeed;
+  final double aggression;
+  final double errorRate;
+  final double aimError;
+}
+
+class BotShotPlan {
+  const BotShotPlan({
+    required this.type,
+    required this.targetX,
+    required this.targetY,
+    required this.forwardSpeed,
+    required this.lift,
+  });
+
+  final BotShotType type;
+  final double targetX;
+  final double targetY;
+  final double forwardSpeed;
+  final double lift;
+}
+
 enum GameplayEventType {
   playerHit,
   botHit,
@@ -213,12 +251,14 @@ class GameplayEvent {
     this.side,
     this.isSmash = false,
     this.shotQuality,
+    this.botShotType,
   });
 
   final GameplayEventType type;
   final MatchSide? side;
   final bool isSmash;
   final ShotQuality? shotQuality;
+  final BotShotType? botShotType;
 }
 
 enum GameMode { playerVsBot, botVsBot, freeRoamPractice }
@@ -228,7 +268,9 @@ class GameSimulation {
   GameSimulation({
     this.gameMode = GameMode.playerVsBot,
     this.mapType = MapType.stadium,
+    this.botDifficulty = BotDifficulty.normal,
   }) {
+    bot1Aggression = difficultySettings.aggression;
     if (gameMode == GameMode.freeRoamPractice) {
       playPhase = MatchPlayPhase.inRally;
     }
@@ -236,6 +278,7 @@ class GameSimulation {
 
   final GameMode gameMode;
   final MapType mapType;
+  final BotDifficulty botDifficulty;
   static const double courtWidth = PickleballRules.courtWidth;
   static const double courtLength = PickleballRules.courtLength;
   static const double gravity = 0.0012;
@@ -514,6 +557,124 @@ class GameSimulation {
   bool bot2IsDashing = false;
 
   double ballMachineTimer = 120.0; // Shoot a ball every 2 seconds roughly
+
+  BotDifficultySettings get difficultySettings => switch (botDifficulty) {
+    BotDifficulty.easy => const BotDifficultySettings(
+        reactionTicks: 16.0,
+        moveSpeed: 0.012,
+        dashSpeed: 0.040,
+        aggression: 0.20,
+        errorRate: 0.10,
+        aimError: 0.080,
+      ),
+    BotDifficulty.normal => const BotDifficultySettings(
+        reactionTicks: 10.0,
+        moveSpeed: 0.015,
+        dashSpeed: 0.050,
+        aggression: 0.45,
+        errorRate: 0.05,
+        aimError: 0.040,
+      ),
+    BotDifficulty.hard => const BotDifficultySettings(
+        reactionTicks: 5.0,
+        moveSpeed: 0.019,
+        dashSpeed: 0.060,
+        aggression: 0.72,
+        errorRate: 0.02,
+        aimError: 0.015,
+      ),
+  };
+
+  CourtPoint _predictBallBounce() {
+    var predictedX = ball.x;
+    var predictedY = ball.y;
+    var predictedZ = ball.z;
+    var predictedVelocityZ = ball.velocityZ;
+
+    // Look far enough ahead for even a high lob to reach the court. This uses
+    // the same fixed-step gravity as the live ball without changing its state.
+    for (var tick = 0; tick < 160 && predictedZ > 0; tick++) {
+      predictedX += ball.velocityX;
+      predictedY += ball.velocityY;
+      predictedZ += predictedVelocityZ;
+      predictedVelocityZ -= gravity;
+    }
+
+    return CourtPoint(predictedX, predictedY);
+  }
+
+  void _chooseBotMovementTarget() {
+    if (ball.velocityY >= 0) {
+      // Once the bot has sent the ball away, recover near the middle instead
+      // of continuing to chase the ball into the player's half.
+      botTargetX = 0;
+      botTargetY = -0.75;
+      return;
+    }
+
+    final predictedBounce = _predictBallBounce();
+    botTargetX = predictedBounce.x.clamp(
+      -courtWidth * 0.95,
+      courtWidth * 0.95,
+    );
+
+    if (bot1Aggression > 0.5 && ball.hasBounced) {
+      botTargetY = -PickleballRules.kitchenDepth;
+      return;
+    }
+
+    // Set up slightly behind the bounce so the incoming ball stays in front
+    // of the bot's racket. Never recover inside the kitchen by default.
+    botTargetY = (predictedBounce.y - 0.12).clamp(
+      -courtLength * 0.98,
+      -PickleballRules.kitchenDepth - 0.05,
+    );
+  }
+
+  BotShotPlan chooseBotShot() {
+    final BotShotType shotType;
+    if (ball.z >= 0.36) {
+      shotType = BotShotType.smash;
+    } else if (bot1Aggression >= 0.55) {
+      shotType = BotShotType.drive;
+    } else {
+      shotType = BotShotType.safeReturn;
+    }
+
+    // Aim away from the player. Safer shots stay closer to the center, while
+    // attacking shots use more of the available sideline space.
+    final openCourtDirection = playerX >= 0 ? -1.0 : 1.0;
+    final targetWidth = switch (shotType) {
+      BotShotType.safeReturn => 0.45,
+      BotShotType.drive => 0.68,
+      BotShotType.smash => 0.78,
+    };
+    final targetX = openCourtDirection * courtWidth * targetWidth;
+
+    return switch (shotType) {
+      BotShotType.safeReturn => BotShotPlan(
+          type: shotType,
+          targetX: targetX,
+          targetY: 0.70,
+          forwardSpeed: 0.024,
+          lift: 0.022,
+        ),
+      BotShotType.drive => BotShotPlan(
+          type: shotType,
+          targetX: targetX,
+          targetY: 0.82,
+          forwardSpeed: 0.030,
+          lift: 0.015,
+        ),
+      BotShotType.smash => BotShotPlan(
+          type: shotType,
+          targetX: targetX,
+          targetY: 0.88,
+          forwardSpeed: 0.036,
+          lift: 0.009,
+        ),
+    };
+  }
 
   ({List<({double x, double y, double z})> points, double targetX, double targetY, bool isLegal}) getPlayerServeTrajectory() {
     final isEven = currentServerScore % 2 == 0;
@@ -958,20 +1119,8 @@ class GameSimulation {
       if (botReactionTimer > 0) {
         botReactionTimer--;
       } else {
-        botReactionTimer = 10.0;
-        if (ball.velocityY < 0) {
-          // Approaching -> track ball smoothly without random jitter
-          botTargetX = ball.x.clamp(-courtWidth * 0.95, courtWidth * 0.95);
-          if (bot1Aggression > 0.5 && ball.hasBounced) {
-             botTargetY = -PickleballRules.kitchenDepth; // stay just behind kitchen
-          } else {
-             botTargetY = ball.y < -0.4 ? ball.y : -0.75;
-          }
-        } else {
-          // Returning -> go to ready center
-          botTargetX = 0;
-          botTargetY = -0.75;
-        }
+        botReactionTimer = difficultySettings.reactionTicks;
+        _chooseBotMovementTarget();
       }
       
       final dx = botTargetX - botX;
@@ -995,7 +1144,9 @@ class GameSimulation {
         botDashCooldown = 80.0;        // cannot dash again for 2 seconds (80 * 25ms)
       }
 
-      final double speed = botIsDashing ? 0.05 : 0.015;
+      final double speed = botIsDashing
+          ? difficultySettings.dashSpeed
+          : difficultySettings.moveSpeed;
 
       // Move smoothly to target without overshooting/vibrating
       if (dist > 0.02) {
@@ -1016,43 +1167,37 @@ class GameSimulation {
       } else {
         _recordHit(hitter: MatchSide.bot);
         lastHitByPlayer = false;
-        
-        final isAggressiveHit = math.Random().nextDouble() < bot1Aggression;
-        final isError = math.Random().nextDouble() < 0.05; // 5% error rate
+        final shotPlan = chooseBotShot();
+        final isSmash = shotPlan.type == BotShotType.smash;
+        final isError =
+            math.Random().nextDouble() < difficultySettings.errorRate;
         _emit(GameplayEvent(
           GameplayEventType.botHit,
           side: MatchSide.bot,
-          isSmash: isAggressiveHit,
+          isSmash: isSmash,
+          botShotType: shotPlan.type,
         ));
         
-        debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'swing', 'aggressive': isAggressiveHit, 'error': isError, 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
+        debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'swing', 'shotType': shotPlan.type.name, 'error': isError, 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
         
-        ball.velocityY = isAggressiveHit ? 0.030 : 0.024;
+        ball.velocityY = shotPlan.forwardSpeed;
         
         if (isError) {
            ball.velocityZ = 0.005; // Hit the net!
            ball.velocityX = (ball.x - botX) * 0.12 + 0.02; // Or hit out of bounds
         } else {
-           ball.velocityZ = isAggressiveHit ? 0.015 : 0.022; // Hard hit is lower arc
-           
-           // Smart recovery and court targeting: target player's court (Y ~ 0.70)
-           const targetCourtY = 0.70;
-           final ticks = ((targetCourtY - ball.y).abs() / ball.velocityY.abs()).clamp(20.0, 90.0);
-           
-           // Aim into court, with recovery angle if hit from the side
-           double botTargetCourtX = 0.0;
-           if (ball.x.abs() > 0.08) {
-             // Angle back across/center to cleanly recover side balls
-             botTargetCourtX = -ball.x.sign * 0.12 - ball.x * 0.25;
-           } else {
-             // Slight aim variation towards open court
-             final openSpaceX = playerX > 0 ? -0.18 : 0.18;
-             botTargetCourtX = openSpaceX + (math.Random().nextDouble() - 0.5) * 0.15;
-           }
-           
-           // Clamp safely inside sidelines so bot doesn't commit side-out violations
-           botTargetCourtX = botTargetCourtX.clamp(-courtWidth * 0.78, courtWidth * 0.78);
-           ball.velocityX = (botTargetCourtX - ball.x) / ticks;
+           ball.velocityZ = shotPlan.lift;
+           final ticks = ((shotPlan.targetY - ball.y).abs() /
+                   ball.velocityY.abs())
+               .clamp(20.0, 90.0);
+           final aimError = (math.Random().nextDouble() - 0.5) *
+               difficultySettings.aimError *
+               2.0;
+           final targetX = (shotPlan.targetX + aimError).clamp(
+             -courtWidth * 0.85,
+             courtWidth * 0.85,
+           );
+           ball.velocityX = (targetX - ball.x) / ticks;
         }
         ball.hasBounced = false;
       }

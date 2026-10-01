@@ -38,7 +38,12 @@ void main() async {
 
 class PickleballGame extends StatefulWidget {
   final int gameMode; // 0 = PlayerVsBot, 1 = BotVsBot
-  const PickleballGame({super.key, this.gameMode = 0});
+  final BotDifficulty botDifficulty;
+  const PickleballGame({
+    super.key,
+    this.gameMode = 0,
+    this.botDifficulty = BotDifficulty.normal,
+  });
 
   @override
   State<PickleballGame> createState() => _PickleballGameState();
@@ -80,6 +85,7 @@ class _PickleballGameState extends State<PickleballGame> {
       simulation: GameSimulation(
         gameMode: mode,
         mapType: map,
+        botDifficulty: widget.botDifficulty,
       ),
     );
     flameGame.onRallyEnd = _handleRallyEnd;

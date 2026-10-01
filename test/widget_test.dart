@@ -14,6 +14,7 @@ import 'package:pickle_ball_game/main.dart';
 import 'package:pickle_ball_game/match_state.dart';
 import 'package:pickle_ball_game/pickleball_flame_game.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
+import 'package:pickle_ball_game/screens/main_menu_screen.dart';
 
 void main() {
   test('court and match rules use shared boundaries', () {
@@ -149,6 +150,117 @@ void main() {
     expect(simulation.rallyPhase, RallyPhase.serverBounceRequired);
     expect(simulation.isTwoBounceViolation(forPlayer: true), isTrue);
     expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+  });
+
+  test('bot moves toward the predicted bounce instead of the current ball', () {
+    final simulation = GameSimulation();
+    simulation.botReactionTimer = 0;
+    simulation.ball
+      ..x = -0.2
+      ..y = 0.6
+      ..z = 0.45
+      ..velocityX = 0.01
+      ..velocityY = -0.02
+      ..velocityZ = 0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), isNull);
+
+    // The ball is still left of center, but its projected bounce is right of
+    // center. The bot should move toward that future position.
+    expect(simulation.ball.x, lessThan(0));
+    expect(simulation.botTargetX, greaterThan(0.1));
+  });
+
+  test('bot recovers to center after returning the ball', () {
+    final simulation = GameSimulation();
+    simulation.botReactionTimer = 0;
+    simulation.botTargetX = 0.3;
+    simulation.botTargetY = -0.4;
+    simulation.ball
+      ..x = 0.2
+      ..y = -0.5
+      ..z = 0.4
+      ..velocityX = 0
+      ..velocityY = 0.02
+      ..velocityZ = 0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), isNull);
+    expect(simulation.botTargetX, 0);
+    expect(simulation.botTargetY, -0.75);
+  });
+
+  test('bot selects safe, drive, and smash plans from ball height and aggression', () {
+    final simulation = GameSimulation();
+    simulation.playerX = 0.3;
+    simulation.ball.z = 0.2;
+    simulation.bot1Aggression = 0.2;
+
+    final safePlan = simulation.chooseBotShot();
+    expect(safePlan.type, BotShotType.safeReturn);
+    expect(safePlan.targetX, lessThan(0));
+
+    simulation.bot1Aggression = 0.8;
+    final drivePlan = simulation.chooseBotShot();
+    expect(drivePlan.type, BotShotType.drive);
+    expect(drivePlan.forwardSpeed, greaterThan(safePlan.forwardSpeed));
+
+    simulation.ball.z = 0.5;
+    final smashPlan = simulation.chooseBotShot();
+    expect(smashPlan.type, BotShotType.smash);
+    expect(smashPlan.forwardSpeed, greaterThan(drivePlan.forwardSpeed));
+    expect(smashPlan.lift, lessThan(drivePlan.lift));
+  });
+
+  test('bot aims toward the court space opposite the player', () {
+    final simulation = GameSimulation();
+    simulation.ball.z = 0.2;
+
+    simulation.playerX = 0.3;
+    final leftTarget = simulation.chooseBotShot().targetX;
+    simulation.playerX = -0.3;
+    final rightTarget = simulation.chooseBotShot().targetX;
+
+    expect(leftTarget, lessThan(0));
+    expect(rightTarget, greaterThan(0));
+  });
+
+  test('bot difficulty changes reaction, movement, accuracy, and errors', () {
+    final easy = GameSimulation(botDifficulty: BotDifficulty.easy);
+    final normal = GameSimulation(botDifficulty: BotDifficulty.normal);
+    final hard = GameSimulation(botDifficulty: BotDifficulty.hard);
+
+    expect(
+      easy.difficultySettings.reactionTicks,
+      greaterThan(normal.difficultySettings.reactionTicks),
+    );
+    expect(
+      hard.difficultySettings.moveSpeed,
+      greaterThan(normal.difficultySettings.moveSpeed),
+    );
+    expect(
+      hard.difficultySettings.aggression,
+      greaterThan(easy.difficultySettings.aggression),
+    );
+    expect(
+      hard.difficultySettings.errorRate,
+      lessThan(easy.difficultySettings.errorRate),
+    );
+    expect(
+      hard.difficultySettings.aimError,
+      lessThan(easy.difficultySettings.aimError),
+    );
+  });
+
+  test('difficulty aggression influences the default bot shot plan', () {
+    final easy = GameSimulation(botDifficulty: BotDifficulty.easy);
+    final hard = GameSimulation(botDifficulty: BotDifficulty.hard);
+    easy.ball.z = 0.2;
+    hard.ball.z = 0.2;
+
+    expect(easy.chooseBotShot().type, BotShotType.safeReturn);
+    expect(hard.chooseBotShot().type, BotShotType.drive);
   });
 
   test('resetting a rally resets the rally rule state', () {
@@ -444,5 +556,31 @@ void main() {
 
     expect(find.text('HIT'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('main menu passes the selected CPU difficulty to the game', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: MainMenuScreen()));
+
+    await tester.tap(find.text('START A MATCH'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('Player vs Bot'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('SELECT CPU DIFFICULTY'), findsOneWidget);
+    await tester.tap(find.text('Hard'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final game = tester.widget<PickleballGame>(
+      find.byType(PickleballGame, skipOffstage: false),
+    );
+    expect(game.botDifficulty, BotDifficulty.hard);
+
+    // Dispose the animated menu, then let its already-scheduled callback
+    // observe that it is no longer mounted.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 5));
   });
 }

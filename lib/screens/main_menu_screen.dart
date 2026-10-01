@@ -1,11 +1,98 @@
 import 'package:flutter/material.dart';
 import '../main.dart' show PickleballGame; // To navigate to the game
+import '../game_simulation.dart' show BotDifficulty;
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/background_painter.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
+
+  void _showDifficultyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 320,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1F24),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'SELECT CPU DIFFICULTY',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _buildDifficultyOption(
+                context: context,
+                dialogContext: ctx,
+                difficulty: BotDifficulty.easy,
+                icon: Icons.sentiment_satisfied,
+                title: 'Easy',
+                subtitle: 'Slower reactions and more mistakes',
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              _buildDifficultyOption(
+                context: context,
+                dialogContext: ctx,
+                difficulty: BotDifficulty.normal,
+                icon: Icons.sports_tennis,
+                title: 'Normal',
+                subtitle: 'Balanced reactions and accuracy',
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              _buildDifficultyOption(
+                context: context,
+                dialogContext: ctx,
+                difficulty: BotDifficulty.hard,
+                icon: Icons.local_fire_department,
+                title: 'Hard',
+                subtitle: 'Fast, accurate, and aggressive',
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDifficultyOption({
+    required BuildContext context,
+    required BuildContext dialogContext,
+    required BotDifficulty difficulty,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return _buildModeOption(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      onTap: () {
+        Navigator.pop(dialogContext);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PickleballGame(botDifficulty: difficulty),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,9 +284,7 @@ class MainMenuScreen extends StatelessWidget {
                       subtitle: 'Classic gameplay',
                       onTap: () {
                         Navigator.pop(ctx);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const PickleballGame(gameMode: 0)),
-                        );
+                        _showDifficultyDialog(context);
                       },
                     ),
                     const Divider(color: Colors.white12, height: 1),
