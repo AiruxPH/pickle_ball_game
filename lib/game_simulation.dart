@@ -573,6 +573,8 @@ class GameSimulation {
   }
 
   RallyEnd? update({double joystickX = 0, double joystickY = 0}) {
+    var ballBouncedThisTick = false;
+
     _telemetryTimer += 0.025;
     if (_telemetryTimer >= 0.5) {
       _telemetryTimer = 0.0;
@@ -885,6 +887,7 @@ class GameSimulation {
           );
         }
         _recordLegalBounce();
+        ballBouncedThisTick = true;
         _emit(GameplayEvent(
           GameplayEventType.bounce,
           side: ball.y > 0 ? MatchSide.player : MatchSide.bot,
@@ -1004,7 +1007,10 @@ class GameSimulation {
       botY = botY.clamp(-courtLength * 1.35, -0.05);
     }
 
-    if (ball.velocityY < 0 && canBotHitBall()) {
+    // Do not let the bot return a ball on the exact physics tick it bounces.
+    // Waiting until the next tick keeps the bounce and return as distinct
+    // rally-state transitions and avoids a ground-level instant hit.
+    if (!ballBouncedThisTick && ball.velocityY < 0 && canBotHitBall()) {
       if (isTwoBounceViolation(forPlayer: false)) {
         // Wait for bounce
       } else {

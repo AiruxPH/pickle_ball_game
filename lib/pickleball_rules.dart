@@ -1,5 +1,3 @@
-enum RallyPhase { botServe, playerServe, playerReturn, botReturn, openRally }
-
 class FaultResult {
   const FaultResult({
     required this.playerScore,
