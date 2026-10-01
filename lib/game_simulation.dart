@@ -184,6 +184,17 @@ class Camera3D {
 }
 
 enum MatchPlayPhase { waitingForServe, inRally, deadBall }
+
+/// Tracks the rule-specific stages of a rally independently from the UI flow.
+enum RallyPhase {
+  waitingForServe,
+  serveInFlight,
+  receiverMayReturn,
+  serverBounceRequired,
+  openRally,
+  deadBall,
+}
+
 enum GameMode { playerVsBot, botVsBot, freeRoamPractice }
 enum MapType { stadium, practiceFacility }
 
@@ -278,28 +289,55 @@ class GameSimulation {
   }
 
   bool isTwoBounceViolation({required bool forPlayer}) {
-    // Official two-bounce rule:
-    // 1. The receiver must let the serve bounce.
-    // 2. The serving side must let the return bounce.
-    // After those two required bounces, volleys are allowed outside the kitchen.
-    if (ball.hasBounced || rallyLength >= 2) {
-      return false;
-    }
-
     final hitter = forPlayer ? MatchSide.player : MatchSide.bot;
     final receiver =
         servingSide == MatchSide.player ? MatchSide.bot : MatchSide.player;
 
-    if (rallyLength == 0) {
-      return hitter == receiver;
+    switch (rallyPhase) {
+      case RallyPhase.serveInFlight:
+        return hitter == receiver;
+      case RallyPhase.serverBounceRequired:
+        return hitter == servingSide;
+      case RallyPhase.waitingForServe:
+      case RallyPhase.receiverMayReturn:
+      case RallyPhase.openRally:
+      case RallyPhase.deadBall:
+        return false;
     }
+  }
 
-    // rallyLength == 1: the original serving side is receiving the return.
-    return hitter == servingSide;
+  void _recordLegalBounce() {
+    switch (rallyPhase) {
+      case RallyPhase.serveInFlight:
+        rallyPhase = RallyPhase.receiverMayReturn;
+        break;
+      case RallyPhase.serverBounceRequired:
+        rallyPhase = RallyPhase.openRally;
+        break;
+      case RallyPhase.waitingForServe:
+      case RallyPhase.receiverMayReturn:
+      case RallyPhase.openRally:
+      case RallyPhase.deadBall:
+        break;
+    }
+  }
+
+  void _recordHit({required MatchSide hitter}) {
+    rallyLength++;
+
+    if (rallyPhase == RallyPhase.receiverMayReturn && hitter != servingSide) {
+      rallyPhase = RallyPhase.serverBounceRequired;
+    }
+  }
+
+  RallyEnd _endRally(RallyEnd result) {
+    playPhase = MatchPlayPhase.deadBall;
+    rallyPhase = RallyPhase.deadBall;
+    return result;
   }
 
   void _executePlayerHit({double joystickX = 0.0}) {
-    rallyLength++;
+    _recordHit(hitter: MatchSide.player);
     lastHitByPlayer = true;
     
     debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'player_swing', 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
@@ -339,6 +377,7 @@ class GameSimulation {
   bool lastHitByPlayer = false;
   MatchSide servingSide = MatchSide.player;
   MatchPlayPhase playPhase = MatchPlayPhase.inRally;
+  RallyPhase rallyPhase = RallyPhase.openRally;
   int currentServerScore = 0;
   
   int rallyLength = 0;
@@ -364,6 +403,7 @@ class GameSimulation {
     currentServerScore = serverScore;
     lastHitByPlayer = servingSide == MatchSide.player;
     playPhase = MatchPlayPhase.waitingForServe;
+    rallyPhase = RallyPhase.waitingForServe;
     rallyLength = 0;
     
     ball.velocityZ = 0;
@@ -434,6 +474,7 @@ class GameSimulation {
   void triggerServe() {
     if (playPhase != MatchPlayPhase.waitingForServe) return;
     playPhase = MatchPlayPhase.inRally;
+    rallyPhase = RallyPhase.serveInFlight;
     
     if (servingSide == MatchSide.player) {
       final traj = getPlayerServeTrajectory();
@@ -609,8 +650,7 @@ class GameSimulation {
         if (!GameDebugConfig.bypassKitchenRules) {
           if (PickleballRules.isKitchenVolley(playerY: playerY, ballHasBounced: ball.hasBounced)) {
             playerSwingActiveTimer = 0.0;
-            playPhase = MatchPlayPhase.deadBall;
-            return RallyEnd.playerFault;
+            return _endRally(RallyEnd.playerFault);
           }
           if (isTwoBounceViolation(forPlayer: true)) {
             // If ball is descending toward ground on serve/return, wait for bounce instead of premature fault
@@ -674,7 +714,7 @@ class GameSimulation {
       if (ball.velocityY > 0 &&
           canPlayerHitBall() &&
           (ball.hasBounced || ball.y > courtLength * 0.5)) {
-        rallyLength++;
+        _recordHit(hitter: MatchSide.player);
         lastHitByPlayer = true;
         
         final isAggressiveHit = math.Random().nextDouble() < bot2Aggression;
@@ -730,12 +770,10 @@ class GameSimulation {
         if (!ball.hasBounced) {
           // A ball cannot bounce on the hitter's own side of the net
           if (lastHitByPlayer && ball.y >= 0) {
-            playPhase = MatchPlayPhase.deadBall;
-            return RallyEnd.playerFault;
+            return _endRally(RallyEnd.playerFault);
           }
           if (!lastHitByPlayer && ball.y <= 0) {
-            playPhase = MatchPlayPhase.deadBall;
-            return RallyEnd.botFault;
+            return _endRally(RallyEnd.botFault);
           }
 
           if (rallyLength == 0) {
@@ -748,18 +786,22 @@ class GameSimulation {
               serveFromLeft: !isEven,
             );
             if (!isCorrect) {
-              playPhase = MatchPlayPhase.deadBall;
-              return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
+              return _endRally(
+                lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault,
+              );
             }
           } else if (!PickleballRules.isInsideCourt(ball.x, ball.y)) {
-            playPhase = MatchPlayPhase.deadBall;
-            return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
+            return _endRally(
+              lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault,
+            );
           }
         } else {
           // Double bounce: fault on the receiving player who let it bounce twice on their side
-          playPhase = MatchPlayPhase.deadBall;
-          return ball.y > 0 ? RallyEnd.playerFault : RallyEnd.botFault;
+          return _endRally(
+            ball.y > 0 ? RallyEnd.playerFault : RallyEnd.botFault,
+          );
         }
+        _recordLegalBounce();
         ball.z = 0;
         ball.velocityZ = 0.018;
       } else {
@@ -776,18 +818,17 @@ class GameSimulation {
 
     if (gameMode != GameMode.freeRoamPractice) {
       if (previousBallY < 0 && ball.y >= 0 && ball.z < PickleballRules.netHeight) {
-        playPhase = MatchPlayPhase.deadBall;
-        return RallyEnd.botFault;
+        return _endRally(RallyEnd.botFault);
       }
       if (previousBallY > 0 && ball.y <= 0 && ball.z < PickleballRules.netHeight) {
-        playPhase = MatchPlayPhase.deadBall;
-        return RallyEnd.playerFault;
+        return _endRally(RallyEnd.playerFault);
       }
 
       // Wide bleacher limits: only terminate when ball completely clears the arena
       if (!ball.hasBounced && (ball.y.abs() > courtLength * 2.2 || ball.x.abs() > courtWidth * 2.5)) {
-        playPhase = MatchPlayPhase.deadBall;
-        return lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault;
+        return _endRally(
+          lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault,
+        );
       }
     }
 
@@ -873,7 +914,7 @@ class GameSimulation {
       if (isTwoBounceViolation(forPlayer: false)) {
         // Wait for bounce
       } else {
-        rallyLength++;
+        _recordHit(hitter: MatchSide.bot);
         lastHitByPlayer = false;
         
         final isAggressiveHit = math.Random().nextDouble() < bot1Aggression;
