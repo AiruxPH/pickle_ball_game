@@ -195,6 +195,24 @@ enum RallyPhase {
   deadBall,
 }
 
+enum GameplayEventType {
+  playerHit,
+  botHit,
+  bounce,
+  netFault,
+  outOfBounds,
+  doubleBounce,
+  rallyEnd,
+}
+
+class GameplayEvent {
+  const GameplayEvent(this.type, {this.side, this.isSmash = false});
+
+  final GameplayEventType type;
+  final MatchSide? side;
+  final bool isSmash;
+}
+
 enum GameMode { playerVsBot, botVsBot, freeRoamPractice }
 enum MapType { stadium, practiceFacility }
 
@@ -217,6 +235,15 @@ class GameSimulation {
 
   final BallState ball = BallState();
   final Camera3D camera = Camera3D();
+  final List<GameplayEvent> _events = <GameplayEvent>[];
+
+  List<GameplayEvent> drainEvents() {
+    final events = List<GameplayEvent>.unmodifiable(_events);
+    _events.clear();
+    return events;
+  }
+
+  void _emit(GameplayEvent event) => _events.add(event);
 
   double _telemetryTimer = 0.0;
   double playerX = 0;
@@ -330,9 +357,18 @@ class GameSimulation {
     }
   }
 
-  RallyEnd _endRally(RallyEnd result) {
+  RallyEnd _endRally(
+    RallyEnd result, {
+    GameplayEventType? cause,
+  }) {
     playPhase = MatchPlayPhase.deadBall;
     rallyPhase = RallyPhase.deadBall;
+    final faultSide =
+        result == RallyEnd.playerFault ? MatchSide.player : MatchSide.bot;
+    if (cause != null) {
+      _emit(GameplayEvent(cause, side: faultSide));
+    }
+    _emit(GameplayEvent(GameplayEventType.rallyEnd, side: faultSide));
     return result;
   }
 
@@ -343,6 +379,11 @@ class GameSimulation {
     debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'player_swing', 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
     
     final isSmash = ball.z > 0.3;
+    _emit(GameplayEvent(
+      GameplayEventType.playerHit,
+      side: MatchSide.player,
+      isSmash: isSmash,
+    ));
     if (isSmash) {
       ball.velocityY = -0.032;
       ball.velocityZ = 0.010;
@@ -405,6 +446,7 @@ class GameSimulation {
     playPhase = MatchPlayPhase.waitingForServe;
     rallyPhase = RallyPhase.waitingForServe;
     rallyLength = 0;
+    _events.clear();
     
     ball.velocityZ = 0;
     ball.velocityY = 0;
@@ -791,20 +833,27 @@ class GameSimulation {
                 servingSide == MatchSide.player
                     ? RallyEnd.playerFault
                     : RallyEnd.botFault,
+                cause: GameplayEventType.outOfBounds,
               );
             }
           } else if (!PickleballRules.isInsideCourt(ball.x, ball.y)) {
             return _endRally(
               lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault,
+              cause: GameplayEventType.outOfBounds,
             );
           }
         } else {
           // Double bounce: fault on the receiving player who let it bounce twice on their side
           return _endRally(
             ball.y > 0 ? RallyEnd.playerFault : RallyEnd.botFault,
+            cause: GameplayEventType.doubleBounce,
           );
         }
         _recordLegalBounce();
+        _emit(GameplayEvent(
+          GameplayEventType.bounce,
+          side: ball.y > 0 ? MatchSide.player : MatchSide.bot,
+        ));
         ball.z = 0;
         ball.velocityZ = 0.018;
       } else {
@@ -821,16 +870,23 @@ class GameSimulation {
 
     if (gameMode != GameMode.freeRoamPractice) {
       if (previousBallY < 0 && ball.y >= 0 && ball.z < PickleballRules.netHeight) {
-        return _endRally(RallyEnd.botFault);
+        return _endRally(
+          RallyEnd.botFault,
+          cause: GameplayEventType.netFault,
+        );
       }
       if (previousBallY > 0 && ball.y <= 0 && ball.z < PickleballRules.netHeight) {
-        return _endRally(RallyEnd.playerFault);
+        return _endRally(
+          RallyEnd.playerFault,
+          cause: GameplayEventType.netFault,
+        );
       }
 
       // Wide bleacher limits: only terminate when ball completely clears the arena
       if (!ball.hasBounced && (ball.y.abs() > courtLength * 2.2 || ball.x.abs() > courtWidth * 2.5)) {
         return _endRally(
           lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault,
+          cause: GameplayEventType.outOfBounds,
         );
       }
     }
@@ -922,6 +978,11 @@ class GameSimulation {
         
         final isAggressiveHit = math.Random().nextDouble() < bot1Aggression;
         final isError = math.Random().nextDouble() < 0.05; // 5% error rate
+        _emit(GameplayEvent(
+          GameplayEventType.botHit,
+          side: MatchSide.bot,
+          isSmash: isAggressiveHit,
+        ));
         
         debugPrint('[DATA] ${jsonEncode({'type': 'action', 'action': 'swing', 'aggressive': isAggressiveHit, 'error': isError, 'rallyLength': rallyLength, 'ball': {'x': ball.x, 'y': ball.y, 'z': ball.z}})}');
         
