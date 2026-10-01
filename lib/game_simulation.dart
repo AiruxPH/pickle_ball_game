@@ -278,16 +278,24 @@ class GameSimulation {
   }
 
   bool isTwoBounceViolation({required bool forPlayer}) {
-    // Official Two-Bounce Rule:
-    // 1. Receiver must let the serve bounce before returning (rallyLength == 0).
-    // 2. Server must let the return of serve bounce before hitting the 3rd shot (rallyLength == 1).
-    // From rallyLength >= 2 onwards, volleys outside the kitchen are completely legal!
-    if (rallyLength == 0) {
-      return !ball.hasBounced;
-    } else if (rallyLength == 1) {
-      return !ball.hasBounced;
+    // Official two-bounce rule:
+    // 1. The receiver must let the serve bounce.
+    // 2. The serving side must let the return bounce.
+    // After those two required bounces, volleys are allowed outside the kitchen.
+    if (ball.hasBounced || rallyLength >= 2) {
+      return false;
     }
-    return false;
+
+    final hitter = forPlayer ? MatchSide.player : MatchSide.bot;
+    final receiver =
+        servingSide == MatchSide.player ? MatchSide.bot : MatchSide.player;
+
+    if (rallyLength == 0) {
+      return hitter == receiver;
+    }
+
+    // rallyLength == 1: the original serving side is receiving the return.
+    return hitter == servingSide;
   }
 
   void _executePlayerHit({double joystickX = 0.0}) {
@@ -335,7 +343,20 @@ class GameSimulation {
   
   int rallyLength = 0;
   double get ballSpeed {
-    return math.sqrt(ball.velocityX * ball.velocityX + ball.velocityY * ball.velocityY + ball.velocityZ * ball.velocityZ) * 1000;
+    // The simulation court length is normalized to 1.0 for each 22 ft half-court.
+    // Velocities are world-units per 25 ms simulation tick.
+    final worldUnitsPerTick = math.sqrt(
+      ball.velocityX * ball.velocityX +
+          ball.velocityY * ball.velocityY +
+          ball.velocityZ * ball.velocityZ,
+    );
+    const feetPerWorldUnit = 22.0;
+    const ticksPerSecond = 40.0;
+    const mphPerFootPerSecond = 0.681818;
+    return worldUnitsPerTick *
+        feetPerWorldUnit *
+        ticksPerSecond *
+        mphPerFootPerSecond;
   }
 
   void resetRally({MatchSide servingSide = MatchSide.bot, int serverScore = 0}) {
