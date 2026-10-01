@@ -46,9 +46,11 @@ class PickleballRules {
   }) {
     // Official regulation: Serve must clear the Non-Volley Zone (kitchen line)
     // and land in the diagonal cross-court service box
+    // The non-volley-zone line is part of the kitchen, so a serve must
+    // land beyond that line. Sidelines, centerline, and baseline remain in.
     final correctYSide = playerServing
-        ? (y <= -kitchenDepth && y >= -courtLength)
-        : (y >= kitchenDepth && y <= courtLength);
+        ? (y < -kitchenDepth && y >= -courtLength)
+        : (y > kitchenDepth && y <= courtLength);
     final correctXSide = serveFromLeft
         ? (x >= 0 && x <= courtWidth)
         : (x <= 0 && x >= -courtWidth);
