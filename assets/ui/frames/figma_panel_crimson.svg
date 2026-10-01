@@ -1,0 +1,16 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="779.395" height="504.5" viewBox="0 0 779.395 504.5" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Custom Game UI Vector Border">
+<path id="Game UI Border / Main Frame" fill-rule="evenodd" clip-rule="evenodd" d="M67.4063 21H731.406L759.406 45V459L735.406 487H93.4063L73.4063 501H49.4063L57.4063 469V353L39.4063 371V47L67.4063 21ZM81.4063 63H717.406V445H101.406L81.4063 463V325L69.4063 337V63H81.4063Z" fill="#13171B" stroke="#040506" stroke-width="7" stroke-miterlimit="8" stroke-linecap="round"/>
+<path id="Game UI Border / Red Inner Keyline" d="M39.4063 21H661.406V388H58.4063L39.4063 404V262" stroke="#B80406" stroke-width="3" stroke-linecap="square"/>
+<path id="Game UI Border / Header Tab" d="M19.4063 3H401.406L433.406 15L405.406 71H15.4063L3.40628 61L19.4063 3Z" fill="url(#paint0_linear_0_4)" stroke="#0A0405" stroke-width="6"/>
+<path id="Game UI Border / Header Highlight" d="M3.40628 3H373.406L395.406 11" stroke="#FF473D" stroke-opacity="0.72" stroke-width="2" stroke-linecap="round"/>
+<path id="Game UI Border / Corner Accent" d="M736.406 13L766.406 21L776.406 51L754.406 65L740.406 53L746.406 35L736.406 13Z" fill="#E60509" stroke="#0A0405" stroke-width="5"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_4" x1="3.40628" y1="37" x2="433.406" y2="37" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FA0609"/>
+<stop offset="0.55" stop-color="#B80103"/>
+<stop offset="1" stop-color="#610003"/>
+</linearGradient>
+</defs>
+</svg>

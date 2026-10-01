@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="122.147" height="113.139" viewBox="0 0 122.147 113.139" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Menu Border Variant / Mastery Gold">
+<path id="Mastery Gold / Plate" d="M10.0526 3.07154L106.053 6.07154L119.053 20.0715L113.053 96.0715L101.053 110.072L18.0526 106.072L3.05258 92.0715L6.05258 17.0715L10.0526 3.07154Z" fill="url(#paint0_linear_0_24)" stroke="#090A0C" stroke-width="6"/>
+<path id="Mastery Gold / Inner Border" d="M88.0526 6.07154L8.05258 3.07154L6.05258 13.0715L3.05258 76.0715L14.0526 85.0715L86.0526 88.0715L93.0526 78.0715L99.0526 14.0715L88.0526 6.07154Z" stroke="white" stroke-opacity="0.48" stroke-width="2" stroke-linejoin="round"/>
+<path id="Mastery Gold / Label Shelf" d="M7.05258 5.07154L99.0526 3.07154L103.053 25.0715L93.0526 35.0715L12.0526 33.0715L3.05258 23.0715L7.05258 5.07154Z" fill="#111317" fill-opacity="0.9" stroke="#050607" stroke-width="3"/>
+<path id="Mastery Gold / Corner Cut" d="M12.0526 12.0715L27.0526 13.0715L15.0526 27.0715L12.0526 12.0715Z" fill="white" fill-opacity="0.28"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_24" x1="-8.20508" y1="50.3774" x2="125.676" y2="82.238" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFD94A"/>
+<stop offset="1" stop-color="#E08B00"/>
+</linearGradient>
+</defs>
+</svg>

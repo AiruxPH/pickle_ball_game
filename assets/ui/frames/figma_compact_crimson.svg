@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="122.129" height="114.076" viewBox="0 0 122.129 114.076" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Menu Border Variant / Crimson Shop">
+<path id="Crimson Shop / Plate" d="M13.0221 5.02147L102.022 3.02147L119.022 15.0215L114.022 89.0215L104.022 107.021L18.0221 111.021L5.02214 99.0215L3.02214 21.0215L13.0221 5.02147Z" fill="url(#paint0_linear_0_29)" stroke="#090A0C" stroke-width="6"/>
+<path id="Crimson Shop / Inner Border" d="M88.0221 3.02147L7.02214 6.02147L3.02214 16.0215L4.02214 81.0215L12.0221 89.0215L87.0221 85.0215L93.0221 75.0215L97.0221 11.0215L88.0221 3.02147Z" stroke="white" stroke-opacity="0.48" stroke-width="2" stroke-linejoin="round"/>
+<path id="Crimson Shop / Label Shelf" d="M7.02214 5.02147L99.0221 3.02147L103.022 25.0215L93.0221 35.0215L12.0221 33.0215L3.02214 23.0215L7.02214 5.02147Z" fill="#111317" fill-opacity="0.9" stroke="#050607" stroke-width="3"/>
+<path id="Crimson Shop / Corner Cut" d="M12.0221 12.0215L27.0221 13.0215L15.0221 27.0215L12.0221 12.0215Z" fill="white" fill-opacity="0.28"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_29" x1="-8.23552" y1="50.7695" x2="125.778" y2="82.3662" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF4A43"/>
+<stop offset="1" stop-color="#B70712"/>
+</linearGradient>
+</defs>
+</svg>

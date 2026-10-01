@@ -1,0 +1,16 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="776.767" height="502" viewBox="0 0 776.767 502" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Game UI Border Variant / Cyber Cyan">
+<path id="Game UI Border / Main Frame" fill-rule="evenodd" clip-rule="evenodd" d="M71 19H723L757 53V465L723 499H71L37 465V53L71 19ZM89 63H705L717 75V443L701 459H93L77 443V75L89 63Z" fill="#101820" stroke="#02090D" stroke-width="6" stroke-miterlimit="8" stroke-linecap="round"/>
+<path id="Game UI Border / Cyan Keyline" d="M695 73H95L87 85V433L103 449H691L707 433V85L695 73Z" stroke="#00D9FF" stroke-width="3" stroke-linecap="square"/>
+<path id="Game UI Border / Header Tab" d="M151 156H525L563 178L529 222H145L133 198L151 156Z" fill="url(#paint0_linear_0_4)" stroke="#02090D" stroke-width="6"/>
+<path id="Game UI Border / Header Highlight" d="M1 1H371L393 9" stroke="#D7FCFF" stroke-opacity="0.75" stroke-width="2" stroke-linecap="round"/>
+<path id="Game UI Border / Corner Accent" d="M754 11L774 29L768 55L744 63L734 39L754 11Z" fill="#00D9FF" stroke="#02090D" stroke-width="5"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_4" x1="133" y1="189" x2="563" y2="189" gradientUnits="userSpaceOnUse">
+<stop stop-color="#80F3FF"/>
+<stop offset="0.55" stop-color="#00D9FF"/>
+<stop offset="1" stop-color="#006B91"/>
+</linearGradient>
+</defs>
+</svg>

@@ -1,0 +1,16 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="784.464" height="505" viewBox="0 0 784.464 505" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Game UI Border Variant / Toxic Lime">
+<path id="Game UI Border / Main Frame" fill-rule="evenodd" clip-rule="evenodd" d="M69.4131 21H729.413L759.413 43V175L747.413 191V453L721.413 487H459.413L441.413 501H83.4131L55.4131 471V359L39.4131 371V45L69.4131 21ZM87.4131 63H711.413V169L699.413 185V437L685.413 453H109.413L87.4131 435V323L73.4131 337V63H87.4131Z" fill="#111713" stroke="#030704" stroke-width="8" stroke-miterlimit="8" stroke-linecap="round"/>
+<path id="Game UI Border / Lime Keyline" d="M95.4131 71H703.413V163L691.413 179V429L677.413 445H119.413L95.4131 427V313" stroke="#65E000" stroke-width="3"/>
+<path id="Game UI Border / Header Tab" d="M19.4131 3H357.413L385.413 13H433.413L403.413 71H17.4131L3.41311 59L19.4131 3Z" fill="url(#paint0_linear_0_4)" stroke="#030704" stroke-width="6"/>
+<path id="Game UI Border / Header Highlight" d="M3.41311 3H373.413L395.413 11" stroke="#EEFFB0" stroke-opacity="0.75" stroke-width="2" stroke-linecap="round"/>
+<path id="Game UI Border / Corner Accent" d="M744.413 13L776.413 23L770.413 43L780.413 57L754.413 65L736.413 47L746.413 33L744.413 13Z" fill="#65E000" stroke="#030704" stroke-width="5"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_4" x1="3.41311" y1="37" x2="433.413" y2="37" gradientUnits="userSpaceOnUse">
+<stop stop-color="#C8FF30"/>
+<stop offset="0.55" stop-color="#65E000"/>
+<stop offset="1" stop-color="#207000"/>
+</linearGradient>
+</defs>
+</svg>

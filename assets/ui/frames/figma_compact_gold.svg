@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="122.066" height="114.105" viewBox="0 0 122.066 114.105" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Menu Border Variant / Quest Coral">
+<path id="Quest Coral / Plate" d="M6.01946 9.07946L106.019 3.07946L119.019 17.0795L116.019 94.0795L104.019 109.079L20.0195 111.079L3.01946 97.0795L4.01946 24.0795L6.01946 9.07946Z" fill="url(#paint0_linear_0_4)" stroke="#090A0C" stroke-width="6"/>
+<path id="Quest Coral / Inner Border" d="M89.0195 3.07946L5.01946 8.07946L4.01946 19.0795L3.01946 81.0795L14.0195 90.0795L88.0195 88.0795L96.0195 77.0795L99.0195 12.0795L89.0195 3.07946Z" stroke="white" stroke-opacity="0.48" stroke-width="2" stroke-linejoin="round"/>
+<path id="Quest Coral / Label Shelf" d="M7.01946 5.07946L99.0195 3.07946L103.019 25.0795L93.0195 35.0795L12.0195 33.0795L3.01946 23.0795L7.01946 5.07946Z" fill="#111317" fill-opacity="0.9" stroke="#050607" stroke-width="3"/>
+<path id="Quest Coral / Corner Cut" d="M12.0195 12.0795L27.0195 13.0795L15.0195 27.0795L12.0195 12.0795Z" fill="white" fill-opacity="0.28"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_4" x1="-8.23821" y1="50.8275" x2="125.776" y2="82.4242" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF9A63"/>
+<stop offset="1" stop-color="#CE552E"/>
+</linearGradient>
+</defs>
+</svg>

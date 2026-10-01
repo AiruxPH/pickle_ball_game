@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="122.076" height="114.127" viewBox="0 0 122.076 114.127" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Menu Border Variant / Arcane Purple">
+<path id="Arcane Purple / Plate" d="M7.03186 7.07214L111.032 3.07214L119.032 19.0721L114.032 99.0721L101.032 111.072L15.0319 107.072L3.03186 94.0721L5.03186 20.0721L7.03186 7.07214Z" fill="url(#paint0_linear_0_19)" stroke="#090A0C" stroke-width="6"/>
+<path id="Arcane Purple / Inner Border" d="M92.0319 3.07214L6.03186 6.07214L4.03186 15.0721L3.03186 78.0721L11.0319 86.0721L87.0319 89.0721L94.0319 80.0721L99.0319 13.0721L92.0319 3.07214Z" stroke="white" stroke-opacity="0.48" stroke-width="2" stroke-linejoin="round"/>
+<path id="Arcane Purple / Label Shelf" d="M7.03186 5.07214L99.0319 3.07214L103.032 25.0721L93.0319 35.0721L12.0319 33.0721L3.03186 23.0721L7.03186 5.07214Z" fill="#111317" fill-opacity="0.9" stroke="#050607" stroke-width="3"/>
+<path id="Arcane Purple / Corner Cut" d="M12.0319 12.0721L27.0319 13.0721L15.0319 27.0721L12.0319 12.0721Z" fill="white" fill-opacity="0.28"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_19" x1="-8.2258" y1="50.8202" x2="125.788" y2="82.4169" gradientUnits="userSpaceOnUse">
+<stop stop-color="#C852FF"/>
+<stop offset="1" stop-color="#6611C8"/>
+</linearGradient>
+</defs>
+</svg>
