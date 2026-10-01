@@ -185,13 +185,6 @@ class _PickleballGameState extends State<PickleballGame> {
       } else if (swingResult == SwingResult.kitchenFault) {
         feedbackText = 'KITCHEN FAULT!';
         _handleRallyEnd(RallyEnd.playerFault);
-      } else {
-        feedbackText = 'MISSED!';
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          if (mounted && feedbackText == 'MISSED!') {
-            setState(() => feedbackText = '');
-          }
-        });
       }
     });
   }
