@@ -923,7 +923,7 @@ void main() {
     WidgetTester tester,
   ) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(844, 390);
+    tester.view.physicalSize = const Size(780, 360);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
 
@@ -935,6 +935,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(tester.takeException(), isNull);
 
+    await tester.tap(find.text('Player vs Bot'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('SELECT CPU DIFFICULTY'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
     await tester.pump();
     expect(tester.takeException(), isNull);
@@ -942,5 +947,8 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: PickleballGame()));
     await tester.pump();
     expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 5));
   });
 }

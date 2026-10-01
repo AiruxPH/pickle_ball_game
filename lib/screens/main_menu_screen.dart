@@ -14,60 +14,75 @@ class MainMenuScreen extends StatelessWidget {
   void _showDifficultyDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: AngularFrame(
-          width: 350,
-          cut: 16,
-          accent: const Color(0xFFF59E0B),
-          fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                child: Text(
-                  'SELECT CPU DIFFICULTY',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
-                  ),
+      builder: (ctx) {
+        final screen = MediaQuery.sizeOf(ctx);
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
+          ),
+          backgroundColor: Colors.transparent,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: screen.height - 20),
+            child: AngularFrame(
+              width: 350,
+              cut: 16,
+              accent: const Color(0xFFF59E0B),
+              fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                      child: Text(
+                        'SELECT CPU DIFFICULTY',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                    _buildDifficultyOption(
+                      context: context,
+                      dialogContext: ctx,
+                      difficulty: BotDifficulty.easy,
+                      icon: Icons.sentiment_satisfied,
+                      title: 'Easy',
+                      subtitle: 'Slower reactions and more mistakes',
+                    ),
+                    const Divider(color: Colors.white12, height: 1),
+                    _buildDifficultyOption(
+                      context: context,
+                      dialogContext: ctx,
+                      difficulty: BotDifficulty.normal,
+                      icon: Icons.sports_tennis,
+                      title: 'Normal',
+                      subtitle: 'Balanced reactions and accuracy',
+                    ),
+                    const Divider(color: Colors.white12, height: 1),
+                    _buildDifficultyOption(
+                      context: context,
+                      dialogContext: ctx,
+                      difficulty: BotDifficulty.hard,
+                      icon: Icons.local_fire_department,
+                      title: 'Hard',
+                      subtitle: 'Fast, accurate, and aggressive',
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                 ),
               ),
-              _buildDifficultyOption(
-                context: context,
-                dialogContext: ctx,
-                difficulty: BotDifficulty.easy,
-                icon: Icons.sentiment_satisfied,
-                title: 'Easy',
-                subtitle: 'Slower reactions and more mistakes',
-              ),
-              const Divider(color: Colors.white12, height: 1),
-              _buildDifficultyOption(
-                context: context,
-                dialogContext: ctx,
-                difficulty: BotDifficulty.normal,
-                icon: Icons.sports_tennis,
-                title: 'Normal',
-                subtitle: 'Balanced reactions and accuracy',
-              ),
-              const Divider(color: Colors.white12, height: 1),
-              _buildDifficultyOption(
-                context: context,
-                dialogContext: ctx,
-                difficulty: BotDifficulty.hard,
-                icon: Icons.local_fire_department,
-                title: 'Hard',
-                subtitle: 'Fast, accurate, and aggressive',
-              ),
-              const SizedBox(height: 6),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -312,73 +327,85 @@ class MainMenuScreen extends StatelessWidget {
         showDialog(
           context: context,
           builder: (ctx) {
+            final screen = MediaQuery.sizeOf(ctx);
             return Dialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
               backgroundColor: Colors.transparent,
-              child: AngularFrame(
-                width: 350,
-                cut: 16,
-                accent: const Color(0xFFF59E0B),
-                fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16,
-                      ),
-                      child: Text(
-                        'SELECT GAME MODE',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: screen.height - 20),
+                child: AngularFrame(
+                  width: 350,
+                  cut: 16,
+                  accent: const Color(0xFFF59E0B),
+                  fillColors: const [Color(0xFF222930), Color(0xFF13171B)],
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
+                          child: Text(
+                            'SELECT GAME MODE',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        _buildModeOption(
+                          icon: Icons.person,
+                          title: 'Player vs Bot',
+                          subtitle: 'Classic gameplay',
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _showDifficultyDialog(context);
+                          },
+                        ),
+                        const Divider(color: Colors.white12, height: 1),
+                        _buildModeOption(
+                          icon: Icons.smart_display,
+                          title: 'Spectate',
+                          subtitle: 'Bot vs Bot',
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const PickleballGame(gameMode: 1),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(color: Colors.white12, height: 1),
+                        _buildModeOption(
+                          icon: Icons.directions_run,
+                          title: 'Practice Facility',
+                          subtitle: 'Free Roam & Ball Machine',
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const PickleballGame(gameMode: 2),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    _buildModeOption(
-                      icon: Icons.person,
-                      title: 'Player vs Bot',
-                      subtitle: 'Classic gameplay',
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _showDifficultyDialog(context);
-                      },
-                    ),
-                    const Divider(color: Colors.white12, height: 1),
-                    _buildModeOption(
-                      icon: Icons.smart_display,
-                      title: 'Spectate',
-                      subtitle: 'Bot vs Bot',
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const PickleballGame(gameMode: 1),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(color: Colors.white12, height: 1),
-                    _buildModeOption(
-                      icon: Icons.directions_run,
-                      title: 'Practice Facility',
-                      subtitle: 'Free Roam & Ball Machine',
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const PickleballGame(gameMode: 2),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 6),
-                  ],
+                  ),
                 ),
               ),
             );
@@ -415,7 +442,7 @@ class MainMenuScreen extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Row(
           children: [
             Container(

@@ -49,7 +49,7 @@ class GameScaffold extends StatelessWidget {
                             width: headerHeight,
                             height: headerHeight,
                             decoration: AppTheme.iconButton,
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back,
                               color: AppTheme.accentCyan,
                               size: compact ? 20 : 24,
