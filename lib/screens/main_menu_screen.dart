@@ -7,7 +7,6 @@ import 'profile_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/angular_frame.dart';
 import '../widgets/background_painter.dart';
-import '../widgets/figma_game_frames.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
@@ -144,8 +143,10 @@ class MainMenuScreen extends StatelessWidget {
                     top: 100,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 470),
-                      child: FigmaGradientBanner(
-                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 16),
+                      child: AngularFrame(
+                        padding: const EdgeInsets.all(24),
+                        accent: AppTheme.accentLime,
+                        cut: 22,
                         child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
@@ -153,34 +154,28 @@ class MainMenuScreen extends StatelessWidget {
                             Text(
                               'PICKLEBALL',
                               style: TextStyle(
-                                color: AppTheme.ink,
-                                fontSize: 38,
+                                color: AppTheme.textPrimary,
+                                fontSize: 42,
                                 height: 0.95,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 2.5,
-                                shadows: [
-                                  Shadow(color: Colors.white70, blurRadius: 4),
-                                ],
                               ),
                             ),
                             Text(
                               'MASTERS',
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 38,
+                                color: AppTheme.accentLime,
+                                fontSize: 42,
                                 height: 1.05,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 4,
-                                shadows: [
-                                  Shadow(color: AppTheme.ink, blurRadius: 5),
-                                ],
                               ),
                             ),
-                            SizedBox(height: 10),
+                            SizedBox(height: 14),
                             Text(
                               'READ THE BOUNCE. OWN THE KITCHEN.',
                               style: TextStyle(
-                                color: AppTheme.ink,
+                                color: AppTheme.textSecondary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.6,
@@ -442,22 +437,28 @@ class MainMenuScreen extends StatelessWidget {
               child: Icon(icon, color: const Color(0xFFF59E0B), size: 28),
             ),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-              ],
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

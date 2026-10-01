@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../bot_agent.dart';
 import '../theme/app_theme.dart';
 import 'angular_frame.dart';
-import 'figma_game_frames.dart';
 
 class MatchScoreboard extends StatelessWidget {
   const MatchScoreboard({
@@ -151,47 +150,57 @@ class SpectatorBotCard extends StatelessWidget {
     required this.agent,
     required this.label,
     required this.color,
-    required this.panelStyle,
     required this.isIncoming,
   });
 
   final BotAgent agent;
   final String label;
   final Color color;
-  final GamePanelStyle panelStyle;
   final bool isIncoming;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 142,
-      child: FigmaGamePanel(
-        style: panelStyle,
-        title: label,
-        titlePadding: const EdgeInsets.fromLTRB(10, 5, 10, 0),
-        contentPadding: const EdgeInsets.fromLTRB(14, 24, 14, 12),
+      child: AngularFrame(
+        accent: color,
+        cut: 9,
+        padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                Container(width: 3, height: 18, color: color),
-                const SizedBox(width: 7),
+                Container(width: 4, height: 22, color: color),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    agent.personality.name.toUpperCase(),
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        agent.personality.name.toUpperCase(),
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 9),
             Text(
               agent.isDashing
                   ? 'DASHING'
