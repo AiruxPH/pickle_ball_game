@@ -66,6 +66,9 @@ flutter:
   assets:
     - assets/
     - assets/images/
+    - assets/images/lpc_male_item_animations_2026-10-01T05-11-12/standard/idle/
+    - assets/images/lpc_male_item_animations_2026-10-01T05-11-12/standard/walk/
+    - assets/images/lpc_male_item_animations_2026-10-01T05-11-12/standard/slash/
     - assets/models/
 
   # An image asset can refer to one or more resolution-specific "variants", see

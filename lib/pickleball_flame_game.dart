@@ -19,9 +19,9 @@ class PickleballFlameGame extends FlameGame {
   final GameSimulation simulation;
   late final Image benchSprite;
   late final Image bleacherSprite;
-  late final Image maleFacingBack;
-  late final Image maleFacingBack2;
-  late final Image maleSideView;
+  late final List<Image> lpcIdleLayers = [];
+  late final List<Image> lpcWalkLayers = [];
+  late final List<Image> lpcSlashLayers = [];
   void Function(RallyEnd event)? onRallyEnd;
   double inputX = 0;
   double inputY = 0;
@@ -50,9 +50,24 @@ class PickleballFlameGame extends FlameGame {
     // Load external sprite assets (transparent PNGs)
     benchSprite = await images.load('stadium_bench-removebg-preview.png');
     bleacherSprite = await images.load('stadium_bleachers-removebg-preview.png');
-    maleFacingBack = await images.load('male facing back.png');
-    maleFacingBack2 = await images.load('male facing bak 2.png');
-    maleSideView = await images.load('male side view.png');
+    
+    final lpcDir = 'lpc_male_item_animations_2026-10-01T05-11-12/standard/';
+    final lpcFiles = [
+      '010 body_color__light_.png',
+      '020 cuffed_pants__yellow_.png',
+      '036 longsleeves_2_overlay__brown_.png',
+      '060 legion__ceramic_.png',
+      '100 human_male__light_.png',
+      '101 neutral__light_.png',
+      '120 bob__orange_.png',
+      '125 hair_tie__brown_.png'
+    ];
+    
+    for (final file in lpcFiles) {
+      lpcIdleLayers.add(await images.load('${lpcDir}idle/$file'));
+      lpcWalkLayers.add(await images.load('${lpcDir}walk/$file'));
+      lpcSlashLayers.add(await images.load('${lpcDir}slash/$file'));
+    }
     
     await add(CourtVisualComponent(this));
     await add(BallVisualComponent(this));
@@ -378,6 +393,19 @@ class PlayerVisualComponent extends Component {
   PlayerVisualComponent(this.game);
 
   final PickleballFlameGame game;
+  double animTimer = 0.0;
+  int facingRow = 0; // 0=Up, 1=Left, 2=Down, 3=Right
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    animTimer += dt;
+    
+    if (game.inputY < 0) facingRow = 0;
+    else if (game.inputX < 0) facingRow = 1;
+    else if (game.inputY > 0) facingRow = 2;
+    else if (game.inputX > 0) facingRow = 3;
+  }
 
   @override
   void render(Canvas canvas) {
@@ -391,45 +419,55 @@ class PlayerVisualComponent extends Component {
       (point.x + 1.0) / 2.0 * game.size.x,
       (point.y + 1.0) / 2.0 * game.size.y,
     );
+
     final shadowPaintFloor = Paint()..color = const Color(0x40000000)..style = PaintingStyle.fill;
     canvas.drawOval(
       Rect.fromCenter(center: center.translate(0, 10 * scale), width: 45 * scale, height: 18 * scale),
       shadowPaintFloor,
     );
 
-    Image spriteToDraw = game.maleFacingBack;
-    bool flipX = false;
-    
-    if (game.isSwinging) {
-      spriteToDraw = game.maleFacingBack2; 
-    } else if (game.inputX.abs() > 0.1) {
-      spriteToDraw = game.maleSideView;
-      flipX = game.inputX > 0;
+    List<Image> currentLayers;
+    int validFrames = 1;
+    double speed = 0.1;
+    bool isMoving = game.inputX != 0 || game.inputY != 0;
+
+    if (game.isSwinging && game.lpcSlashLayers.isNotEmpty) {
+      currentLayers = game.lpcSlashLayers;
+      validFrames = 6; // Slash animation has 6 frames
+      speed = 0.05;
+    } else if (isMoving && game.lpcWalkLayers.isNotEmpty) {
+      currentLayers = game.lpcWalkLayers;
+      validFrames = 9; // Walk animation has 9 frames
+      speed = 0.08;
+    } else if (game.lpcIdleLayers.isNotEmpty) {
+      currentLayers = game.lpcIdleLayers;
+      validFrames = 1; // Idle is just the first frame
+      speed = 1.0;
+    } else {
+      return; // Layers not loaded yet
     }
 
-    final frameWidth = spriteToDraw.width / 4.0;
-    final frameHeight = spriteToDraw.height / 4.0;
+    // ALL of these universal LPC generated sheets are output as 832x256 images.
+    // That means there are exactly 13 physical columns and 4 rows.
+    final physicalCols = 13.0;
+    final frameHeight = currentLayers[0].height / 4.0;
+    final frameWidth = currentLayers[0].width / physicalCols;
 
-    // Scale up the single frame so it's a good size
-    final drawWidth = frameWidth * 0.6 * scale;
-    final drawHeight = frameHeight * 0.6 * scale;
-    
-    // Crop to the top-left frame (row 0, column 0)
-    final src = Rect.fromLTWH(0, 0, frameWidth, frameHeight);
-    final dst = Rect.fromCenter(center: center.translate(0, -10 * scale), width: drawWidth, height: drawHeight);
+    int frameCol = (animTimer / speed).floor() % validFrames;
+    int frameRow = facingRow;
 
-    if (flipX) {
-      canvas.save();
-      canvas.translate(center.dx, center.dy);
-      canvas.scale(-1, 1);
-      canvas.translate(-center.dx, -center.dy);
-    }
+    // Scale up the single frame so it's a good size on the court
+    final drawWidth = frameWidth * 1.6 * scale;
+    final drawHeight = frameHeight * 1.6 * scale;
     
-    canvas.drawImageRect(spriteToDraw, src, dst, Paint());
-    
-    if (flipX) {
-      canvas.restore();
+    final src = Rect.fromLTWH(frameCol * frameWidth, frameRow * frameHeight, frameWidth, frameHeight);
+    final dst = Rect.fromCenter(center: center.translate(0, -15 * scale), width: drawWidth, height: drawHeight);
+
+    // Draw all layers stacked
+    for (final layer in currentLayers) {
+      canvas.drawImageRect(layer, src, dst, Paint());
     }
+
     if (game.isSwinging) {
       final glowPaint = Paint()
         ..color = const Color(0x99FFC107)
@@ -444,31 +482,6 @@ class PlayerVisualComponent extends Component {
         ..strokeWidth = 3 * scale;
       canvas.drawCircle(center, 34 * scale, dashGlowPaint);
     }
-
-    final racketPaint = Paint()
-      ..color = const Color(0xFFFFC107)
-      ..style = PaintingStyle.fill;
-      
-    // The player's hand offset relative to the character center
-    final handOffset = Offset(24 * scale, 5 * scale);
-    
-    canvas.save();
-    canvas.translate(center.dx + handOffset.dx, center.dy + handOffset.dy);
-    
-    // Rotate the paddle by -45 degrees (-0.78 rad) if swinging
-    if (game.isSwinging) {
-      canvas.rotate(-0.78);
-    }
-    
-    // Draw paddle centered around its handle
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(0, -12 * scale), width: 14 * scale, height: 32 * scale),
-        const Radius.circular(6),
-      ),
-      racketPaint,
-    );
-    canvas.restore();
 
     if (GameDebugConfig.showHitboxes) _drawHitbox(canvas, simulation);
   }
