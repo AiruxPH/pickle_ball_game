@@ -4,6 +4,39 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-01 20:35:00 +08:00] - Shrink Player & Bot Hitboxes, Eliminate Unrealistic Midair Hits, and Elongate Paddle for Precise Visual Contact
+
+### 1. Reduce Hitbox Dimensions to Authentic Physical Reach
+- **Cause of Error**:
+  - The previous hitboxes were oversized (`radiusX = 0.35`, `frontY = 0.32`, `backY = 0.32`, `zMax = 0.85`). With the court half-width being only $0.44$ and regulation net height only $0.1364$, a $Z = 0.85$ limit allowed bots and players to strike balls floating more than $6\times$ net height in the sky ("hitting midair in thin air"), while the wide radius allowed hitting balls without standing anywhere near them.
+- **Reason of Change**:
+  - Shrink the hitboxes down to realistic physical reach limits for competitive play, eliminating unrealistic midair floating strikes.
+- **Changes**:
+  - In `lib/game_simulation.dart`:
+    - `playerHitRadiusX` & `botHitRadiusX`: reduced from $0.35$ to $0.26$ (~26% reduction).
+    - `playerHitFrontY` & `botHitFrontY`: reduced from $0.32$ to $0.24$ (25% reduction).
+    - `playerHitBackY` & `botHitBackY`: reduced from $0.32$ to $0.18$ (44% reduction, preventing hitting balls deep behind the back).
+    - `playerHitZMax` & `botHitZMax`: reduced from $0.85$ to $0.52$ (39% reduction, strictly bounding overhead reach to realistic smash arcs while eliminating strikes in the upper stratosphere).
+
+### 2. Elongated Pro Paddle Visuals & Precise Ball Strike Alignment
+- **Cause of Error**:
+  - The previous visual paddle was stubby ($29 \times \text{scale}$ total length) and used arbitrary rotational spin during swings (`paddleAngle = baseAngle + (flightCurve * 2.8) + (aimAngle * 0.3)`), causing the blade to point away from the ball during contact so it looked like hitting the ball without physically touching it.
+- **Reason of Change**:
+  - Enlarge and elongate the paddle to professional tournament proportions (matching models like Joola Perseus / Selkirk Vanguard) and orient its sweet spot directly onto the ball at the moment of strike.
+- **Changes**:
+  - In `_drawKineticPaddle` (`lib/pickleball_flame_game.dart`):
+    - **Elongated Blade**: Extended blade height from $20 \times \text{scale}$ to $31 \times \text{scale}$ and width to $15 \times \text{scale}$ with aerodynamic rounded corners.
+    - **Pro Handle & Grip**: Extended handle length from $12 \times \text{scale}$ to $15 \times \text{scale}$ with dark graphite core, 4-tier perforated white grip tape wraps, beveled octagonal butt cap, and tapered neck collar.
+    - **Total Paddle Length**: Increased from $29 \times \text{scale}$ to $50.8 \times \text{scale}$ (~75% longer).
+    - **Face Details**: Added carbon fiber micro-texture stripes, concentric sweet spot rings, and aerodynamic speed chevrons.
+    - **Kinetic Strike Alignment**:
+      - Calculated exact strike orientation: `strikeAngle = aimAngle + math.pi / 2`, aligning the elongated blade face along the vector to the ball.
+      - Smoothly blended from hover angle through contact into follow-through.
+      - Positioned the paddle sweet spot ($19 \times \text{scale}$ along blade) directly onto `ballScreenPos`, producing crisp, visible contact on the paddle face.
+      - Centered contact shockwave burst on the sweet spot.
+
+---
+
 ## [2026-10-01 20:25:00 +08:00] - Cloth-like Net Collisions: Inelastic Energy Absorption, Soft Drop Physics, and Dynamic Mesh Flex/Ripple
 
 ### 1. Inelastic Cloth Collision Physics & Boundary Enforcement
