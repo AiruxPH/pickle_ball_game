@@ -119,6 +119,39 @@ void main() {
     expect(simulation.update(), RallyEnd.botFault);
   });
 
+  test('two-bounce rule tracks the correct side', () {
+    final simulation = GameSimulation();
+
+    simulation.resetRally(servingSide: MatchSide.player);
+    simulation.ball.hasBounced = false;
+    simulation.rallyLength = 0;
+    expect(simulation.isTwoBounceViolation(forPlayer: false), isTrue);
+    expect(simulation.isTwoBounceViolation(forPlayer: true), isFalse);
+
+    simulation.ball.hasBounced = true;
+    expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+
+    simulation.ball.hasBounced = false;
+    simulation.rallyLength = 1;
+    expect(simulation.isTwoBounceViolation(forPlayer: true), isTrue);
+    expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+
+    simulation.rallyLength = 2;
+    expect(simulation.isTwoBounceViolation(forPlayer: true), isFalse);
+    expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+  });
+
+  test('ball speed is reported in miles per hour', () {
+    final simulation = GameSimulation();
+    simulation.ball
+      ..velocityX = 0
+      ..velocityY = 0.025
+      ..velocityZ = 0;
+
+    // 0.025 world units/tick * 22 ft/unit * 40 ticks/sec = 22 ft/sec.
+    expect(simulation.ballSpeed, closeTo(15.0, 0.1));
+  });
+
   test('match state handles side-outs and win-by-two scoring', () {
     final match = MatchState(servingSide: MatchSide.player);
     match.start();
