@@ -119,26 +119,48 @@ void main() {
     expect(simulation.update(), RallyEnd.botFault);
   });
 
-  test('two-bounce rule tracks the correct side', () {
+  test('rally state controls the two-bounce rule', () {
     final simulation = GameSimulation();
 
     simulation.resetRally(servingSide: MatchSide.player);
-    simulation.ball.hasBounced = false;
-    simulation.rallyLength = 0;
+    expect(simulation.rallyPhase, RallyPhase.waitingForServe);
+
+    simulation.triggerServe();
+    expect(simulation.rallyPhase, RallyPhase.serveInFlight);
     expect(simulation.isTwoBounceViolation(forPlayer: false), isTrue);
     expect(simulation.isTwoBounceViolation(forPlayer: true), isFalse);
 
-    simulation.ball.hasBounced = true;
-    expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+    // Simulate the legal serve bounce and receiver return.
+    simulation.ball
+      ..x = -0.25
+      ..y = -0.65
+      ..z = -0.001
+      ..velocityX = 0
+      ..velocityY = -0.001
+      ..velocityZ = -0.01
+      ..hasBounced = false;
+    expect(simulation.update(), isNull);
+    expect(simulation.rallyPhase, RallyPhase.receiverMayReturn);
 
-    simulation.ball.hasBounced = false;
-    simulation.rallyLength = 1;
+    simulation.botX = simulation.ball.x;
+    simulation.botY = simulation.ball.y;
+    simulation.ball.velocityY = -0.01;
+    simulation.update();
+    expect(simulation.rallyPhase, RallyPhase.serverBounceRequired);
     expect(simulation.isTwoBounceViolation(forPlayer: true), isTrue);
     expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+  });
 
-    simulation.rallyLength = 2;
-    expect(simulation.isTwoBounceViolation(forPlayer: true), isFalse);
-    expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+  test('resetting a rally resets the rally rule state', () {
+    final simulation = GameSimulation();
+    simulation.resetRally(servingSide: MatchSide.bot);
+    simulation.triggerServe();
+    expect(simulation.rallyPhase, RallyPhase.serveInFlight);
+
+    simulation.resetRally(servingSide: MatchSide.player);
+    expect(simulation.rallyPhase, RallyPhase.waitingForServe);
+    expect(simulation.rallyLength, 0);
+    expect(simulation.ball.hasBounced, isFalse);
   });
 
   test('ball speed is reported in miles per hour', () {
