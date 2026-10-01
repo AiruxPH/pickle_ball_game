@@ -125,20 +125,27 @@ class PickleballFlameGame extends FlameGame {
     effectiveInputY = currentInputY.clamp(-1.0, 1.0);
 
     while (_timeAccumulator >= fixedStep) {
-      // Capture velocity for each fixed simulation step. A rendered frame may
-      // contain several fixed steps, so comparing against a value captured
-      // before the loop can report the same bot hit more than once.
-      final previousVelocityY = simulation.ball.velocityY;
       final rallyEnd = simulation.update(
         joystickX: effectiveInputX,
         joystickY: effectiveInputY,
       );
       _timeAccumulator -= fixedStep;
-      
-      if (previousVelocityY < 0 && simulation.ball.velocityY > 0) {
-        isBotSwinging = true;
-        botSwingTimer = 0.15;
-        simulation.camera.addShake(0.4); // Bot hit impact
+
+      for (final event in simulation.drainEvents()) {
+        switch (event.type) {
+          case GameplayEventType.botHit:
+            isBotSwinging = true;
+            botSwingTimer = 0.15;
+            simulation.camera.addShake(event.isSmash ? 0.7 : 0.4);
+            break;
+          case GameplayEventType.playerHit:
+          case GameplayEventType.bounce:
+          case GameplayEventType.netFault:
+          case GameplayEventType.outOfBounds:
+          case GameplayEventType.doubleBounce:
+          case GameplayEventType.rallyEnd:
+            break;
+        }
       }
       
       if (rallyEnd != null) {
