@@ -833,6 +833,7 @@ class GameSimulation {
                 servingSide == MatchSide.player
                     ? RallyEnd.playerFault
                     : RallyEnd.botFault,
+                cause: GameplayEventType.outOfBounds,
               );
             }
           } else if (!PickleballRules.isInsideCourt(ball.x, ball.y)) {
@@ -885,6 +886,7 @@ class GameSimulation {
       if (!ball.hasBounced && (ball.y.abs() > courtLength * 2.2 || ball.x.abs() > courtWidth * 2.5)) {
         return _endRally(
           lastHitByPlayer ? RallyEnd.playerFault : RallyEnd.botFault,
+          cause: GameplayEventType.outOfBounds,
         );
       }
     }
