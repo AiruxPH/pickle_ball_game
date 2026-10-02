@@ -12,6 +12,7 @@ import 'package:flame/game.dart';
 import 'package:pickle_ball_game/game_simulation.dart';
 import 'package:pickle_ball_game/main.dart';
 import 'package:pickle_ball_game/match_state.dart';
+import 'package:pickle_ball_game/models/paddle_item.dart';
 import 'package:pickle_ball_game/pickleball_flame_game.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
 import 'package:pickle_ball_game/data/usap_rulebook_data.dart';
@@ -25,6 +26,16 @@ import 'package:pickle_ball_game/widgets/rulebook/glossary_card_widget.dart';
 import 'package:pickle_ball_game/widgets/serve_rhythm_meter.dart';
 
 void main() {
+  test('paddle catalog gives every kinetic familiar a unique design', () {
+    final paddles = PaddleCatalog.allPaddles;
+    expect(paddles, isNotEmpty);
+    expect(paddles.map((paddle) => paddle.design).toSet().length, paddles.length);
+    expect(
+      paddles.map((paddle) => paddle.id).toSet().length,
+      paddles.length,
+    );
+  });
+
   test('court and match rules use shared boundaries', () {
     expect(PickleballRules.isInsideCourt(0, 0), isTrue);
     expect(PickleballRules.isInsideCourt(0.83, 0), isFalse);

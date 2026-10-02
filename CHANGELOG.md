@@ -4,6 +4,29 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02] - Distinct Paddle Designs & Kinetic Familiar Identities
+
+### Changes
+- Added a data-driven `PaddleDesign` identity to every paddle in the catalog.
+- Gave all seven paddles distinct familiar silhouettes instead of relying on color swaps: tournament balanced, lightning elongated, inferno wide-body, sovereign narrow/angular, cosmos rounded, industrial heavy/wide, and phantom extra-long/slender.
+- Added paddle-specific face motifs shared conceptually by the 2D familiar and 3D inspector, including lightning, flame, crown, orbital, armored, and spectral treatments.
+- Added unique familiar idle movement profiles, from Thunderstrike's quick electrical jitter to Starcaller's slow celestial drift and Kinetic Slammer's heavy mechanical pulse.
+- Updated the 3D mesh renderer to vary head proportions and procedural surface accents from the same `PaddleDesign` data used by gameplay.
+- Renamed the preview controls to `VIEW KINETIC FAMILIAR` and `VIEW 3D PADDLE` for clearer player-facing language.
+- Added a catalog regression test ensuring every current paddle has a unique design identity and ID.
+
+### Files Changed
+- `lib/models/paddle_item.dart`
+- `lib/components/draw_kinetic_paddle.dart`
+- `lib/components/player_visual_component.dart`
+- `lib/components/bot_visual_component.dart`
+- `lib/widgets/paddle_3d_preview.dart`
+- `lib/widgets/racket_3d_painter.dart`
+- `test/widget_test.dart`
+- `CHANGELOG.md`
+
+---
+
 ## [2026-10-02 20:54:00 +08:00] - Official USAP Rulebook Audit, Net Height Curvature & In-Game Guidebook Viewer
 
 ### 1. Root Cause Analysis & Fixes

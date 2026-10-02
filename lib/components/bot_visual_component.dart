@@ -222,6 +222,7 @@ class BotVisualComponent extends Component {
           paddleRimColor: botPaddle.paddleRimColor,
           energyColor: botPaddle.energyColor,
           sweetSpotColor: botPaddle.sweetSpotColor,
+          design: botPaddle.design,
         );
       }
 

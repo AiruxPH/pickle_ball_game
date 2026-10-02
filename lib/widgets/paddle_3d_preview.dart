@@ -119,7 +119,7 @@ class _Paddle3DPreviewState extends State<Paddle3DPreview>
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      _show3dMesh ? 'VIEW FAMILIAR (2D)' : 'VIEW 3D MESH',
+                      _show3dMesh ? 'VIEW KINETIC FAMILIAR' : 'VIEW 3D PADDLE',
                       style: TextStyle(
                         color: widget.paddle.energyColor,
                         fontSize: 10,
@@ -172,6 +172,7 @@ class _FamiliarPaddlePainter extends CustomPainter {
       paddleRimColor: paddle.paddleRimColor,
       energyColor: paddle.energyColor,
       sweetSpotColor: paddle.sweetSpotColor,
+      design: paddle.design,
     );
   }
 

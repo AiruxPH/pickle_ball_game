@@ -96,8 +96,10 @@ class Racket3DPainter extends CustomPainter {
 
       for (int i = 0; i < vCount; i++) {
         final idx = i * 6;
-        final x0 = verts[idx];
-        final y0 = verts[idx + 1];
+        final isHead = part.name == 'blade' || part.name == 'rim';
+        final profile = _profileScale(paddle.design);
+        final x0 = verts[idx] * (isHead ? profile.$1 : 1.0);
+        final y0 = verts[idx + 1] * (isHead ? profile.$2 : 1.0);
         final z0 = verts[idx + 2];
         final nx0 = verts[idx + 3];
         final ny0 = verts[idx + 4];
@@ -162,9 +164,19 @@ class Racket3DPainter extends CustomPainter {
           }
         }
 
-        final rFinal = ((rBase * light) + (sweetSpotGlow * 255)).clamp(0, 255).round();
-        final gFinal = ((gBase * light) + (sweetSpotGlow * 255)).clamp(0, 255).round();
-        final bFinal = ((bBase * light) + (sweetSpotGlow * 255)).clamp(0, 255).round();
+        final motifGlow = part.name == 'blade'
+            ? _motifGlow(paddle.design, x0, y0)
+            : 0.0;
+        final accent = paddle.sweetSpotColor;
+        final rFinal = ((rBase * light) + (sweetSpotGlow * 255) + motifGlow * accent.r * 255)
+            .clamp(0, 255)
+            .round();
+        final gFinal = ((gBase * light) + (sweetSpotGlow * 255) + motifGlow * accent.g * 255)
+            .clamp(0, 255)
+            .round();
+        final bFinal = ((bBase * light) + (sweetSpotGlow * 255) + motifGlow * accent.b * 255)
+            .clamp(0, 255)
+            .round();
 
         vertexColors.add(Color.fromARGB(255, rFinal, gFinal, bFinal));
       }
@@ -185,6 +197,29 @@ class Racket3DPainter extends CustomPainter {
       final paintMesh = Paint()..filterQuality = FilterQuality.medium;
       canvas.drawVertices(uiVertices, BlendMode.srcOver, paintMesh);
     }
+  }
+
+  (double, double) _profileScale(PaddleDesign design) => switch (design) {
+        PaddleDesign.lightning => (0.90, 1.10),
+        PaddleDesign.inferno => (1.12, 1.02),
+        PaddleDesign.sovereign => (0.86, 1.12),
+        PaddleDesign.cosmos => (1.10, 0.96),
+        PaddleDesign.industrial => (1.16, 0.90),
+        PaddleDesign.phantom => (0.84, 1.14),
+        PaddleDesign.tournament => (1.0, 1.0),
+      };
+
+  double _motifGlow(PaddleDesign design, double x, double y) {
+    final normalizedX = x.abs();
+    return switch (design) {
+      PaddleDesign.tournament => normalizedX < 0.035 || y.abs() < 0.035 ? 0.25 : 0.0,
+      PaddleDesign.lightning => (x - math.sin(y * 12) * 0.10).abs() < 0.045 ? 0.42 : 0.0,
+      PaddleDesign.inferno => (normalizedX - (0.10 + y.abs() * 0.10)).abs() < 0.045 ? 0.34 : 0.0,
+      PaddleDesign.sovereign => (y > 0.10 && (normalizedX - 0.16).abs() < 0.045) ? 0.40 : 0.0,
+      PaddleDesign.cosmos => (math.sqrt(x * x + y * y) - 0.24).abs() < 0.045 ? 0.38 : 0.0,
+      PaddleDesign.industrial => (normalizedX > 0.20 || (y * 8).round().isEven) ? 0.18 : 0.0,
+      PaddleDesign.phantom => (x + y * 0.32).abs() < 0.05 ? 0.34 : 0.0,
+    };
   }
 
   @override

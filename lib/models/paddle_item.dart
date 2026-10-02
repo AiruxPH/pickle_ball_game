@@ -9,6 +9,17 @@ enum PaddleRarity {
   legendary,
 }
 
+/// Visual construction language shared by the 2D familiar and 3D inspector.
+enum PaddleDesign {
+  tournament,
+  lightning,
+  inferno,
+  sovereign,
+  cosmos,
+  industrial,
+  phantom,
+}
+
 /// Information model describing a selectable paddle skin, its color scheme,
 /// hit VFX asset, and gameplay attributes.
 class PaddleItem {
@@ -17,6 +28,7 @@ class PaddleItem {
   final String tagline;
   final String description;
   final PaddleRarity rarity;
+  final PaddleDesign design;
 
   // Kinetic Familiar Colors
   final Color paddleFaceColor;
@@ -45,6 +57,7 @@ class PaddleItem {
     required this.tagline,
     required this.description,
     required this.rarity,
+    required this.design,
     required this.paddleFaceColor,
     required this.paddleRimColor,
     required this.energyColor,
@@ -87,6 +100,7 @@ class PaddleCatalog {
       description:
           'Precision tournament weapon forged with raw graphite face and reactive edge guard. Produces a clean kinetic pulse.',
       rarity: PaddleRarity.common,
+      design: PaddleDesign.tournament,
       paddleFaceColor: Color(0xFF00E5FF),
       paddleRimColor: Color(0xFF102A43),
       energyColor: Color(0xFF00E5FF),
@@ -103,6 +117,7 @@ class PaddleCatalog {
       description:
           'Infused with atmospheric electric arcs. Striking the ball unleashes crackling high-voltage lightning sparks.',
       rarity: PaddleRarity.epic,
+      design: PaddleDesign.lightning,
       paddleFaceColor: Color(0xFF00F0FF),
       paddleRimColor: Color(0xFF1E1B4B),
       energyColor: Color(0xFFFACC15),
@@ -126,6 +141,7 @@ class PaddleCatalog {
       description:
           'Superheated volcanic core that detonates brilliant incendiary fireball explosions upon sweet-spot smashes.',
       rarity: PaddleRarity.legendary,
+      design: PaddleDesign.inferno,
       paddleFaceColor: Color(0xFFFF3D00),
       paddleRimColor: Color(0xFF3E1F00),
       energyColor: Color(0xFFFF6D00),
@@ -149,6 +165,7 @@ class PaddleCatalog {
       description:
           'Ethereal dark crimson and obsidian composite that channels pulsing blood-void shockwaves upon contact.',
       rarity: PaddleRarity.legendary,
+      design: PaddleDesign.sovereign,
       paddleFaceColor: Color(0xFFE11D48),
       paddleRimColor: Color(0xFF1C060D),
       energyColor: Color(0xFFFB7185),
@@ -172,6 +189,7 @@ class PaddleCatalog {
       description:
           'Forged from stardust and nebular crystal. Renders celestial lavender aura trails and shimmering cosmic burst motes.',
       rarity: PaddleRarity.epic,
+      design: PaddleDesign.cosmos,
       paddleFaceColor: Color(0xFFA855F7),
       paddleRimColor: Color(0xFF2E1065),
       energyColor: Color(0xFFC084FC),
@@ -195,6 +213,7 @@ class PaddleCatalog {
       description:
           'Reinforced titanium cross-weave designed for unrelenting drive velocity with concentric kinetic concussion rings.',
       rarity: PaddleRarity.rare,
+      design: PaddleDesign.industrial,
       paddleFaceColor: Color(0xFFF59E0B),
       paddleRimColor: Color(0xFF292524),
       energyColor: Color(0xFFFBBF24),
@@ -218,6 +237,7 @@ class PaddleCatalog {
       description:
           'Stealth matte carbon blade emitting dissipating phantom smoke trails and dust poofs that conceal ball spin.',
       rarity: PaddleRarity.rare,
+      design: PaddleDesign.phantom,
       paddleFaceColor: Color(0xFF64748B),
       paddleRimColor: Color(0xFF0F172A),
       energyColor: Color(0xFF94A3B8),

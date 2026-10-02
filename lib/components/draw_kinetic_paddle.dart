@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import '../models/paddle_item.dart';
+
 /// Standalone rendering function for drawing the kinetic elongated paddle familiar,
 /// its revolving orbit, aiming vector, and contact effects.
 void drawKineticPaddle({
@@ -16,6 +18,7 @@ void drawKineticPaddle({
   required Color paddleRimColor,
   required Color energyColor,
   required Color sweetSpotColor,
+  required PaddleDesign design,
 }) {
   canvas.save();
 
@@ -31,7 +34,15 @@ void drawKineticPaddle({
 
   // --- FAMILIAR REVOLVING ORBIT ---
   // The paddle orbits around the character like a magical companion/familiar.
-  const orbitSpeed = 2.6; // One smooth revolution every ~2.4 seconds
+  final orbitSpeed = switch (design) {
+    PaddleDesign.lightning => 3.5,
+    PaddleDesign.inferno => 2.9,
+    PaddleDesign.sovereign => 2.15,
+    PaddleDesign.cosmos => 1.75,
+    PaddleDesign.industrial => 1.55,
+    PaddleDesign.phantom => 2.35,
+    PaddleDesign.tournament => 2.6,
+  };
   final orbitAngle = animTimer * orbitSpeed;
   final orbitRadiusX = 28.0 * scale;
   final orbitRadiusY = 11.5 * scale; // Compressed in Y for isometric perspective
@@ -39,7 +50,16 @@ void drawKineticPaddle({
 
   final cosOrbit = math.cos(orbitAngle);
   final sinOrbit = math.sin(orbitAngle);
-  final familiarBob = math.sin(animTimer * 5.0) * (2.2 * scale);
+  final motionPhase = switch (design) {
+    PaddleDesign.lightning => math.sin(animTimer * 13.0) * 0.9,
+    PaddleDesign.inferno => math.sin(animTimer * 7.0) * 1.5,
+    PaddleDesign.sovereign => math.sin(animTimer * 3.0) * 2.8,
+    PaddleDesign.cosmos => math.sin(animTimer * 2.2) * 3.5,
+    PaddleDesign.industrial => math.sin(animTimer * 5.0) * 0.8,
+    PaddleDesign.phantom => math.sin(animTimer * 4.0) * 2.0,
+    PaddleDesign.tournament => math.sin(animTimer * 5.0) * 2.2,
+  };
+  final familiarBob = motionPhase * scale;
 
   final orbitPos = charCenter +
       Offset(
@@ -225,13 +245,35 @@ void drawKineticPaddle({
   final rimPaint = Paint()
     ..color = paddleRimColor
     ..style = PaintingStyle.fill;
+  final bladeWidth = switch (design) {
+    PaddleDesign.inferno => 17.5,
+    PaddleDesign.sovereign => 14.0,
+    PaddleDesign.cosmos => 16.8,
+    PaddleDesign.industrial => 18.0,
+    PaddleDesign.phantom => 13.5,
+    _ => 15.0,
+  };
+  final bladeHeight = switch (design) {
+    PaddleDesign.lightning => 34.0,
+    PaddleDesign.sovereign => 33.5,
+    PaddleDesign.industrial => 28.0,
+    PaddleDesign.phantom => 35.0,
+    _ => 31.0,
+  };
+  final cornerRadius = switch (design) {
+    PaddleDesign.lightning => 3.0,
+    PaddleDesign.sovereign => 2.0,
+    PaddleDesign.industrial => 2.5,
+    PaddleDesign.cosmos => 8.0,
+    _ => 5.5,
+  };
   final paddleRim = RRect.fromRectAndRadius(
     Rect.fromCenter(
       center: Offset(0, -19 * scale),
-      width: 15.0 * scale,
-      height: 31.0 * scale,
+      width: bladeWidth * scale,
+      height: bladeHeight * scale,
     ),
-    Radius.circular(5.5 * scale),
+    Radius.circular(cornerRadius * scale),
   );
   canvas.drawRRect(paddleRim, rimPaint);
 
@@ -242,12 +284,22 @@ void drawKineticPaddle({
   final paddleFace = RRect.fromRectAndRadius(
     Rect.fromCenter(
       center: Offset(0, -19 * scale),
-      width: 12.6 * scale,
-      height: 28.5 * scale,
+      width: (bladeWidth - 2.4) * scale,
+      height: (bladeHeight - 2.5) * scale,
     ),
-    Radius.circular(4.0 * scale),
+    Radius.circular(math.max(1.2, cornerRadius - 1.4) * scale),
   );
   canvas.drawRRect(paddleFace, facePaint);
+
+  _drawDesignMotif(
+    canvas,
+    design: design,
+    scale: scale,
+    energyColor: energyColor,
+    sweetSpotColor: sweetSpotColor,
+    bladeWidth: bladeWidth,
+    bladeHeight: bladeHeight,
+  );
 
   // Subtle carbon fiber micro-texture stripes
   final texturePaint = Paint()
@@ -310,4 +362,70 @@ void drawKineticPaddle({
   canvas.drawPath(c2, chevronPaint);
 
   canvas.restore();
+}
+
+void _drawDesignMotif(
+  Canvas canvas, {
+  required PaddleDesign design,
+  required double scale,
+  required Color energyColor,
+  required Color sweetSpotColor,
+  required double bladeWidth,
+  required double bladeHeight,
+}) {
+  final paint = Paint()
+    ..color = sweetSpotColor.withValues(alpha: 0.65)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.1 * scale;
+  final center = Offset(0, -19 * scale);
+
+  switch (design) {
+    case PaddleDesign.tournament:
+      canvas.drawLine(Offset(-4 * scale, -19 * scale), Offset(4 * scale, -19 * scale), paint);
+      canvas.drawLine(Offset(0, -23 * scale), Offset(0, -15 * scale), paint);
+      break;
+    case PaddleDesign.lightning:
+      final bolt = Path()
+        ..moveTo(2 * scale, (-19 - bladeHeight * .36) * scale)
+        ..lineTo(-3 * scale, -20 * scale)
+        ..lineTo(1 * scale, -20 * scale)
+        ..lineTo(-2 * scale, (-19 + bladeHeight * .36) * scale);
+      canvas.drawPath(bolt, paint..strokeWidth = 2.0 * scale);
+      break;
+    case PaddleDesign.inferno:
+      final flame = Path()
+        ..moveTo(0, (-19 - bladeHeight * .34) * scale)
+        ..quadraticBezierTo(7 * scale, -18 * scale, 0, (-19 + bladeHeight * .34) * scale)
+        ..quadraticBezierTo(-6 * scale, -19 * scale, 0, (-19 - bladeHeight * .34) * scale);
+      canvas.drawPath(flame, paint);
+      break;
+    case PaddleDesign.sovereign:
+      final crown = Path()
+        ..moveTo(-5 * scale, -17 * scale)
+        ..lineTo(-4 * scale, -24 * scale)
+        ..lineTo(0, -20 * scale)
+        ..lineTo(4 * scale, -24 * scale)
+        ..lineTo(5 * scale, -17 * scale);
+      canvas.drawPath(crown, paint..strokeWidth = 1.5 * scale);
+      break;
+    case PaddleDesign.cosmos:
+      canvas.drawCircle(center, 5.2 * scale, paint);
+      canvas.drawOval(Rect.fromCenter(center: center, width: 13 * scale, height: 4 * scale), paint);
+      canvas.drawCircle(Offset(5.5 * scale, -19 * scale), 1.2 * scale, Paint()..color = energyColor);
+      break;
+    case PaddleDesign.industrial:
+      canvas.drawRect(Rect.fromCenter(center: center, width: 9 * scale, height: 12 * scale), paint);
+      for (final x in [-4.5, 4.5]) {
+        for (final y in [-6.0, 6.0]) {
+          canvas.drawCircle(center + Offset(x * scale, y * scale), 1.0 * scale, Paint()..color = sweetSpotColor);
+        }
+      }
+      break;
+    case PaddleDesign.phantom:
+      final slash = Path()
+        ..moveTo(-bladeWidth * .3 * scale, (-19 + bladeHeight * .3) * scale)
+        ..quadraticBezierTo(0, -25 * scale, bladeWidth * .3 * scale, (-19 - bladeHeight * .3) * scale);
+      canvas.drawPath(slash, paint..strokeWidth = 1.8 * scale);
+      break;
+  }
 }
