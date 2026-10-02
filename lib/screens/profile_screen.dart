@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
+
 import '../theme/app_theme.dart';
+import '../widgets/angular_frame.dart';
 import '../widgets/game_scaffold.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,8 +18,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   static const List<_ModelEntry> _models = [
     _ModelEntry(
-      label: 'Pickleball',
-      path: 'assets/models/pickleball.glb',
+      label: 'Court',
+      path: 'assets/models/pickleball-court.glb',
       icon: Icons.sports_tennis,
     ),
     _ModelEntry(
@@ -39,6 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).height < 500;
     return GameScaffold(
       title: 'Player Profile',
       child: Center(
@@ -48,14 +51,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.only(bottom: 24.0),
             children: [
               // ── Header card ──────────────────────────────────────────
-              Container(
-                decoration: AppTheme.glassPanel,
-                padding: const EdgeInsets.all(24),
+              AngularFrame(
+                accent: AppTheme.accentCyan,
+                cut: 16,
+                padding: EdgeInsets.all(compact ? 16 : 24),
+                fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
                 child: Row(
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: compact ? 60 : 80,
+                      height: compact ? 60 : 80,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
@@ -64,9 +69,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: const Icon(Icons.person, size: 48, color: Colors.white),
+                      child: Icon(
+                        Icons.person,
+                        size: compact ? 36 : 48,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(width: 24),
+                    SizedBox(width: compact ? 16 : 24),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,29 +90,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: compact ? 14 : 24),
 
               // ── Stats row ─────────────────────────────────────────────
               Row(
                 children: [
-                  Expanded(child: _buildStatCard('MATCHES', '0', Icons.sports_tennis)),
+                  Expanded(
+                    child: _buildStatCard('MATCHES', '0', Icons.sports_tennis),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildStatCard('WINS', '0', Icons.emoji_events)),
+                  Expanded(
+                    child: _buildStatCard('WINS', '0', Icons.emoji_events),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildStatCard('LONGEST RALLY', '0', Icons.timeline)),
+                  Expanded(
+                    child: _buildStatCard('LONGEST RALLY', '0', Icons.timeline),
+                  ),
                 ],
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: compact ? 14 : 24),
 
               // ── 3D Equipment Viewer ───────────────────────────────────
-              Container(
-                decoration: AppTheme.glassPanel,
-                padding: const EdgeInsets.all(16),
+              AngularFrame(
+                accent: AppTheme.accentCyan,
+                cut: 16,
+                padding: EdgeInsets.all(compact ? 14 : 20),
+                fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('EQUIPMENT SHOWCASE', style: AppTheme.headingStyle),
+                    const Text(
+                      'EQUIPMENT SHOWCASE',
+                      style: AppTheme.headingStyle,
+                    ),
                     const SizedBox(height: 12),
 
                     // Model selector tabs
@@ -115,14 +135,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
-                              onTap: () => setState(() => _selectedModelIndex = i),
+                              onTap: () =>
+                                  setState(() => _selectedModelIndex = i),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   color: selected
-                                      ? AppTheme.accentCyan.withValues(alpha: 0.25)
+                                      ? AppTheme.accentCyan.withValues(
+                                          alpha: 0.25,
+                                        )
                                       : Colors.transparent,
                                   border: Border.all(
                                     color: selected
@@ -170,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: SizedBox(
-                        height: 300,
+                        height: compact ? 210 : 300,
                         child: ModelViewer(
                           key: ValueKey(_selectedModelIndex),
                           src: _models[_selectedModelIndex].path,
@@ -203,14 +228,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatCard(String title, String value, IconData icon) {
-    return Container(
-      decoration: AppTheme.glassPanel,
+    return AngularFrame(
+      accent: AppTheme.accentCyan,
+      cut: 12,
       padding: const EdgeInsets.all(16),
+      fillColors: const [AppTheme.surfaceRaised, AppTheme.panelBg],
       child: Column(
         children: [
           Icon(icon, color: AppTheme.accentCyan, size: 32),
           const SizedBox(height: 12),
-          Text(title, style: AppTheme.subtitleStyle),
+          Text(
+            title,
+            style: AppTheme.subtitleStyle,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 4),
           Text(value, style: AppTheme.titleStyle.copyWith(fontSize: 24)),
         ],

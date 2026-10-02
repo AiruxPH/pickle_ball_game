@@ -14,6 +14,8 @@ import 'package:pickle_ball_game/main.dart';
 import 'package:pickle_ball_game/match_state.dart';
 import 'package:pickle_ball_game/pickleball_flame_game.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
+import 'package:pickle_ball_game/screens/main_menu_screen.dart';
+import 'package:pickle_ball_game/screens/settings_screen.dart';
 
 void main() {
   test('court and match rules use shared boundaries', () {
@@ -94,7 +96,9 @@ void main() {
     expect(projectedCenter.x, 0);
     expect(
       simulation.camera.project(x: 0, y: -GameSimulation.courtLength).scale,
-      lessThan(simulation.camera.project(x: 0, y: GameSimulation.courtLength).scale),
+      lessThan(
+        simulation.camera.project(x: 0, y: GameSimulation.courtLength).scale,
+      ),
     );
     expect(simulation.ballScale(), greaterThan(1));
   });
@@ -117,6 +121,51 @@ void main() {
       ..velocityY = 0.02
       ..velocityZ = 0;
     expect(simulation.update(), RallyEnd.botFault);
+  });
+
+  test('player and bot hitboxes stay close to their racket reach', () {
+    final simulation = GameSimulation();
+    simulation.playerX = 0;
+    simulation.playerY = 0.75;
+    simulation.ball
+      ..x = 0.25
+      ..y = 0.52
+      ..z = 0.50;
+    expect(simulation.canPlayerHitBall(), isTrue);
+
+    // Outside horizontal reach (radius 0.26)
+    simulation.ball.x = 0.28;
+    expect(simulation.canPlayerHitBall(), isFalse);
+    simulation.ball.x = 0.25;
+
+    // Too far in front (front reach 0.24)
+    simulation.ball.y = 0.50;
+    expect(simulation.canPlayerHitBall(), isFalse);
+    simulation.ball.y = 0.52;
+
+    // Unrealistic midair hit rejected (zMax 0.52)
+    simulation.ball.z = 0.55;
+    expect(simulation.canPlayerHitBall(), isFalse);
+    simulation.ball.z = 0.84; // Old mid-air height
+    expect(simulation.canPlayerHitBall(), isFalse);
+
+    simulation.botX = 0;
+    simulation.botY = -0.75;
+    simulation.ball
+      ..x = 0.25
+      ..y = -0.52
+      ..z = 0.50;
+    expect(simulation.canBotHitBall(), isTrue);
+
+    // Bot too far in front
+    simulation.ball.y = -0.50;
+    expect(simulation.canBotHitBall(), isFalse);
+
+    // Bot mid-air ball in the sky rejected
+    simulation.ball
+      ..y = -0.52
+      ..z = 0.84;
+    expect(simulation.canBotHitBall(), isFalse);
   });
 
   test('rally state controls the two-bounce rule', () {
@@ -149,6 +198,249 @@ void main() {
     expect(simulation.rallyPhase, RallyPhase.serverBounceRequired);
     expect(simulation.isTwoBounceViolation(forPlayer: true), isTrue);
     expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
+  });
+
+  test('bot moves toward the predicted bounce instead of the current ball', () {
+    final simulation = GameSimulation();
+    simulation.botReactionTimer = 0;
+    simulation.ball
+      ..x = -0.2
+      ..y = 0.6
+      ..z = 0.45
+      ..velocityX = 0.01
+      ..velocityY = -0.02
+      ..velocityZ = 0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), isNull);
+
+    // The ball is still left of center, but its projected bounce is right of
+    // center. The bot should move toward that future position.
+    expect(simulation.ball.x, lessThan(0));
+    expect(simulation.botTargetX, greaterThan(0.1));
+  });
+
+  test('bot recovers to center after returning the ball', () {
+    final simulation = GameSimulation();
+    simulation.botReactionTimer = 0;
+    simulation.botTargetX = 0.3;
+    simulation.botTargetY = -0.4;
+    simulation.ball
+      ..x = 0.2
+      ..y = -0.5
+      ..z = 0.4
+      ..velocityX = 0
+      ..velocityY = 0.02
+      ..velocityZ = 0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), isNull);
+    expect(simulation.botTargetX, 0);
+    expect(simulation.botTargetY, -0.75);
+  });
+
+  test(
+    'bot selects safe, drive, and smash plans from ball height and aggression',
+    () {
+      final simulation = GameSimulation();
+      simulation.playerX = 0.3;
+      simulation.ball.z = 0.2;
+      simulation.bot1Aggression = 0.2;
+
+      final safePlan = simulation.chooseBotShot();
+      expect(safePlan.type, BotShotType.safeReturn);
+      expect(safePlan.targetX, lessThan(0));
+
+      simulation.bot1Aggression = 0.8;
+      final drivePlan = simulation.chooseBotShot();
+      expect(drivePlan.type, BotShotType.drive);
+      expect(drivePlan.forwardSpeed, greaterThan(safePlan.forwardSpeed));
+
+      simulation.ball.z = 0.5;
+      final smashPlan = simulation.chooseBotShot();
+      expect(smashPlan.type, BotShotType.smash);
+      expect(smashPlan.forwardSpeed, greaterThan(drivePlan.forwardSpeed));
+      expect(smashPlan.lift, lessThan(drivePlan.lift));
+    },
+  );
+
+  test('bot aims toward the court space opposite the player', () {
+    final simulation = GameSimulation();
+    simulation.ball.z = 0.2;
+
+    simulation.playerX = 0.3;
+    final leftTarget = simulation.chooseBotShot().targetX;
+    simulation.playerX = -0.3;
+    final rightTarget = simulation.chooseBotShot().targetX;
+
+    expect(leftTarget, lessThan(0));
+    expect(rightTarget, greaterThan(0));
+  });
+
+  test('bot difficulty changes reaction, movement, accuracy, and errors', () {
+    final easy = GameSimulation(botDifficulty: BotDifficulty.easy);
+    final normal = GameSimulation(botDifficulty: BotDifficulty.normal);
+    final hard = GameSimulation(botDifficulty: BotDifficulty.hard);
+
+    expect(
+      easy.difficultySettings.reactionTicks,
+      greaterThan(normal.difficultySettings.reactionTicks),
+    );
+    expect(
+      hard.difficultySettings.moveSpeed,
+      greaterThan(normal.difficultySettings.moveSpeed),
+    );
+    expect(
+      hard.difficultySettings.aggression,
+      greaterThan(easy.difficultySettings.aggression),
+    );
+    expect(
+      hard.difficultySettings.errorRate,
+      lessThan(easy.difficultySettings.errorRate),
+    );
+    expect(
+      hard.difficultySettings.aimError,
+      lessThan(easy.difficultySettings.aimError),
+    );
+  });
+
+  test('bot agents keep independent identity, personality, and memory', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+
+    expect(simulation.topBotAgent.id, 'top-bot');
+    expect(simulation.bottomBotAgent.id, 'bottom-bot');
+    expect(
+      simulation.bottomBotAgent.aggression,
+      greaterThan(simulation.topBotAgent.aggression),
+    );
+
+    simulation.topBotAgent.reactionTimer = 7;
+    simulation.bottomBotAgent.reactionTimer = 2;
+    simulation.topBotAgent.targetX = -0.2;
+    simulation.bottomBotAgent.targetX = 0.3;
+
+    expect(simulation.topBotAgent.reactionTimer, 7);
+    expect(simulation.bottomBotAgent.reactionTimer, 2);
+    expect(simulation.topBotAgent.targetX, -0.2);
+    expect(simulation.bottomBotAgent.targetX, 0.3);
+  });
+
+  test('shared bot reasoning mirrors shots for opposite court sides', () {
+    const perception = BotPerception(
+      ballX: 0,
+      ballY: 0,
+      ballZ: 0.2,
+      ballVelocityX: 0,
+      ballVelocityY: 0,
+      ballVelocityZ: 0,
+      ballHasBounced: true,
+      opponentX: 0.25,
+      gravity: GameSimulation.gravity,
+    );
+    final top = BotAgent(
+      id: 'top',
+      side: BotCourtSide.top,
+      difficulty: BotDifficulty.normal,
+      personality: const BotPersonality(name: 'top'),
+      randomSeed: 1,
+    );
+    final bottom = BotAgent(
+      id: 'bottom',
+      side: BotCourtSide.bottom,
+      difficulty: BotDifficulty.normal,
+      personality: const BotPersonality(name: 'bottom'),
+      randomSeed: 2,
+    );
+
+    final topShot = top.chooseShot(perception);
+    final bottomShot = bottom.chooseShot(perception);
+
+    expect(topShot.type, bottomShot.type);
+    expect(topShot.targetX, bottomShot.targetX);
+    expect(topShot.targetY, -bottomShot.targetY);
+    expect(topShot.velocityY, -bottomShot.velocityY);
+  });
+
+  test('bottom bot emits its own identified hit event', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+    simulation.rallyPhase = RallyPhase.openRally;
+    simulation.ball
+      ..x = simulation.playerX
+      ..y = simulation.playerY
+      ..z = 0.2
+      ..velocityX = 0
+      ..velocityY = 0.01
+      ..velocityZ = 0
+      ..hasBounced = true;
+
+    expect(simulation.update(), isNull);
+    final hit = simulation.drainEvents().firstWhere(
+      (event) => event.type == GameplayEventType.botHit,
+    );
+
+    expect(hit.side, MatchSide.player);
+    expect(hit.botId, simulation.bottomBotAgent.id);
+    expect(hit.botShotType, isNotNull);
+  });
+
+  test('spectate mode rejects player swing and dash controls', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+    simulation.playerVelocityX = 0.04;
+    simulation.playerVelocityY = -0.03;
+    final beforeX = simulation.playerVelocityX;
+    final beforeY = simulation.playerVelocityY;
+
+    expect(simulation.swing(), SwingResult.missed);
+    simulation.dashPlayer();
+
+    expect(simulation.rallyLength, 0);
+    expect(simulation.playerVelocityX, beforeX);
+    expect(simulation.playerVelocityY, beforeY);
+  });
+
+  test('low receiving contact selects a net-clearing safe return', () {
+    final receiver = BotAgent(
+      id: 'receiver',
+      side: BotCourtSide.bottom,
+      difficulty: BotDifficulty.normal,
+      personality: const BotPersonality(
+        name: 'Aggressive receiver',
+        aggressionAdjustment: 0.30,
+      ),
+      randomSeed: 3,
+    );
+    const perception = BotPerception(
+      ballX: 0,
+      ballY: 0.65,
+      ballZ: 0.01,
+      ballVelocityX: 0,
+      ballVelocityY: 0.01,
+      ballVelocityZ: 0,
+      ballHasBounced: true,
+      opponentX: 0,
+      gravity: GameSimulation.gravity,
+    );
+
+    final shot = receiver.chooseShot(perception);
+    final ticksToNet = perception.ballY / shot.velocityY.abs();
+    final heightAtNet =
+        perception.ballZ +
+        shot.lift * ticksToNet -
+        0.5 * perception.gravity * ticksToNet * ticksToNet;
+
+    expect(shot.type, BotShotType.safeReturn);
+    expect(shot.velocityY, lessThan(0));
+    expect(heightAtNet, greaterThan(PickleballRules.netHeight + 0.04));
+  });
+
+  test('difficulty aggression influences the default bot shot plan', () {
+    final easy = GameSimulation(botDifficulty: BotDifficulty.easy);
+    final hard = GameSimulation(botDifficulty: BotDifficulty.hard);
+    easy.ball.z = 0.2;
+    hard.ball.z = 0.2;
+
+    expect(easy.chooseBotShot().type, BotShotType.safeReturn);
+    expect(hard.chooseBotShot().type, BotShotType.drive);
   });
 
   test('resetting a rally resets the rally rule state', () {
@@ -202,6 +494,31 @@ void main() {
     expect(simulation.rallyPhase, RallyPhase.deadBall);
   });
 
+  test('servers always start opposite their diagonal serve target', () {
+    final simulation = GameSimulation(gameMode: GameMode.botVsBot);
+
+    simulation.resetRally(servingSide: MatchSide.player, serverScore: 0);
+    expect(simulation.playerX, greaterThan(0));
+    expect(simulation.getPlayerServeTrajectory().targetX, lessThan(0));
+
+    simulation.resetRally(servingSide: MatchSide.player, serverScore: 1);
+    expect(simulation.playerX, lessThan(0));
+    expect(simulation.getPlayerServeTrajectory().targetX, greaterThan(0));
+
+    simulation.resetRally(servingSide: MatchSide.bot, serverScore: 0);
+    expect(simulation.botX, greaterThan(0));
+    simulation.triggerServe();
+    final botLandingX = simulation.botX + 0.08 + simulation.ball.velocityX * 52;
+    expect(botLandingX, lessThan(0));
+
+    simulation.resetRally(servingSide: MatchSide.bot, serverScore: 1);
+    expect(simulation.botX, lessThan(0));
+    simulation.triggerServe();
+    final alternateBotLandingX =
+        simulation.botX + 0.08 + simulation.ball.velocityX * 52;
+    expect(alternateBotLandingX, greaterThan(0));
+  });
+
   test('normal rally first bounce faults when it lands outside court', () {
     final simulation = GameSimulation();
     simulation
@@ -253,10 +570,7 @@ void main() {
       ..velocityY = 0.01
       ..hasBounced = true;
 
-    expect(
-      leftDeep.swing(joystickX: -1, joystickY: -1),
-      SwingResult.hit,
-    );
+    expect(leftDeep.swing(joystickX: -1, joystickY: -1), SwingResult.hit);
     expect(leftDeep.ball.velocityX, lessThan(0));
 
     final rightShort = GameSimulation()
@@ -271,10 +585,7 @@ void main() {
       ..velocityY = 0.01
       ..hasBounced = true;
 
-    expect(
-      rightShort.swing(joystickX: 1, joystickY: 1),
-      SwingResult.hit,
-    );
+    expect(rightShort.swing(joystickX: 1, joystickY: 1), SwingResult.hit);
     expect(rightShort.ball.velocityX, greaterThan(0));
     expect(
       rightShort.ball.velocityY.abs(),
@@ -296,9 +607,9 @@ void main() {
       ..hasBounced = true;
 
     expect(simulation.swing(), SwingResult.hit);
-    final hit = simulation
-        .drainEvents()
-        .firstWhere((event) => event.type == GameplayEventType.playerHit);
+    final hit = simulation.drainEvents().firstWhere(
+      (event) => event.type == GameplayEventType.playerHit,
+    );
     expect(hit.shotQuality, ShotQuality.perfect);
     expect(hit.isSmash, isFalse);
   });
@@ -317,9 +628,9 @@ void main() {
       ..hasBounced = true;
 
     expect(simulation.swing(), SwingResult.hit);
-    final hit = simulation
-        .drainEvents()
-        .firstWhere((event) => event.type == GameplayEventType.playerHit);
+    final hit = simulation.drainEvents().firstWhere(
+      (event) => event.type == GameplayEventType.playerHit,
+    );
     expect(hit.isSmash, isTrue);
     expect(simulation.ball.velocityY.abs(), greaterThan(0.03));
   });
@@ -404,7 +715,7 @@ void main() {
     match.playerScore = 10;
     match.botScore = 10;
     match.servingSide = MatchSide.player;
-    
+
     // Player wins rally while serving -> 11-10 (not win by 2 yet)
     match.resolveRally(rallyWinner: MatchSide.player);
     expect(match.isComplete, isFalse);
@@ -444,5 +755,200 @@ void main() {
 
     expect(find.text('HIT'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('main menu passes the selected CPU difficulty to the game', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: MainMenuScreen()));
+
+    await tester.tap(find.text('START A MATCH'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('Player vs Bot'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('SELECT CPU DIFFICULTY'), findsOneWidget);
+    await tester.tap(find.text('Hard'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final game = tester.widget<PickleballGame>(
+      find.byType(PickleballGame, skipOffstage: false),
+    );
+    expect(game.botDifficulty, BotDifficulty.hard);
+
+    // Dispose the animated menu, then let its already-scheduled callback
+    // observe that it is no longer mounted.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  test('practice facility initializes in open rally and feeds drills', () {
+    final simulation = GameSimulation(
+      gameMode: GameMode.freeRoamPractice,
+      mapType: MapType.practiceFacility,
+    );
+    expect(simulation.playPhase, MatchPlayPhase.inRally);
+    expect(simulation.rallyPhase, RallyPhase.openRally);
+
+    simulation.launchBallMachine(drill: PracticeDrill.dinks);
+    expect(simulation.ball.y, lessThan(0));
+    expect(simulation.ball.velocityY, greaterThan(0));
+
+    simulation.launchBallMachine(drill: PracticeDrill.drives);
+    expect(simulation.ball.velocityY, greaterThan(0.025));
+
+    simulation.launchBallMachine(drill: PracticeDrill.lobs);
+    expect(simulation.ball.velocityZ, greaterThan(0.025));
+  });
+
+  test('practice target hit awards points and increments streak', () {
+    final simulation = GameSimulation(
+      gameMode: GameMode.freeRoamPractice,
+      mapType: MapType.practiceFacility,
+    );
+    final initialScore = simulation.practiceScore;
+    final initialTarget = simulation.activeTarget;
+
+    // Simulate player returning the ball directly into the active target
+    simulation.lastHitByPlayer = true;
+    simulation.ball
+      ..x = initialTarget.x
+      ..y = initialTarget.y
+      ..z = 0.01
+      ..velocityX = 0
+      ..velocityY = -0.01
+      ..velocityZ = -0.01
+      ..hasBounced = false;
+
+    simulation.update();
+
+    expect(simulation.practiceStreak, 1);
+    expect(simulation.practiceScore, greaterThan(initialScore));
+    expect(simulation.practiceTargetHits, 1);
+  });
+
+  test(
+    'cloth net collision absorbs energy, rebounds gently, and sets ripple',
+    () {
+      final simulation = GameSimulation(gameMode: GameMode.playerVsBot);
+      simulation.resetRally(servingSide: MatchSide.player);
+      simulation.playPhase = MatchPlayPhase.inRally;
+      simulation.rallyPhase = RallyPhase.openRally;
+
+      var netHitCallbackFired = false;
+      simulation.onNetHit = () => netHitCallbackFired = true;
+
+      // Ball traveling from player side (y > 0) towards net (velocityY < 0)
+      // Low shot that will collide into the net below regulation net height
+      simulation.ball
+        ..x = 0.05
+        ..y = 0.02
+        ..z =
+            0.08 // Below netHeight (0.1364)
+        ..velocityX = 0.01
+        ..velocityY = -0.03
+        ..velocityZ = -0.002
+        ..hasBounced = false;
+
+      final rallyEnd = simulation.update();
+
+      expect(rallyEnd, RallyEnd.playerFault);
+      expect(netHitCallbackFired, isTrue);
+      expect(simulation.ball.y, greaterThan(0)); // Stayed on player side
+      expect(simulation.ball.velocityY, greaterThan(0)); // Reversed gently
+      expect(
+        simulation.ball.velocityY,
+        lessThan(0.01),
+      ); // Heavily damped (~88% absorbed)
+      expect(simulation.netImpactIntensity, greaterThan(0));
+      expect(simulation.netImpactDirection, -1.0); // Deflected towards bot
+
+      final events = simulation.drainEvents();
+      expect(events.any((e) => e.type == GameplayEventType.netFault), isTrue);
+    },
+  );
+
+  test('practice mode cloth net collision resets streak and drops softly', () {
+    final simulation = GameSimulation(gameMode: GameMode.freeRoamPractice);
+    simulation.practiceStreak = 5;
+    simulation.lastHitByPlayer = true;
+
+    var netHitCallbackFired = false;
+    simulation.onNetHit = () => netHitCallbackFired = true;
+
+    simulation.ball
+      ..x = -0.1
+      ..y = 0.025
+      ..z =
+          0.06 // Below netHeight
+      ..velocityX = 0.0
+      ..velocityY = -0.035
+      ..velocityZ = 0.0
+      ..hasBounced = false;
+
+    simulation.update();
+
+    expect(simulation.practiceStreak, 0); // Streak reset on net fault
+    expect(netHitCallbackFired, isTrue);
+    expect(simulation.ball.y, greaterThan(0)); // Kept in front of net
+    expect(simulation.ball.velocityY, greaterThan(0)); // Soft rebound
+  });
+
+  test('shots above net height clear cleanly without net collision', () {
+    final simulation = GameSimulation(gameMode: GameMode.playerVsBot);
+    simulation.playPhase = MatchPlayPhase.inRally;
+    simulation.rallyPhase = RallyPhase.openRally;
+
+    // Ball traveling from player side towards bot court, safely above net
+    simulation.ball
+      ..x = 0.0
+      ..y = 0.02
+      ..z =
+          PickleballRules.netHeight +
+          0.05 // Safely above net
+      ..velocityX = 0.0
+      ..velocityY = -0.03
+      ..velocityZ = 0.005
+      ..hasBounced = false;
+
+    final rallyEnd = simulation.update();
+
+    expect(rallyEnd, isNull); // Clean clearance, no fault
+    expect(simulation.ball.y, lessThan(0)); // Crosses over into bot court
+    expect(simulation.netImpactIntensity, 0.0); // No net deflection
+  });
+
+  testWidgets('phone landscape layouts do not overflow', (
+    WidgetTester tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(780, 360);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const MaterialApp(home: MainMenuScreen()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('START A MATCH'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Player vs Bot'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('SELECT CPU DIFFICULTY'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const MaterialApp(home: PickleballGame()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 5));
   });
 }
