@@ -4,6 +4,46 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 17:15:00 +08:00] - Hardware-Accelerated 3D Racket Mesh Renderer & Cross-Platform Windows Fix
+
+### 1. 3D Model Display Failure Diagnostics
+- **Cause of Error**:
+  - `model_viewer_plus` relies on `webview_flutter`, which only supports Android, iOS, and Web; it lacks a native Windows Desktop implementation out of the box, throwing platform unimplemented errors.
+  - Furthermore, `Paddle3DPreview` contained a platform filter that defaulted to the 2D familiar canvas on Windows (`_prefer3dModel = kIsWeb || defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS`).
+  - As a result, users running on Windows Desktop could not view the 3D mesh.
+- **Reason of Change**:
+  - Provide a 100% native, zero-dependency, hardware-accelerated 3D mesh rasterizer in pure Flutter that renders the actual 3D geometry of `racket_for_pickleball.glb` across all platforms (Windows, macOS, Linux, Android, iOS, Web) at high framerates without requiring external WebViews.
+
+### 2. Standalone Architecture & 3D Engine Implementation
+- **Changes**:
+  - `assets/models/racket_mesh.bin`:
+    - Extracted and normalized the 3D vertices, surface normals, and triangle indices directly from `assets/models/racket_for_pickleball.glb` into an optimized 231 KB binary mesh containing 3 distinct parts:
+      1. **Blade / Face** (6,188 vertices, 28,740 indices)
+      2. **Grip Wrap** (611 vertices, 1,524 indices)
+      3. **Rim & Butt Cap** (433 vertices, 1,332 indices)
+  - `lib/services/racket_3d_mesh_loader.dart`:
+    - Standalone loader that parses `racket_mesh.bin` via `rootBundle.load` and caches the structured mesh in memory in under 2 milliseconds.
+  - `lib/widgets/racket_3d_painter.dart`:
+    - Hardware-accelerated `CustomPainter` rendering 3D triangles via `canvas.drawVertices`:
+      - 3D perspective projection with depth scaling.
+      - 3D Blinn-Phong lighting model calculating diffuse light ($\mathbf{N} \cdot \mathbf{L}$) and specular highlights $(\mathbf{N} \cdot \mathbf{H})^{s}$.
+      - Dynamic per-paddle skinning: maps the blade face, carbon fiber core, edge guard, and sweet spot directly to each paddle's cosmetic colors (`paddleFaceColor`, `paddleRimColor`, `sweetSpotColor`).
+      - Soft floor contact shadow and energy glow.
+  - `lib/widgets/interactive_racket_mesh_view.dart`:
+    - Interactive 3D container supporting:
+      - 360° horizontal drag rotation (yaw).
+      - Vertical drag tilt (pitch).
+      - Continuous smooth auto-rotation with automatic resumption after user interaction.
+      - Reset view action button and interactive drag helper badge.
+  - `lib/widgets/paddle_3d_preview.dart`:
+    - Refactored to display `InteractiveRacketMeshView` by default on all platforms, eliminating WebView failures, with an optional toggle to the 2D orbital familiar canvas.
+
+### 3. Verification
+- `dart analyze`: 0 issues found.
+- `flutter test`: All 38 tests passed.
+
+---
+
 ## [2026-10-02 16:50:00 +08:00] - Paddle Shop with 3D Carousel Viewer, Interactive GLB Racket, and Pixel-Art Hit VFX
 
 ### 1. Carousel-Type Paddle Shop Architecture

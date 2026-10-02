@@ -1,14 +1,14 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 import '../components/draw_kinetic_paddle.dart';
 import '../models/paddle_item.dart';
+import 'interactive_racket_mesh_view.dart';
 
-/// Interactive preview widget showing either the 3D GLTF/GLB model (`racket_for_pickleball.glb`)
-/// or a real-time rendered kinetic familiar canvas showing the paddle's colors, orbit, and energy effects.
+/// Interactive preview widget showing either the real-time 3D racket mesh
+/// (`racket_for_pickleball.glb` hardware-accelerated raster) or the
+/// orbital familiar canvas with animated strike physics.
 class Paddle3DPreview extends StatefulWidget {
   final PaddleItem paddle;
   final double height;
@@ -26,9 +26,7 @@ class Paddle3DPreview extends StatefulWidget {
 class _Paddle3DPreviewState extends State<Paddle3DPreview>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
-  bool _prefer3dModel = kIsWeb ||
-      defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS;
+  bool _show3dMesh = true; // Defaults directly to the real 3D mesh across all platforms
 
   @override
   void initState() {
@@ -73,22 +71,12 @@ class _Paddle3DPreviewState extends State<Paddle3DPreview>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Content: 3D Model viewer or Animated Familiar Canvas
-          if (_prefer3dModel)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(15),
-              child: ModelViewer(
-                key: ValueKey('model_${widget.paddle.id}'),
-                src: 'assets/models/racket_for_pickleball.glb',
-                alt: '3D Pickleball Racket Model',
-                autoRotate: true,
-                autoRotateDelay: 0,
-                rotationPerSecond: '30deg',
-                cameraControls: true,
-                backgroundColor: Colors.transparent,
-                shadowIntensity: 0.8,
-                exposure: 1.1,
-              ),
+          // Main Preview: Interactive 3D Mesh or Animated 2D Familiar
+          if (_show3dMesh)
+            InteractiveRacketMeshView(
+              key: ValueKey('3d_mesh_${widget.paddle.id}'),
+              paddle: widget.paddle,
+              height: widget.height,
             )
           else
             AnimatedBuilder(
@@ -104,39 +92,39 @@ class _Paddle3DPreviewState extends State<Paddle3DPreview>
               },
             ),
 
-          // Platform Mode Switcher Button (3D Model / Familiar Canvas)
+          // Platform Mode Switcher Button (3D Mesh / Familiar Canvas)
           Positioned(
             top: 8,
             right: 8,
             child: GestureDetector(
               onTap: () {
-                setState(() => _prefer3dModel = !_prefer3dModel);
+                setState(() => _show3dMesh = !_show3dMesh);
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.65),
+                  color: Colors.black.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: widget.paddle.energyColor.withValues(alpha: 0.4),
+                    color: widget.paddle.energyColor.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _prefer3dModel ? Icons.auto_awesome : Icons.view_in_ar,
+                      _show3dMesh ? Icons.auto_awesome : Icons.view_in_ar,
                       color: widget.paddle.energyColor,
-                      size: 14,
+                      size: 13,
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      _prefer3dModel ? 'VIEW FAMILIAR' : 'VIEW 3D MESH',
+                      _show3dMesh ? 'VIEW FAMILIAR (2D)' : 'VIEW 3D MESH',
                       style: TextStyle(
                         color: widget.paddle.energyColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
