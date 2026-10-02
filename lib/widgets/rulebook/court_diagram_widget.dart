@@ -47,17 +47,21 @@ class _CourtDiagramWidgetState extends State<CourtDiagramWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.architecture, color: Color(0xFF00E5FF), size: 16),
-                    SizedBox(width: 6),
-                    Text(
-                      'USAP REGULATION COURT',
-                      style: TextStyle(
-                        color: Color(0xFF00E5FF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.8,
+                Row(
+                  children: const [
+                    Icon(Icons.architecture, color: Color(0xFF00E5FF), size: 15),
+                    SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'USAP REGULATION COURT',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFF00E5FF),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                        ),
                       ),
                     ),
                   ],
@@ -65,15 +69,19 @@ class _CourtDiagramWidgetState extends State<CourtDiagramWidget> {
                 const SizedBox(height: 4),
                 const Text(
                   '20 ft (6.1m) W x 44 ft (13.4m) L',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const Text(
-                  'Net: 36" posts, 34" center | NVZ: 7 ft deep',
-                  style: TextStyle(color: Colors.white54, fontSize: 10),
+                  'Net: 36" posts, 34" center | NVZ: 7 ft',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white54, fontSize: 9.5),
                 ),
                 const SizedBox(height: 8),
 

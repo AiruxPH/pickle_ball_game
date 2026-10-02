@@ -4,6 +4,49 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 20:54:00 +08:00] - Official USAP Rulebook Audit, Net Height Curvature & In-Game Guidebook Viewer
+
+### 1. Root Cause Analysis & Fixes
+- **`CourtDiagramWidget` 87.0px Horizontal Overflow**:
+  - *Cause of Error*: The title header row `'USAP REGULATION COURT'` inside the interactive court blueprint column had unconstrained width within a 320px column. With container padding and canvas drawing dimensions, the remaining width for labels was ~182.7px, causing an 87px RenderFlex overflow exception.
+  - *Fix Applied*: Wrapped title and dimension labels in `Expanded` and `Text(..., maxLines: 1, overflow: TextOverflow.ellipsis)` with tightened letter spacing, eliminating layout overflows.
+- **Rulebook Top Bar Overflow**:
+  - *Cause of Error*: In `RulebookScreen`, the top header row contained an unconstrained `Column` alongside a fixed 250px search bar, causing overflow on compact and standard test viewports.
+  - *Fix Applied*: Replaced `Spacer` and unconstrained Column with `Expanded(child: Column(...))` and wrapped `RulebookSearchBar` in `ConstrainedBox(constraints: BoxConstraints(maxWidth: 220, minWidth: 140))`.
+- **Glossary Category Filtering Test Failure**:
+  - *Cause of Error*: In `RulebookScreen`, the filter condition `if (_selectedCategory != null && _selectedCategory != RuleCategory.glossary && rule.category != _selectedCategory)` evaluated to false when `_selectedCategory == RuleCategory.glossary`. This caused all 15 rules to pass the filter, rendering 15 rule cards above the glossary terms in the ListView and pushing glossary cards out of the visible test viewport.
+  - *Fix Applied*: Added an explicit check `if (_selectedCategory == RuleCategory.glossary) return false;` to exclude rules when the Glossary category is selected, placing glossary terms directly at the top of the list.
+- **Duplicate Text Widget Finder in Live Search Test**:
+  - *Cause of Error*: `find.text('Erne')` matched both the `EditableText` inside the search query input and the `Text` widget on the resulting `GlossaryCardWidget`.
+  - *Fix Applied*: Targeted the glossary item specifically using `find.widgetWithText(GlossaryCardWidget, 'Erne')`.
+
+### 2. Sliced Modular Architecture (Rule 2 Compliance)
+- Extracted and sliced rulebook features into dedicated single-responsibility files:
+  - `lib/models/usap_rule_models.dart`: Defines `RuleCategory`, `UsapRuleItem`, and `GlossaryTerm` data structures.
+  - `lib/data/usap_rulebook_data.dart`: Comprehensive repository of official USA Pickleball rules, official citations, key takeaways, and glossary terms.
+  - `lib/widgets/rulebook/court_diagram_painter.dart`: CustomPainter rendering the authentic 2D regulation court blueprint with NVZ, centerline, and service courts.
+  - `lib/widgets/rulebook/court_diagram_widget.dart`: Interactive court blueprint widget with interactive zone highlight toggles (Kitchen, Right Service, Left Service, Baselines).
+  - `lib/widgets/rulebook/rule_card_widget.dart`: Expandable cyberpunk rule card with official USAP citation badge, summary, full explanation, and pro key takeaway callout.
+  - `lib/widgets/rulebook/rule_category_pill.dart`: Sliced horizontal category button with icons and active neon glow.
+  - `lib/widgets/rulebook/rulebook_search_bar.dart`: Sliced search bar for real-time keyword filtering.
+  - `lib/widgets/rulebook/glossary_card_widget.dart`: Card widget rendering official pickleball terminology definitions.
+  - `lib/screens/rulebook_screen.dart`: Main screen assembling category filtering, court diagram, rule cards, and live search.
+
+### 3. Official USAP Rulebook Audit & Alignment
+- **Net Height Regulation Curvature (USAP Rule 2.C.2)**:
+  - Aligned net geometry with official specifications: 36 inches (0.1364 normalized) at the sidelines and 34 inches (0.1288 normalized) at the center.
+  - Added `PickleballRules.netHeightPosts`, `PickleballRules.netHeightCenter`, and `PickleballRules.netHeightAtX(double x)` calculating accurate catenary elevation across the net plane.
+  - Updated `GameSimulation` to verify net crossing collisions against `netHeightAtX(ball.x)`.
+- **In-Game Accessibility**:
+  - Linked `RulebookScreen` from the `MainMenuScreen` top bar (`Icons.menu_book`).
+  - Added `RULEBOOK` button to `GamePauseOverlay` allowing players to look up rules without leaving active matches.
+
+### 4. Verification
+- `dart analyze`: 0 issues found across all workspace files.
+- `flutter test`: 48/48 tests passed (100%), including net height curvature verification, rulebook data completeness, and full `RulebookScreen` widget interaction flows.
+
+---
+
 ## [2026-10-02 20:30:00 +08:00] - Two-Tap Serve Rhythm Mechanic, Legal Serve Box Highlight, & Penalty-Free Do-Overs
 
 ### 1. Root Cause Analysis & Fixes

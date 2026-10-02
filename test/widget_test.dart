@@ -15,13 +15,13 @@ import 'package:pickle_ball_game/match_state.dart';
 import 'package:pickle_ball_game/pickleball_flame_game.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
 import 'package:pickle_ball_game/data/usap_rulebook_data.dart';
-import 'package:pickle_ball_game/models/usap_rule_models.dart';
 import 'package:pickle_ball_game/screens/main_menu_screen.dart';
 import 'package:pickle_ball_game/screens/paddle_shop_screen.dart';
 import 'package:pickle_ball_game/screens/rulebook_screen.dart';
 import 'package:pickle_ball_game/screens/settings_screen.dart';
 import 'package:pickle_ball_game/widgets/game_pause_overlay.dart';
 import 'package:pickle_ball_game/widgets/match_complete_overlay.dart';
+import 'package:pickle_ball_game/widgets/rulebook/glossary_card_widget.dart';
 import 'package:pickle_ball_game/widgets/serve_rhythm_meter.dart';
 
 void main() {
@@ -1200,12 +1200,17 @@ void main() {
 
   testWidgets('RulebookScreen renders, filters categories, and performs live search',
       (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(2400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       const MaterialApp(
         home: RulebookScreen(),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     // Verify header and initial elements
     expect(find.text('OFFICIAL USAP RULEBOOK'), findsOneWidget);
@@ -1215,20 +1220,20 @@ void main() {
 
     // Filter by Serving category
     await tester.tap(find.text('Serving (Rule 4)'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Service Execution & Motion'), findsOneWidget);
     expect(find.text('Diagonal Crosscourt Requirement'), findsOneWidget);
 
     // Filter by Glossary
     await tester.tap(find.text('Glossary'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Dink'), findsOneWidget);
     expect(find.text('Kitchen (NVZ)'), findsOneWidget);
 
     // Live search query test
     await tester.enterText(find.byType(TextField), 'Erne');
-    await tester.pump();
-    expect(find.text('Erne'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(GlossaryCardWidget, 'Erne'), findsOneWidget);
   });
 }
 

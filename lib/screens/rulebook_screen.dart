@@ -33,9 +33,10 @@ class _RulebookScreenState extends State<RulebookScreen> {
 
     // Filter rules
     final filteredRules = UsapRulebookData.rules.where((rule) {
-      if (_selectedCategory != null &&
-          _selectedCategory != RuleCategory.glossary &&
-          rule.category != _selectedCategory) {
+      if (_selectedCategory == RuleCategory.glossary) {
+        return false;
+      }
+      if (_selectedCategory != null && rule.category != _selectedCategory) {
         return false;
       }
       if (query.isNotEmpty) {
@@ -81,37 +82,45 @@ class _RulebookScreenState extends State<RulebookScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 4),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.menu_book, color: Color(0xFF00E5FF), size: 18),
-                          SizedBox(width: 6),
-                          Text(
-                            'OFFICIAL USAP RULEBOOK',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Row(
+                          children: [
+                            Icon(Icons.menu_book, color: Color(0xFF00E5FF), size: 18),
+                            SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'OFFICIAL USAP RULEBOOK',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        'USA Pickleball Regulation Standards & Gameplay Guide',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 10.5,
+                          ],
                         ),
-                      ),
-                    ],
+                        Text(
+                          'USA Pickleball Regulation Standards & Gameplay Guide',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 10),
                   // Search Bar in Top Bar
-                  SizedBox(
-                    width: 250,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220, minWidth: 140),
                     child: RulebookSearchBar(
                       controller: _searchController,
                       onChanged: (val) => setState(() => _searchQuery = val),
