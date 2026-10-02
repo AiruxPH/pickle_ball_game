@@ -7,6 +7,7 @@ import '../game_simulation.dart';
 import '../match_state.dart';
 import '../pickleball_flame_game.dart';
 import '../pickleball_rules.dart';
+import 'draw_serve_box_highlight.dart';
 
 /// Flame visual component for rendering the 3D court environment, including
 /// tournament stadium / practice warehouse floor, dynamic cloth net with impact flex,
@@ -496,9 +497,14 @@ class CourtVisualComponent extends Component {
       _drawGrandstand(canvas, width, length);
     }
 
-    // Serve Trajectory Guide during player serve
+    // Serve Trajectory Guide and target box highlight during player serve
     if (game.simulation.playPhase == MatchPlayPhase.waitingForServe &&
         game.simulation.servingSide == MatchSide.player) {
+      drawServeBoxHighlight(
+        canvas: canvas,
+        simulation: game.simulation,
+        project: (x, y, z) => _proj(x, y, z),
+      );
       _drawServeTrajectoryGuide(canvas);
     }
   }

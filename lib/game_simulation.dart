@@ -10,8 +10,12 @@ import 'bot_agent.dart';
 import 'game_debug_config.dart';
 import 'match_state.dart';
 import 'pickleball_rules.dart';
+import 'simulation/serve_rhythm_controller.dart';
+import 'simulation/serve_rhythm_state.dart';
 
 export 'bot_agent.dart';
+export 'simulation/serve_rhythm_controller.dart';
+export 'simulation/serve_rhythm_state.dart';
 
 class CourtPoint {
   const CourtPoint(this.x, this.y);
@@ -356,6 +360,11 @@ class GameSimulation {
   double playerVelocityY = 0;
   double playerServeAimAngle = 0.0; // Aim trajectory angle during serve
 
+  /// Rhythm controller for two-tap serve timing mechanic.
+  final serveRhythm = ServeRhythmController();
+  VoidCallback? onServeWhiff;
+  ServeTimingResult? lastServeTiming;
+
   double get bot2ReactionTimer => bottomBotAgent.reactionTimer;
   set bot2ReactionTimer(double value) => bottomBotAgent.reactionTimer = value;
   double get bot2TargetX => bottomBotAgent.targetX;
@@ -622,6 +631,8 @@ class GameSimulation {
     playerVelocityY = 0;
     playerServeAimAngle = 0.0;
     playerSwingActiveTimer = 0.0;
+    serveRhythm.reset();
+    lastServeTiming = null;
     if (servingSide == MatchSide.player) {
       playerX = _servePositionX;
     } else {
@@ -796,18 +807,26 @@ class GameSimulation {
     );
   }
 
-  void triggerServe() {
+  void triggerServe({
+    double powerMultiplier = 1.0,
+    ShotQuality quality = ShotQuality.good,
+  }) {
     if (playPhase != MatchPlayPhase.waitingForServe) return;
     playPhase = MatchPlayPhase.inRally;
     rallyPhase = RallyPhase.serveInFlight;
 
     if (servingSide == MatchSide.player) {
       final traj = getPlayerServeTrajectory();
-      const double T = 52.0;
+      final double T = (52.0 / powerMultiplier).clamp(38.0, 64.0);
       ball.velocityX = (traj.targetX - (playerX + 0.08)) / T;
       ball.velocityY = (traj.targetY - (playerY - 0.04)) / T;
       ball.velocityZ = (0.5 * gravity * T * T - 0.12) / T;
       lastHitByPlayer = true;
+      _emit(GameplayEvent(
+        GameplayEventType.playerHit,
+        side: MatchSide.player,
+        shotQuality: quality,
+      ));
     } else {
       final targetX = _serveTargetX;
       final targetY = 0.66;
@@ -816,6 +835,10 @@ class GameSimulation {
       ball.velocityY = (targetY - (botY + 0.04)) / T;
       ball.velocityZ = (0.5 * gravity * T * T - 0.12) / T;
       lastHitByPlayer = false;
+      _emit(const GameplayEvent(
+        GameplayEventType.botHit,
+        side: MatchSide.bot,
+      ));
     }
   }
 
@@ -908,10 +931,16 @@ class GameSimulation {
         botX += (0 - botX) * 0.1;
         botY += (-0.75 - botY) * 0.1;
 
-        // Ball rests on the player/paddle (waist height, not floating in sky)
+        // Ball rests on the player/paddle (waist height + toss elevation)
         ball.x = playerX + 0.08;
         ball.y = playerY - 0.04;
-        ball.z = 0.12;
+        ball.z = 0.12 + serveRhythm.ballTossZ;
+
+        final didWhiff = serveRhythm.update(0.025);
+        if (didWhiff) {
+          serveRhythm.reset();
+          onServeWhiff?.call();
+        }
 
         if (gameMode == GameMode.botVsBot) {
           if (bot2ServeTimer > 0) {
@@ -1396,8 +1425,24 @@ class GameSimulation {
     }
     if (playPhase == MatchPlayPhase.waitingForServe) {
       if (servingSide == MatchSide.player) {
-        triggerServe();
-        return SwingResult.hit;
+        if (serveRhythm.phase == ServeRhythmPhase.idle) {
+          serveRhythm.startToss();
+          return SwingResult.missed;
+        } else if (serveRhythm.phase == ServeRhythmPhase.tossing) {
+          final timing = serveRhythm.strike();
+          lastServeTiming = timing;
+          if (timing.isWhiff) {
+            serveRhythm.reset();
+            onServeWhiff?.call();
+            return SwingResult.missed;
+          } else {
+            triggerServe(
+              powerMultiplier: timing.powerMultiplier,
+              quality: timing.quality,
+            );
+            return SwingResult.hit;
+          }
+        }
       }
       return SwingResult.missed;
     }

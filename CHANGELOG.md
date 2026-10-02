@@ -4,6 +4,41 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 20:30:00 +08:00] - Two-Tap Serve Rhythm Mechanic, Legal Serve Box Highlight, & Penalty-Free Do-Overs
+
+### 1. Root Cause Analysis & Fixes
+- **`ServeRhythmMeter` 38.0px Right Overflow**:
+  - *Cause of Error*: In `ServeRhythmMeter`, the header `Row` containing `'HIT SWEET SPOT!'` (with letter spacing 1.2) and `'TIMING'` had unconstrained widths within a fixed 220px container (`~189px` inner content width). When font metrics or test canvas constraints were applied, the text exceeded available horizontal space, causing a RenderFlex layout assertion exception.
+  - *Fix Applied*: Increased outer container width to `240 * scale`, reduced padding, and wrapped the title text in `Expanded(child: Text(..., maxLines: 1, overflow: TextOverflow.ellipsis))` with tighter letter spacing (`0.8`), ensuring zero overflow across all aspect ratios.
+- **Widget Test Serve Strike Whiffing**:
+  - *Cause of Error*: In `testWidgets('renders the pickleball game controls')`, the test tapped `TOSS` and immediately tapped `STRIKE!` in the next pump without simulated game time. Because 0ms had elapsed, `serveRhythm.progress` was 0.0 (< 0.35 threshold), triggering a timing whiff that reset the serve to `idle` instead of hitting into play.
+  - *Fix Applied*: Added `await tester.pump(const Duration(milliseconds: 650));` between the toss and strike taps, letting the simulated toss rise smoothly into the sweet spot window for a clean serve strike into play.
+
+### 2. Sliced Modular Architecture (Rule 2 Compliance)
+- Sliced standalone logic and components into dedicated single-responsibility files:
+  - `lib/simulation/serve_rhythm_state.dart`: Defines `ServeRhythmPhase` (`idle`, `tossing`, `struck`) and `ServeTimingResult` (`perfect`, `good`, `early`, `late`, `whiffEarly`, `whiffLate`, `timeout`) with feedback messages, power multipliers, and shot qualities.
+  - `lib/simulation/serve_rhythm_controller.dart`: Standalone controller tracking toss progression, calculating parabolic arc height (`ballTossZ = 4 * 0.45 * progress * (1 - progress)`), evaluating strike timing, and managing do-over resets.
+  - `lib/widgets/serve_rhythm_meter.dart`: Cyberpunk arcade HUD timing meter featuring neon track, wide good-timing zone, cyan sweet spot, and animated needle.
+  - `lib/components/draw_serve_box_highlight.dart`: Standalone rendering helper computing and painting the glowing legal diagonal service box on the opponent's court per official USAPA pickleball regulation boundaries.
+
+### 3. Gameplay Mechanics & Visual Features
+- **Two-Tap Serve Rhythm System**:
+  - First tap (`TOSS`): Tosses the pickleball vertically in a physics-based arc, transitioning the hit button to a pulsing cyan `STRIKE!` state.
+  - Second tap (`STRIKE!`): Strikes the ball during its descent/apex. Timing directly governs ball velocity, angle accuracy, and shot quality.
+  - Sweet spot contact generates `PERFECT SERVE!` with 1.15x speed multiplier and gold sparks.
+  - Good contact generates `GOOD SERVE` with 1.0x baseline power.
+  - Early/late contact generates reduced power serves (0.85x).
+- **Penalty-Free Serve Do-Overs**:
+  - If the player completely whiffs the strike (striking too early/too late, or letting the ball drop without striking), the simulation displays `DO OVER!` and resets the serve without any side-out penalty or score change.
+- **Regulation Legal Serve Box Court Highlight**:
+  - The opponent's diagonal service box is illuminated on court with a neon cyan boundary, corner crosshairs, and a subtle glowing fill, clearly indicating the target zone for legal serves.
+
+### 4. Verification
+- `dart analyze`: 0 issues found across the entire workspace.
+- `flutter test`: 45/45 tests passed (100%), including dedicated unit tests for `ServeRhythmController`, `GameSimulation` two-tap toss/strike, penalty-free whiff resets, and `ServeRhythmMeter` rendering.
+
+---
+
 ## [2026-10-02 19:54:00 +08:00] - Comprehensive Responsive Layout Architecture & Sliced UI Overlays
 
 ### 1. Root Cause Analysis of Layout Overflows

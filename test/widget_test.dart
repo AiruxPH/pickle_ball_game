@@ -19,6 +19,7 @@ import 'package:pickle_ball_game/screens/paddle_shop_screen.dart';
 import 'package:pickle_ball_game/screens/settings_screen.dart';
 import 'package:pickle_ball_game/widgets/game_pause_overlay.dart';
 import 'package:pickle_ball_game/widgets/match_complete_overlay.dart';
+import 'package:pickle_ball_game/widgets/serve_rhythm_meter.dart';
 
 void main() {
   test('court and match rules use shared boundaries', () {
@@ -747,15 +748,23 @@ void main() {
 
     expect(find.text('CPU: 0'), findsOneWidget);
     expect(find.text('YOU: 0'), findsOneWidget);
-    expect(find.text('SERVE'), findsOneWidget);
+    expect(find.text('TOSS'), findsOneWidget);
     expect(
       find.byWidgetPredicate((widget) => widget is GameWidget),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('SERVE'));
+    // Tap 1: Toss the ball
+    await tester.tap(find.text('TOSS'));
     await tester.pump();
+    expect(find.text('STRIKE!'), findsOneWidget);
 
+    // Wait for the ball to rise into the sweet spot (~650ms)
+    await tester.pump(const Duration(milliseconds: 650));
+
+    // Tap 2: Strike the serve at the sweet spot
+    await tester.tap(find.text('STRIKE!'));
+    await tester.pump();
     expect(find.text('HIT'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
   });
@@ -1031,5 +1040,125 @@ void main() {
       expect(find.text('PADDLE ARSENAL'), findsOneWidget);
     },
   );
+
+  test('ServeRhythmController sweet spot timing and do-over mechanics', () {
+    final controller = ServeRhythmController();
+    expect(controller.phase, ServeRhythmPhase.idle);
+    expect(controller.ballTossZ, 0.0);
+
+    controller.startToss();
+    expect(controller.phase, ServeRhythmPhase.tossing);
+    expect(controller.progress, 0.0);
+
+    // Progress to halfway
+    controller.progress = 0.5;
+    expect(controller.ballTossZ, greaterThan(0.25));
+
+    // Progress to perfect sweet spot (0.65)
+    controller.progress = ServeRhythmController.sweetSpot;
+    final perfectResult = controller.strike();
+    expect(perfectResult.quality, ShotQuality.perfect);
+    expect(perfectResult.powerMultiplier, 1.25);
+    expect(perfectResult.isWhiff, isFalse);
+    expect(perfectResult.feedbackMessage, 'PERFECT SERVE!');
+    expect(controller.phase, ServeRhythmPhase.complete);
+
+    // Test whiff and do-over
+    controller.startToss();
+    controller.progress = 1.0;
+    final whiffResult = controller.strike();
+    expect(whiffResult.isWhiff, isTrue);
+    expect(whiffResult.feedbackMessage, 'DO OVER!');
+
+    // Test timeout whiff
+    controller.startToss();
+    final timedOut = controller.update(1.2);
+    expect(timedOut, isTrue);
+    expect(controller.phase, ServeRhythmPhase.whiffed);
+
+    controller.reset();
+    expect(controller.phase, ServeRhythmPhase.idle);
+  });
+
+  test('GameSimulation two-tap serve rhythm with toss and strike', () {
+    final simulation = GameSimulation();
+    simulation.resetRally(servingSide: MatchSide.player);
+    expect(simulation.playPhase, MatchPlayPhase.waitingForServe);
+    expect(simulation.serveRhythm.phase, ServeRhythmPhase.idle);
+
+    // Tap 1: Start toss
+    final tossResult = simulation.swing();
+    expect(tossResult, SwingResult.missed);
+    expect(simulation.serveRhythm.phase, ServeRhythmPhase.tossing);
+    expect(simulation.playPhase, MatchPlayPhase.waitingForServe);
+
+    // Simulate toss in flight
+    simulation.serveRhythm.progress = ServeRhythmController.sweetSpot;
+
+    // Tap 2: Strike at sweet spot
+    final strikeResult = simulation.swing();
+    expect(strikeResult, SwingResult.hit);
+    expect(simulation.playPhase, MatchPlayPhase.inRally);
+    expect(simulation.rallyPhase, RallyPhase.serveInFlight);
+    expect(simulation.lastHitByPlayer, isTrue);
+    expect(simulation.lastServeTiming?.quality, ShotQuality.perfect);
+  });
+
+  test('GameSimulation penalty-free serve do-over on whiff', () {
+    final simulation = GameSimulation();
+    simulation.resetRally(servingSide: MatchSide.player);
+
+    var whiffCallbackFired = false;
+    simulation.onServeWhiff = () => whiffCallbackFired = true;
+
+    // Tap 1: Toss
+    simulation.swing();
+    expect(simulation.serveRhythm.phase, ServeRhythmPhase.tossing);
+
+    // Let the ball drop without swinging (simulate elapsed time)
+    for (int i = 0; i < 50; i++) {
+      simulation.update();
+    }
+
+    // Must reset to waiting for serve with no score change
+    expect(whiffCallbackFired, isTrue);
+    expect(simulation.playPhase, MatchPlayPhase.waitingForServe);
+    expect(simulation.serveRhythm.phase, ServeRhythmPhase.idle);
+    expect(simulation.currentServerScore, 0);
+  });
+
+  testWidgets('ServeRhythmMeter renders correctly during idle and active toss',
+      (WidgetTester tester) async {
+    final controller = ServeRhythmController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ServeRhythmMeter(controller: controller),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('SERVE METER'), findsOneWidget);
+    expect(find.text('READY'), findsOneWidget);
+    expect(find.text('PERFECT'), findsOneWidget);
+
+    controller.startToss();
+    controller.progress = 0.65;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ServeRhythmMeter(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('HIT SWEET SPOT!'), findsOneWidget);
+    expect(find.text('TIMING'), findsOneWidget);
+  });
 }
+
 

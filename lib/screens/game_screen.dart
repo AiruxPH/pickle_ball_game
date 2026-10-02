@@ -20,6 +20,7 @@ import '../widgets/match_complete_overlay.dart';
 import '../widgets/match_hud.dart';
 import '../widgets/practice_hud.dart';
 import '../widgets/referee_popup_widget.dart';
+import '../widgets/serve_rhythm_meter.dart';
 import '../widgets/spectator_stats_overlay.dart';
 
 /// Primary gameplay screen hosting the 3D Flame simulation canvas and all HUD overlays.
@@ -99,6 +100,17 @@ class _PickleballGameState extends State<PickleballGame> {
         Future.delayed(const Duration(milliseconds: 800), () {
           if (mounted &&
               (feedbackText == 'SMASH!' || feedbackText == 'GOOD HIT')) {
+            setState(() => feedbackText = '');
+          }
+        });
+      });
+    };
+    flameGame.simulation.onServeWhiff = () {
+      if (!mounted) return;
+      setState(() {
+        feedbackText = 'DO OVER!';
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (mounted && feedbackText == 'DO OVER!') {
             setState(() => feedbackText = '');
           }
         });
@@ -234,7 +246,16 @@ class _PickleballGameState extends State<PickleballGame> {
       joystickY: flameGame.effectiveInputY,
     );
     setState(() {
-      if (swingResult == SwingResult.twoBounceFault) {
+      if (simulation.lastServeTiming != null) {
+        final timing = simulation.lastServeTiming!;
+        feedbackText = timing.feedbackMessage;
+        simulation.lastServeTiming = null;
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted && feedbackText == timing.feedbackMessage) {
+            setState(() => feedbackText = '');
+          }
+        });
+      } else if (swingResult == SwingResult.twoBounceFault) {
         feedbackText = 'TWO-BOUNCE FAULT!';
         if (widget.gameMode != 2) {
           _handleRallyEnd(RallyEnd.playerFault);
@@ -510,6 +531,8 @@ class _PickleballGameState extends State<PickleballGame> {
                           SizedBox(width: 16 * _uiScale),
                           HitButtonWidget(
                             isServing: isServing,
+                            isTossing: simulation.serveRhythm.phase ==
+                                ServeRhythmPhase.tossing,
                             scale: _uiScale,
                             onTap: _executeSwing,
                           ),
@@ -531,6 +554,24 @@ class _PickleballGameState extends State<PickleballGame> {
                         ),
                       );
                     },
+                  ),
+                ),
+
+              // Serve rhythm timing meter
+              if (isPlaying &&
+                  !_isPaused &&
+                  simulation.playPhase == MatchPlayPhase.waitingForServe &&
+                  simulation.servingSide == MatchSide.player &&
+                  (widget.gameMode == 0 || widget.gameMode == 2))
+                Positioned(
+                  bottom: 115 * _uiScale,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ServeRhythmMeter(
+                      controller: simulation.serveRhythm,
+                      scale: _uiScale,
+                    ),
                   ),
                 ),
 

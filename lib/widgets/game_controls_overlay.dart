@@ -81,26 +81,45 @@ class VirtualJoystickWidget extends StatelessWidget {
 /// Large interactive action button for serving or hitting the ball.
 class HitButtonWidget extends StatelessWidget {
   final bool isServing;
+  final bool isTossing;
   final double scale;
   final VoidCallback onTap;
 
   const HitButtonWidget({
     super.key,
     required this.isServing,
+    this.isTossing = false,
     required this.scale,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final buttonText = isServing ? 'SERVE' : 'HIT';
-    final buttonColor =
-        isServing ? const Color(0xFFFF6D00) : const Color(0xFFF59E0B);
-    final textColor = isServing ? Colors.white : Colors.black;
+    final String buttonText;
+    final Color buttonColor;
+    final Color textColor;
+
+    if (isServing) {
+      if (isTossing) {
+        buttonText = 'STRIKE!';
+        buttonColor = const Color(0xFF00E5FF);
+        textColor = Colors.black;
+      } else {
+        buttonText = 'TOSS';
+        buttonColor = const Color(0xFFFF6D00);
+        textColor = Colors.white;
+      }
+    } else {
+      buttonText = 'HIT';
+      buttonColor = const Color(0xFFF59E0B);
+      textColor = Colors.black;
+    }
 
     return Semantics(
       button: true,
-      label: isServing ? 'Serve the ball' : 'Hit the ball',
+      label: isServing
+          ? (isTossing ? 'Strike the serve' : 'Toss the serve')
+          : 'Hit the ball',
       child: GestureDetector(
         onTap: onTap,
         child: Container(
@@ -111,9 +130,9 @@ class HitButtonWidget extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: buttonColor.withValues(alpha: 0.5),
-                blurRadius: 15,
-                spreadRadius: 3,
+                color: buttonColor.withValues(alpha: isTossing ? 0.8 : 0.5),
+                blurRadius: isTossing ? 22 : 15,
+                spreadRadius: isTossing ? 4 : 3,
               ),
               const BoxShadow(
                 color: Colors.black54,
