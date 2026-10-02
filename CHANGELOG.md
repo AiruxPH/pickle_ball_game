@@ -4,6 +4,25 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 18:29:00 +08:00] - Mouse Wheel & Pointer Scroll Carousel Navigation in Paddle Shop
+
+### 1. Mouse Wheel Navigation in Horizontal Carousel
+- **Reason of Change**:
+  - Enable desktop users to scroll the paddle list with their mouse wheel.
+  - Scrolling the mouse wheel down shifts the list to the left (revealing the next paddle on the right).
+  - Scrolling the mouse wheel up shifts the list to the right (revealing the previous paddle on the left).
+  - Enable mouse click-and-drag navigation across the carousel.
+- **Changes**:
+  - `lib/screens/paddle_shop_screen.dart`:
+    - Added `_handlePointerScroll(PointerScrollEvent event)` with ~160ms throttle to translate vertical mouse wheel notches (`scrollDelta.dy`) and horizontal wheel tilts (`scrollDelta.dx`) into responsive single-card carousel steps.
+    - Wrapped lower deck carousel in a translucent `Listener` intercepting `PointerScrollEvent`.
+    - Added `ScrollConfiguration` enabling `PointerDeviceKind.mouse` and `PointerDeviceKind.trackpad` drag interactions on `PageView.builder`.
+- **Verification**:
+  - `dart analyze`: 0 issues found.
+  - `flutter test`: 38/38 tests passed.
+
+---
+
 ## [2026-10-02 18:18:00 +08:00] - AI Bot Dynamic Paddle Equipment & Hit VFX in Bot vs Bot Matches
 
 ### 1. Bot VFX & Paddle Display Diagnostics

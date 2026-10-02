@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -52,6 +53,29 @@ class _PaddleShopScreenState extends State<PaddleShopScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
       );
+    }
+  }
+
+  DateTime _lastWheelScroll = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _handlePointerScroll(PointerScrollEvent event) {
+    final now = DateTime.now();
+    if (now.difference(_lastWheelScroll).inMilliseconds < 160) {
+      return;
+    }
+    final delta = event.scrollDelta.dy != 0 ? event.scrollDelta.dy : event.scrollDelta.dx;
+    if (delta > 0) {
+      // Mouse scroll down: move list to left (reveal next paddle)
+      if (_selectedIndex < _paddles.length - 1) {
+        _lastWheelScroll = now;
+        _onPaddleSelected(_selectedIndex + 1);
+      }
+    } else if (delta < 0) {
+      // Mouse scroll up: move list to right (reveal previous paddle)
+      if (_selectedIndex > 0) {
+        _lastWheelScroll = now;
+        _onPaddleSelected(_selectedIndex - 1);
+      }
     }
   }
 
@@ -213,53 +237,70 @@ class _PaddleShopScreenState extends State<PaddleShopScreen> {
               // Lower Deck: Horizontal Carousel of Paddles
               SizedBox(
                 height: compact ? 95 : 120,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PageView.builder(
-                      controller: _pageController,
-                      itemCount: _paddles.length,
-                      onPageChanged: (idx) {
-                        setState(() => _selectedIndex = idx);
-                      },
-                      itemBuilder: (context, index) {
-                        final paddle = _paddles[index];
-                        final isSelected = index == _selectedIndex;
-                        final equipped =
-                            SettingsManager().equippedPaddleId == paddle.id;
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerSignal: (pointerSignal) {
+                    if (pointerSignal is PointerScrollEvent) {
+                      _handlePointerScroll(pointerSignal);
+                    }
+                  },
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(
+                          dragDevices: {
+                            PointerDeviceKind.touch,
+                            PointerDeviceKind.mouse,
+                            PointerDeviceKind.trackpad,
+                          },
+                        ),
+                        child: PageView.builder(
+                          controller: _pageController,
+                          itemCount: _paddles.length,
+                          onPageChanged: (idx) {
+                            setState(() => _selectedIndex = idx);
+                          },
+                          itemBuilder: (context, index) {
+                            final paddle = _paddles[index];
+                            final isSelected = index == _selectedIndex;
+                            final equipped =
+                                SettingsManager().equippedPaddleId == paddle.id;
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: PaddleCarouselCard(
-                            paddle: paddle,
-                            isSelected: isSelected,
-                            isEquipped: equipped,
-                            onTap: () => _onPaddleSelected(index),
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: PaddleCarouselCard(
+                                paddle: paddle,
+                                isSelected: isSelected,
+                                isEquipped: equipped,
+                                onTap: () => _onPaddleSelected(index),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                      // Left Navigation Arrow
+                      if (_selectedIndex > 0)
+                        Positioned(
+                          left: 0,
+                          child: _buildArrowButton(
+                            icon: Icons.chevron_left,
+                            onTap: () => _onPaddleSelected(_selectedIndex - 1),
                           ),
-                        );
-                      },
-                    ),
-
-                    // Left Navigation Arrow
-                    if (_selectedIndex > 0)
-                      Positioned(
-                        left: 0,
-                        child: _buildArrowButton(
-                          icon: Icons.chevron_left,
-                          onTap: () => _onPaddleSelected(_selectedIndex - 1),
                         ),
-                      ),
 
-                    // Right Navigation Arrow
-                    if (_selectedIndex < _paddles.length - 1)
-                      Positioned(
-                        right: 0,
-                        child: _buildArrowButton(
-                          icon: Icons.chevron_right,
-                          onTap: () => _onPaddleSelected(_selectedIndex + 1),
+                      // Right Navigation Arrow
+                      if (_selectedIndex < _paddles.length - 1)
+                        Positioned(
+                          right: 0,
+                          child: _buildArrowButton(
+                            icon: Icons.chevron_right,
+                            onTap: () => _onPaddleSelected(_selectedIndex + 1),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
