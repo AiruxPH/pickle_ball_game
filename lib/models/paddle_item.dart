@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 /// Rarity tier for cosmetic and tactical paddle skins.
@@ -240,5 +241,11 @@ class PaddleCatalog {
       (paddle) => paddle.id == id,
       orElse: () => allPaddles.first,
     );
+  }
+
+  /// Returns a randomly selected paddle skin from the catalog for AI bots.
+  static PaddleItem getRandomPaddle([math.Random? random]) {
+    final rng = random ?? math.Random();
+    return allPaddles[rng.nextInt(allPaddles.length)];
   }
 }

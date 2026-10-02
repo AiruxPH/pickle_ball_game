@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show Offset, Image;
 
 import 'package:flame/game.dart';
@@ -31,9 +32,26 @@ export 'components/player_visual_component.dart';
 /// camera sizing, inputs, visual components, and VFX spawns.
 class PickleballFlameGame extends FlameGame {
   PickleballFlameGame({GameSimulation? simulation, this.onRallyEnd})
-      : simulation = simulation ?? GameSimulation();
+      : simulation = simulation ?? GameSimulation() {
+    randomizeBotPaddles();
+  }
 
   static const double fixedStep = 0.025;
+
+  late PaddleItem topBotPaddle;
+  late PaddleItem bottomBotPaddle;
+
+  /// Randomly equips a paddle from the catalog for each bot.
+  void randomizeBotPaddles([math.Random? random]) {
+    topBotPaddle = PaddleCatalog.getRandomPaddle(random);
+    var bottom = PaddleCatalog.getRandomPaddle(random);
+    if (PaddleCatalog.allPaddles.length > 1) {
+      while (bottom.id == topBotPaddle.id) {
+        bottom = PaddleCatalog.getRandomPaddle(random);
+      }
+    }
+    bottomBotPaddle = bottom;
+  }
 
   final GameSimulation simulation;
   late final Image unifiedSprite;
@@ -90,7 +108,7 @@ class PickleballFlameGame extends FlameGame {
     isPlaying = true;
   }
 
-  void spawnHitEffect({required bool isSmash}) {
+  void spawnHitEffect({required bool isSmash, PaddleItem? paddle}) {
     if (!SettingsManager().showEffects) return;
     final point = simulation.camera.project(
       x: simulation.ball.x,
@@ -105,7 +123,7 @@ class PickleballFlameGame extends FlameGame {
       HitEffectComponent(center: center, isSmash: isSmash, scale: point.scale),
     );
 
-    final equipped = PaddleCatalog.getById(SettingsManager().equippedPaddleId);
+    final equipped = paddle ?? PaddleCatalog.getById(SettingsManager().equippedPaddleId);
     if (equipped.vfxAsset != null) {
       add(
         AnimatedVfxComponent(
@@ -198,6 +216,9 @@ class PickleballFlameGame extends FlameGame {
       for (final event in simulation.drainEvents()) {
         switch (event.type) {
           case GameplayEventType.botHit:
+            final botPaddle = (event.side == MatchSide.player)
+                ? bottomBotPaddle
+                : topBotPaddle;
             if (event.side == MatchSide.player) {
               isSwinging = true;
               playerBotSwingTimer = 0.15;
@@ -205,9 +226,10 @@ class PickleballFlameGame extends FlameGame {
               isBotSwinging = true;
               botSwingTimer = 0.15;
             }
-            if (!SettingsManager().reducedMotion) {
-              simulation.camera.addShake(event.isSmash ? 0.7 : 0.4);
-            }
+            spawnHitEffect(
+              isSmash: event.isSmash,
+              paddle: botPaddle,
+            );
             break;
           case GameplayEventType.playerHit:
             break;

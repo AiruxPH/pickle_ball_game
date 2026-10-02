@@ -156,7 +156,10 @@ class PlayerVisualComponent extends Component {
     final orbitAngle = animTimer * 2.6;
     final isBehind = math.sin(orbitAngle) < -0.15 && !game.isSwinging;
 
-    final equipped = PaddleCatalog.getById(SettingsManager().equippedPaddleId);
+    final isBotVsBot = game.simulation.gameMode == GameMode.botVsBot;
+    final equipped = isBotVsBot
+        ? game.bottomBotPaddle
+        : PaddleCatalog.getById(SettingsManager().equippedPaddleId);
     void drawPlayerFamiliarPaddle() {
       drawKineticPaddle(
         canvas: canvas,

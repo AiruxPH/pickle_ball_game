@@ -207,6 +207,7 @@ class BotVisualComponent extends Component {
       final orbitAngle = animTimer * 2.6;
       final isBehind = math.sin(orbitAngle) < -0.15 && !game.isBotSwinging;
 
+      final botPaddle = game.topBotPaddle;
       void drawBotFamiliarPaddle() {
         drawKineticPaddle(
           canvas: canvas,
@@ -217,10 +218,10 @@ class BotVisualComponent extends Component {
           isSwinging: game.isBotSwinging,
           swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
           ballScreenPos: ballScreenPos,
-          paddleFaceColor: const Color(0xFFFF1744), // Crimson neon
-          paddleRimColor: const Color(0xFF212121), // Obsidian black
-          energyColor: const Color(0xFFFF4081), // Hot pink energy
-          sweetSpotColor: const Color(0xFFFFD700), // Golden sweet spot
+          paddleFaceColor: botPaddle.paddleFaceColor,
+          paddleRimColor: botPaddle.paddleRimColor,
+          energyColor: botPaddle.energyColor,
+          sweetSpotColor: botPaddle.sweetSpotColor,
         );
       }
 

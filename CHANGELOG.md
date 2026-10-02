@@ -4,6 +4,42 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 18:18:00 +08:00] - AI Bot Dynamic Paddle Equipment & Hit VFX in Bot vs Bot Matches
+
+### 1. Bot VFX & Paddle Display Diagnostics
+- **Cause of Error**:
+  - `spawnHitEffect` in `PickleballFlameGame` was previously hardcoded to `SettingsManager().equippedPaddleId`, which strictly referenced the local human player's equipped paddle.
+  - In `PickleballFlameGame`'s simulation event loop, `case GameplayEventType.botHit:` triggered swing timers and camera shake, but completely omitted calling `spawnHitEffect`.
+  - In `BotVisualComponent`, the enemy bot's familiar paddle colors were hardcoded to fixed crimson values (`0xFFFF1744`), ignoring the paddle catalog.
+  - In `PlayerVisualComponent`, the bottom character also defaulted to `SettingsManager().equippedPaddleId` even during `GameMode.botVsBot` spectator matches.
+  - Consequently, bots never triggered pixel-art hit VFX, and bot vs bot matches showed zero paddle effects.
+- **Reason of Change**:
+  - Allow AI bots to randomly equip different tournament and elemental paddles per game.
+  - Ensure all bots (enemy bot and bottom bot in Bot vs Bot) trigger their equipped paddle's pixel-art impact VFX on hits and smashes.
+  - Render each bot's floating kinetic familiar paddle with their equipped skin colors.
+
+### 2. Implementation & Sliced Architecture
+- **Changes**:
+  - `lib/models/paddle_item.dart`:
+    - Added `PaddleCatalog.getRandomPaddle([Random? random])` to pick a random paddle from the available catalog.
+  - `lib/pickleball_flame_game.dart`:
+    - Added `topBotPaddle` and `bottomBotPaddle` state fields.
+    - Implemented `randomizeBotPaddles([Random? random])` to assign distinct random paddles to both bots.
+    - Updated `spawnHitEffect({required bool isSmash, PaddleItem? paddle})` to accept an optional paddle parameter, defaulting to the player's equipped paddle.
+    - In the simulation event loop, wired `case GameplayEventType.botHit:` to spawn hit VFX using `topBotPaddle` (for enemy/top bot) or `bottomBotPaddle` (for player-side bot in Bot vs Bot).
+  - `lib/components/bot_visual_component.dart`:
+    - Updated `drawBotFamiliarPaddle` to bind face, rim, energy, and sweet-spot colors to `game.topBotPaddle`.
+  - `lib/components/player_visual_component.dart`:
+    - Updated `drawPlayerFamiliarPaddle` to bind to `game.bottomBotPaddle` when `game.simulation.gameMode == GameMode.botVsBot`.
+  - `lib/screens/game_screen.dart`:
+    - Hooked `flameGame.randomizeBotPaddles()` into `_startGame()`, guaranteeing a fresh random paddle selection for bots every game and match restart.
+
+### 3. Verification
+- `dart analyze`: 0 issues found.
+- `flutter test`: 38/38 tests passed.
+
+---
+
 ## [2026-10-02 17:15:00 +08:00] - Hardware-Accelerated 3D Racket Mesh Renderer & Cross-Platform Windows Fix
 
 ### 1. 3D Model Display Failure Diagnostics

@@ -154,6 +154,7 @@ class _PickleballGameState extends State<PickleballGame> {
       match.start();
       isPlaying = true;
       _isPaused = false;
+      flameGame.randomizeBotPaddles();
       simulation.resetRally(
         servingSide: match.servingSide,
         serverScore: match.servingSide == MatchSide.player
