@@ -4,6 +4,47 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 16:15:00 +08:00] - Monolith Codebase Slicing: Modularization of Main Application and Flame Game Components
+
+### 1. Main Entrypoint & UI Overlay Deconstruction
+- **Reason of Change**:
+  - `lib/main.dart` previously contained 1,397 lines combining bootstrap initialization, the main match screen (`PickleballGame`), referee popups, joystick controls, pause overlay dialogs, match complete overlays, and sandbox debug controls.
+  - Slicing these into dedicated standalone files improves AI code editing precision, minimizes context consumption, and prevents regressions.
+- **Changes**:
+  - `lib/main.dart`: Slimmed down from 1,397 lines to 43 lines, serving solely as the Flutter and Firebase bootstrap entrypoint, re-exporting `PickleballGame` for 100% backward compatibility.
+  - `lib/screens/game_screen.dart`: Extracted the `PickleballGame` stateful screen hosting the 3D Flame simulation canvas and assembling UI overlays.
+  - `lib/widgets/referee_popup_widget.dart`: Extracted the referee call banner and animated popup state.
+  - `lib/widgets/game_debug_panel.dart`: Extracted the sandbox debug controls panel for toggling hitboxes, freezing AI, and altering game speed.
+  - `lib/widgets/game_pause_overlay.dart`: Extracted `GamePauseOverlay`, `PauseMenuButton`, and `ConfirmationDialog`.
+  - `lib/widgets/match_complete_overlay.dart`: Extracted `MatchCompleteOverlay` displaying victory/defeat banners and match navigation buttons.
+  - `lib/widgets/game_controls_overlay.dart`: Extracted `VirtualJoystickWidget`, `HitButtonWidget`, `DashButtonWidget`, `CameraButtonWidget`, and `AltitudeSliderWidget`.
+  - `lib/widgets/spectator_stats_overlay.dart`: Extracted spectator live telemetry and bot status cards.
+
+### 2. Flame Game Visual Component & Effect Slicing
+- **Reason of Change**:
+  - `lib/pickleball_flame_game.dart` previously contained 2,119 lines combining the core `PickleballFlameGame` game loop with 8 visual and VFX components, along with a 300+ line kinetic paddle renderer.
+- **Changes**:
+  - `lib/components/draw_kinetic_paddle.dart`: Extracted the standalone top-level `drawKineticPaddle` rendering function for drawing the elongated familiar paddle, elliptical orbit, aim vector, and impact shockwaves.
+  - `lib/components/ball_visual_component.dart`: Extracted `BallVisualComponent` for 3D ball projection, shadows, and velocity trails.
+  - `lib/components/bot_visual_component.dart`: Extracted `BotVisualComponent` for bot character animation, opponent aura tint, and reach hitboxes.
+  - `lib/components/player_visual_component.dart`: Extracted `PlayerVisualComponent` for player character animation, electric cyan aura, and hitboxes.
+  - `lib/components/court_visual_component.dart`: Extracted `CourtVisualComponent` for tournament stadium, practice facility, cloth net physics, grandstands, and serve trajectory arcs.
+  - `lib/components/hit_effect_component.dart`: Extracted `HitEffectComponent` for hit/smash shockwaves.
+  - `lib/components/bounce_effect_component.dart`: Extracted `BounceEffectComponent` for ball floor bounce ripples.
+  - `lib/components/dash_effect_component.dart`: Extracted `DashEffectComponent` for dash VFX rings and speed streaks.
+  - `lib/pickleball_flame_game.dart`: Slimmed down to 232 lines focused solely on game loop orchestration and component registration, re-exporting all components.
+
+### 3. Diagnostics & Error Resolution
+- **Cause of Error**:
+  - During static analysis of `lib/components/court_visual_component.dart`, `MatchSide` was undefined because `match_state.dart` had not been explicitly imported into the standalone component file.
+  - `bot_visual_component.dart` and `player_visual_component.dart` had redundant imports for `draw_kinetic_paddle.dart` already exposed by `pickleball_flame_game.dart`.
+- **Resolution**:
+  - Added `import '../match_state.dart';` to `court_visual_component.dart`.
+  - Removed redundant import directives in bot and player visual components.
+  - Verified with `dart analyze` (0 issues) and `flutter test` (all 38 tests passed).
+
+---
+
 ## [2026-10-01 20:42:00 +08:00] - Orbital Familiar Paddle: Dynamic 3D Revolution Around Player & Bot Characters
 
 ### 1. Familiar Orbital Motion & Depth-Aware Layering
