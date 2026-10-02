@@ -174,7 +174,7 @@ class PlayerVisualComponent extends Component {
         paddleRimColor: equipped.paddleRimColor,
         energyColor: equipped.energyColor,
         sweetSpotColor: equipped.sweetSpotColor,
-        design: equipped.design,
+        design: equipped.resolvedDesign,
       );
     }
 

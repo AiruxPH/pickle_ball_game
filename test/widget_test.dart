@@ -29,7 +29,10 @@ void main() {
   test('paddle catalog gives every kinetic familiar a unique design', () {
     final paddles = PaddleCatalog.allPaddles;
     expect(paddles, isNotEmpty);
-    expect(paddles.map((paddle) => paddle.design).toSet().length, paddles.length);
+    expect(
+      paddles.map((paddle) => paddle.resolvedDesign).toSet().length,
+      paddles.length,
+    );
     expect(
       paddles.map((paddle) => paddle.id).toSet().length,
       paddles.length,

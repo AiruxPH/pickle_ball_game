@@ -14,6 +14,8 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 - Updated the 3D mesh renderer to vary head proportions and procedural surface accents from the same `PaddleDesign` data used by gameplay.
 - Renamed the preview controls to `VIEW KINETIC FAMILIAR` and `VIEW 3D PADDLE` for clearer player-facing language.
 - Added a catalog regression test ensuring every current paddle has a unique design identity and ID.
+- Fixed hot-reload compatibility for pre-existing `PaddleItem` instances by resolving a safe tournament design fallback when the newly added design field is absent.
+- Fixed invalid infinite-width `CustomPaint` constraints in both the 2D familiar and 3D mesh viewers by filling their bounded preview stacks with `Positioned.fill`.
 
 ### Files Changed
 - `lib/models/paddle_item.dart`
@@ -21,6 +23,7 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 - `lib/components/player_visual_component.dart`
 - `lib/components/bot_visual_component.dart`
 - `lib/widgets/paddle_3d_preview.dart`
+- `lib/widgets/interactive_racket_mesh_view.dart`
 - `lib/widgets/racket_3d_painter.dart`
 - `test/widget_test.dart`
 - `CHANGELOG.md`

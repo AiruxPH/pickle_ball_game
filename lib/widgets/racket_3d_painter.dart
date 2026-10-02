@@ -97,7 +97,7 @@ class Racket3DPainter extends CustomPainter {
       for (int i = 0; i < vCount; i++) {
         final idx = i * 6;
         final isHead = part.name == 'blade' || part.name == 'rim';
-        final profile = _profileScale(paddle.design);
+        final profile = _profileScale(paddle.resolvedDesign);
         final x0 = verts[idx] * (isHead ? profile.$1 : 1.0);
         final y0 = verts[idx + 1] * (isHead ? profile.$2 : 1.0);
         final z0 = verts[idx + 2];
@@ -165,7 +165,7 @@ class Racket3DPainter extends CustomPainter {
         }
 
         final motifGlow = part.name == 'blade'
-            ? _motifGlow(paddle.design, x0, y0)
+            ? _motifGlow(paddle.resolvedDesign, x0, y0)
             : 0.0;
         final accent = paddle.sweetSpotColor;
         final rFinal = ((rBase * light) + (sweetSpotGlow * 255) + motifGlow * accent.r * 255)

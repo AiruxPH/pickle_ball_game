@@ -28,7 +28,9 @@ class PaddleItem {
   final String tagline;
   final String description;
   final PaddleRarity rarity;
-  final PaddleDesign design;
+  // Nullable so objects retained across Flutter hot reloads remain compatible
+  // when this field is introduced. New catalog entries always set a design.
+  final PaddleDesign? design;
 
   // Kinetic Familiar Colors
   final Color paddleFaceColor;
@@ -88,6 +90,8 @@ class PaddleItem {
         PaddleRarity.epic => const Color(0xFFA855F7),
         PaddleRarity.legendary => const Color(0xFFF59E0B),
       };
+
+  PaddleDesign get resolvedDesign => design ?? PaddleDesign.tournament;
 }
 
 /// Official catalog of tournament and elemental pickleball paddles.

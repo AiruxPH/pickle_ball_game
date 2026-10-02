@@ -79,17 +79,18 @@ class _Paddle3DPreviewState extends State<Paddle3DPreview>
               height: widget.height ?? 240,
             )
           else
-            AnimatedBuilder(
-              animation: _animController,
-              builder: (context, _) {
-                return CustomPaint(
-                  size: Size(double.infinity, widget.height ?? 240),
-                  painter: _FamiliarPaddlePainter(
-                    paddle: widget.paddle,
-                    animTimer: _animController.value * 4.0,
-                  ),
-                );
-              },
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _animController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _FamiliarPaddlePainter(
+                      paddle: widget.paddle,
+                      animTimer: _animController.value * 4.0,
+                    ),
+                  );
+                },
+              ),
             ),
 
           // Platform Mode Switcher Button (3D Mesh / Familiar Canvas)
@@ -172,7 +173,7 @@ class _FamiliarPaddlePainter extends CustomPainter {
       paddleRimColor: paddle.paddleRimColor,
       energyColor: paddle.energyColor,
       sweetSpotColor: paddle.sweetSpotColor,
-      design: paddle.design,
+      design: paddle.resolvedDesign,
     );
   }
 

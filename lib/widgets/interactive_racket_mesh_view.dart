@@ -152,13 +152,14 @@ class _InteractiveRacketMeshViewState extends State<InteractiveRacketMeshView>
         alignment: Alignment.center,
         children: [
           // 3D Canvas
-          CustomPaint(
-            size: Size(double.infinity, widget.height),
-            painter: Racket3DPainter(
-              mesh: _mesh!,
-              paddle: widget.paddle,
-              yaw: _yaw,
-              pitch: _pitch,
+          Positioned.fill(
+            child: CustomPaint(
+              painter: Racket3DPainter(
+                mesh: _mesh!,
+                paddle: widget.paddle,
+                yaw: _yaw,
+                pitch: _pitch,
+              ),
             ),
           ),
 
