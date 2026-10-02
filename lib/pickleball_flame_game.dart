@@ -3,6 +3,7 @@ import 'dart:ui' show Offset, Image;
 import 'package:flame/game.dart';
 import 'package:flutter/services.dart';
 
+import 'components/animated_vfx_component.dart';
 import 'components/ball_visual_component.dart';
 import 'components/bot_visual_component.dart';
 import 'components/bounce_effect_component.dart';
@@ -13,8 +14,10 @@ import 'components/player_visual_component.dart';
 import 'game_debug_config.dart';
 import 'game_simulation.dart';
 import 'match_state.dart';
+import 'models/paddle_item.dart';
 import 'settings_manager.dart';
 
+export 'components/animated_vfx_component.dart';
 export 'components/ball_visual_component.dart';
 export 'components/bot_visual_component.dart';
 export 'components/bounce_effect_component.dart';
@@ -101,6 +104,18 @@ class PickleballFlameGame extends FlameGame {
     add(
       HitEffectComponent(center: center, isSmash: isSmash, scale: point.scale),
     );
+
+    final equipped = PaddleCatalog.getById(SettingsManager().equippedPaddleId);
+    if (equipped.vfxAsset != null) {
+      add(
+        AnimatedVfxComponent(
+          center: center,
+          scale: point.scale,
+          paddle: equipped,
+          game: this,
+        ),
+      );
+    }
 
     // Add camera shake for impact
     if (!SettingsManager().reducedMotion) {

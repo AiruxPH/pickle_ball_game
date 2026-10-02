@@ -16,6 +16,7 @@ class SettingsManager extends ChangeNotifier {
   bool _highContrast = false;
   bool _showEffects = true;
   bool _hapticsEnabled = true;
+  String _equippedPaddleId = 'pro_tournament';
 
   double get buttonOpacity => _buttonOpacity;
   double get buttonScale => _buttonScale;
@@ -24,6 +25,7 @@ class SettingsManager extends ChangeNotifier {
   bool get highContrast => _highContrast;
   bool get showEffects => _showEffects;
   bool get hapticsEnabled => _hapticsEnabled;
+  String get equippedPaddleId => _equippedPaddleId;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -34,6 +36,8 @@ class SettingsManager extends ChangeNotifier {
     _highContrast = _prefs?.getBool('highContrast') ?? false;
     _showEffects = _prefs?.getBool('showEffects') ?? true;
     _hapticsEnabled = _prefs?.getBool('hapticsEnabled') ?? true;
+    _equippedPaddleId =
+        _prefs?.getString('equippedPaddleId') ?? 'pro_tournament';
     notifyListeners();
   }
 
@@ -76,6 +80,12 @@ class SettingsManager extends ChangeNotifier {
   Future<void> setHapticsEnabled(bool value) async {
     _hapticsEnabled = value;
     await _prefs?.setBool('hapticsEnabled', value);
+    notifyListeners();
+  }
+
+  Future<void> setEquippedPaddleId(String value) async {
+    _equippedPaddleId = value;
+    await _prefs?.setString('equippedPaddleId', value);
     notifyListeners();
   }
 }

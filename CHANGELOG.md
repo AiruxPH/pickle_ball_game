@@ -4,6 +4,61 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 16:50:00 +08:00] - Paddle Shop with 3D Carousel Viewer, Interactive GLB Racket, and Pixel-Art Hit VFX
+
+### 1. Carousel-Type Paddle Shop Architecture
+- **Reason of Change**:
+  - Introduce an equipment shop allowing players to view, compare, inspect, and equip different tournament and elemental paddles.
+  - Implement a tactile, carousel-type viewer (`PageView.builder`) with perspective card scaling, smooth indicator dots, rarity badging, and spec bars.
+- **Changes**:
+  - `lib/models/paddle_item.dart`:
+    - Defined `PaddleItem` data model holding rarity (`standard`, `rare`, `epic`, `legendary`), visual color themes (`paddleFaceColor`, `paddleRimColor`, `energyColor`, `sweetSpotColor`), pixel-art VFX spritesheet specifications, and gameplay ratings (`power`, `control`, `spin`).
+    - Created `PaddleCatalog` with 7 distinct paddles:
+      1. **Pro Tournament** (Standard USAP Graphite Core)
+      2. **Thunderstrike** (Overcharged Lightning Core with electric arc VFX)
+      3. **Inferno Blaze** (Thermobaric Fireburst Face with fireball burst VFX)
+      4. **Blood Sovereign** (Occult Sanguine Resonance with dark blood-void VFX)
+      5. **Starcaller Cosmos** (Astral Supernova Weave with lavender supernova VFX)
+      6. **Kinetic Slammer** (High-Impact Alloy with concentric shockwave VFX)
+      7. **Shadow Phantom** (Sub-Zero Stealth Composite with smoke dissipation VFX)
+  - `lib/widgets/paddle_carousel_card.dart`:
+    - Standalone carousel card widget with smooth active-scale transitions, glassmorphic styling, glowing borders matching paddle energy colors, rarity badges, and instant "EQUIP" / "EQUIPPED" actions.
+  - `lib/widgets/paddle_stats_panel.dart`:
+    - Standalone specifications panel displaying animated rating progress bars (`POWER`, `CONTROL`, `SPIN`) and lore descriptions.
+  - `lib/screens/paddle_shop_screen.dart`:
+    - Standalone carousel shop screen with top navigation, live equipped status, active page indicator pills, and animated card transitions.
+  - `lib/screens/main_menu_screen.dart`:
+    - Added dedicated "SHOP" button in the top action bar with cyan shopping-bag icon and active navigation route.
+
+### 2. 3D GLB Racket & Real-Time Kinetic Canvas Preview
+- **Reason of Change**:
+  - Leverage the 3D model asset `assets/models/racket_for_pickleball.glb` while ensuring robust cross-platform fallback for environments without WebGL/WebView2.
+- **Changes**:
+  - `lib/widgets/paddle_3d_preview.dart`:
+    - Embedded `ModelViewer` targeting `assets/models/racket_for_pickleball.glb` with auto-rotation, camera controls, and transparent canvas.
+    - Integrated interactive fallback / manual toggle to a real-time `CustomPaint` kinetic familiar paddle canvas rendering orbit trails, carbon weave texture, and glowing sweet spots.
+
+### 3. Pixel-Art Animated VFX Integration
+- **Reason of Change**:
+  - Bring visual excitement to hits and smashes using newly imported pixel-art VFX sprite packs (Lightning, Fire, Blood, Starcaller, Impacts, Smoke).
+- **Changes**:
+  - Processed and registered spritesheets in `assets/images/vfx/` and updated `pubspec.yaml`.
+  - `lib/components/animated_vfx_component.dart`:
+    - Flame component that loads and animates sprite sheet frames with pixel-perfect filtering (`FilterQuality.none`), automatic frame duration timing, and alpha fadeout.
+  - `lib/pickleball_flame_game.dart`:
+    - Updated `spawnHitEffect` to spawn `AnimatedVfxComponent` at the ball's projected 3D coordinates when the equipped paddle has an associated VFX asset.
+  - `lib/components/player_visual_component.dart`:
+    - Bound kinetic familiar paddle rendering to the player's currently equipped paddle colors (`SettingsManager().equippedPaddleId`).
+
+### 4. Standalone Modular Slicing Rule Compliance
+- **Reason of Change**:
+  - Adhere to the strict architectural rule: every new component and widget must reside in its own dedicated, standalone file to prevent file bloat.
+- **Verification**:
+  - `dart analyze`: 0 warnings, 0 errors.
+  - `flutter test`: 38/38 tests passing.
+
+---
+
 ## [2026-10-02 16:15:00 +08:00] - Monolith Codebase Slicing: Modularization of Main Application and Flame Game Components
 
 ### 1. Main Entrypoint & UI Overlay Deconstruction

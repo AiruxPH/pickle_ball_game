@@ -5,7 +5,9 @@ import 'package:flame/components.dart';
 
 import '../game_debug_config.dart';
 import '../game_simulation.dart';
+import '../models/paddle_item.dart';
 import '../pickleball_flame_game.dart';
+import '../settings_manager.dart';
 
 /// Flame visual component for rendering the player character, animation frames,
 /// electric cyan familiar paddle orbit, and debug reach hitboxes.
@@ -154,6 +156,7 @@ class PlayerVisualComponent extends Component {
     final orbitAngle = animTimer * 2.6;
     final isBehind = math.sin(orbitAngle) < -0.15 && !game.isSwinging;
 
+    final equipped = PaddleCatalog.getById(SettingsManager().equippedPaddleId);
     void drawPlayerFamiliarPaddle() {
       drawKineticPaddle(
         canvas: canvas,
@@ -164,10 +167,10 @@ class PlayerVisualComponent extends Component {
         isSwinging: game.isSwinging,
         swingProgress: (_swingTimer / 0.18).clamp(0.0, 1.0),
         ballScreenPos: ballScreenPos,
-        paddleFaceColor: const Color(0xFF00E5FF), // Electric Neon Cyan
-        paddleRimColor: const Color(0xFF102A43), // Dark Graphite Navy
-        energyColor: const Color(0xFF00E5FF), // Cyan Energy
-        sweetSpotColor: const Color(0xFFFFFFFF), // Pure White sweet spot
+        paddleFaceColor: equipped.paddleFaceColor,
+        paddleRimColor: equipped.paddleRimColor,
+        energyColor: equipped.energyColor,
+        sweetSpotColor: equipped.sweetSpotColor,
       );
     }
 

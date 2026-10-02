@@ -4,6 +4,7 @@ import '../main.dart' show PickleballGame; // To navigate to the game
 import '../game_simulation.dart' show BotDifficulty;
 import '../theme/app_theme.dart';
 import 'profile_screen.dart';
+import 'paddle_shop_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/angular_frame.dart';
 import '../widgets/background_painter.dart';
@@ -135,12 +136,14 @@ class MainMenuScreen extends StatelessWidget {
                     children: [
                       // Left: Profile
                       _buildProfilePill(context),
-                      // Right: Currencies & Settings
+                      // Right: Currencies, Shop & Settings
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildCurrencyPill(),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
+                          _buildShopPill(context),
+                          const SizedBox(width: 10),
                           _buildIconButton(Icons.settings, () {
                             Navigator.push(
                               context,
@@ -301,6 +304,50 @@ class MainMenuScreen extends StatelessWidget {
             child: const Icon(Icons.add, color: Colors.black, size: 14),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildShopPill(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PaddleShopScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFFF59E0B),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sports_tennis, color: Color(0xFFF59E0B), size: 16),
+            SizedBox(width: 6),
+            Text(
+              'SHOP',
+              style: TextStyle(
+                color: Color(0xFFF59E0B),
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
