@@ -236,7 +236,9 @@ class _PaddleShopScreenState extends State<PaddleShopScreen> {
 
               // Lower Deck: Horizontal Carousel of Paddles
               SizedBox(
-                height: compact ? 95 : 120,
+                height: compact
+                    ? (size.height * 0.28).clamp(104.0, 126.0)
+                    : 126.0,
                 child: Listener(
                   behavior: HitTestBehavior.translucent,
                   onPointerSignal: (pointerSignal) {

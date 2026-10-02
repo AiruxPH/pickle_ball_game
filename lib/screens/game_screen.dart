@@ -57,7 +57,7 @@ class _PickleballGameState extends State<PickleballGame> {
   int get playerScore => match.playerScore;
   int get botScore => match.botScore;
   double get _uiScale =>
-      (MediaQuery.sizeOf(context).height / 600).clamp(0.68, 1.0);
+      (MediaQuery.sizeOf(context).height / 600).clamp(0.55, 1.0);
 
   @override
   void initState() {

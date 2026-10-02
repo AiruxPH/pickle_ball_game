@@ -41,11 +41,23 @@ class PaddleCarouselCard extends StatelessWidget {
                   const Color(0xFF0F172A),
                   const Color(0xFF090E17),
                 ],
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth:
+                        constraints.maxWidth > 0 ? constraints.maxWidth : 180,
+                    minHeight:
+                        constraints.maxHeight > 0 ? constraints.maxHeight : 84,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
               // Top Row: Rarity badge & Equipped tag
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -151,7 +163,9 @@ class PaddleCarouselCard extends StatelessWidget {
                     ],
                   ),
                   Icon(
-                    isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                    isSelected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
                     color: isSelected ? paddle.energyColor : Colors.white24,
                     size: 16,
                   ),
@@ -160,9 +174,13 @@ class PaddleCarouselCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  ),
+),
+),
+);
+}
 
   Widget _buildSwatch(Color color) {
     return Container(

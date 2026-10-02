@@ -4,6 +4,44 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-02 19:54:00 +08:00] - Comprehensive Responsive Layout Architecture & Sliced UI Overlays
+
+### 1. Root Cause Analysis of Layout Overflows
+- **Pause Menu 27.0px Bottom Overflow**:
+  - *Cause of Error*: `GamePauseOverlay` content had a fixed vertical footprint (~296px including 56px outer padding, 32px title, 28px margin, three 48px action buttons, and 24px spacing). On short landscape viewports (screen height ~260px - 320px), the `Column` inside `AngularFrame` exceeded the available screen height by 27px, causing a Flutter layout assertion exception with yellow/black hazard bars.
+- **Paddle Shop Cards 7.0px Bottom Overflow**:
+  - *Cause of Error*: On compact heights (`height < 520px`), `PaddleShopScreen` hardcoded carousel container height to 95px. `PaddleCarouselCard` had 28px vertical padding, 17px rarity badge, 28px title/tagline, 14px palette row, and flex spacing summing to ~102px, overflowing by 7px.
+- **Top-Down Camera Scoreboard Collision**:
+  - *Cause of Error*: In `CameraMode.topDown`, the camera eye was placed at `(0, 0, 2.15)`. At this zoom level, the top baseline and top bot's head were located at screen coordinates overlapping directly beneath the top centered scoreboard (`RALLY 20`).
+
+### 2. Sliced Modular Architecture (Rule 2 Compliance)
+- Extracted and sliced standalone widgets into individual files:
+  - `lib/widgets/pause_menu_button.dart`: Standalone responsive action button widget with compact mode support, customizable colors, and icons.
+  - `lib/widgets/confirmation_dialog.dart`: Standalone modal dialog with responsive sizing and `FittedBox` scale-down protection for destructive actions (Restart / Quit).
+  - `lib/widgets/game_pause_overlay.dart`: Refactored to import and coordinate the sliced components cleanly.
+
+### 3. Responsive Screen Improvements
+- **`lib/widgets/game_pause_overlay.dart`**:
+  - Added responsive padding, typography, and spacing adapting to `isCompact` (< 420px) and `isSuperCompact` (< 320px).
+  - Wrapped `AngularFrame` in `FittedBox(fit: BoxFit.scaleDown)` ensuring that on any screen size or aspect ratio, the pause menu automatically and smoothly scales down without ever overflowing.
+- **`lib/widgets/match_complete_overlay.dart`**:
+  - Added responsive compact metrics and `FittedBox(fit: BoxFit.scaleDown)` wrapper to prevent similar victory/defeat dialog overflows on compact landscape windows.
+- **`lib/widgets/paddle_carousel_card.dart`**:
+  - Reduced vertical padding from 14px to 8px.
+  - Wrapped inner card elements in `LayoutBuilder`, `FittedBox(fit: BoxFit.scaleDown)`, and `ConstrainedBox`, mathematically eliminating card overflows regardless of carousel height.
+- **`lib/screens/paddle_shop_screen.dart`**:
+  - Adjusted carousel height calculation to `(size.height * 0.28).clamp(104.0, 126.0)`.
+- **`lib/game_simulation.dart`**:
+  - Adjusted `CameraMode.topDown` camera parameters to `eye: (shakeX, shakeY - 0.12, 2.65)` and `target: (0.0, -0.12, 0.0)`. The court now has generous margins and the top bot has clear breathing room below the scoreboard.
+- **`lib/screens/game_screen.dart`**:
+  - Lowered minimum clamp for `_uiScale` to `0.55` so controls and HUD elements scale proportionally on compact mobile displays.
+
+### 4. Verification
+- `dart analyze`: 0 issues found across all files.
+- `flutter test`: 41/41 tests passed (100%), including new dedicated compact landscape tests for `GamePauseOverlay`, `MatchCompleteOverlay`, and `PaddleShopScreen`.
+
+---
+
 ## [2026-10-02 18:29:00 +08:00] - Mouse Wheel & Pointer Scroll Carousel Navigation in Paddle Shop
 
 ### 1. Mouse Wheel Navigation in Horizontal Carousel

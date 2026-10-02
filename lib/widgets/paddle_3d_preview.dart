@@ -11,12 +11,12 @@ import 'interactive_racket_mesh_view.dart';
 /// orbital familiar canvas with animated strike physics.
 class Paddle3DPreview extends StatefulWidget {
   final PaddleItem paddle;
-  final double height;
+  final double? height;
 
   const Paddle3DPreview({
     super.key,
     required this.paddle,
-    this.height = 240,
+    this.height,
   });
 
   @override
@@ -76,14 +76,14 @@ class _Paddle3DPreviewState extends State<Paddle3DPreview>
             InteractiveRacketMeshView(
               key: ValueKey('3d_mesh_${widget.paddle.id}'),
               paddle: widget.paddle,
-              height: widget.height,
+              height: widget.height ?? 240,
             )
           else
             AnimatedBuilder(
               animation: _animController,
               builder: (context, _) {
                 return CustomPaint(
-                  size: Size(double.infinity, widget.height),
+                  size: Size(double.infinity, widget.height ?? 240),
                   painter: _FamiliarPaddlePainter(
                     paddle: widget.paddle,
                     animTimer: _animController.value * 4.0,

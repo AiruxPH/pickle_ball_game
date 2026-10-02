@@ -15,7 +15,10 @@ import 'package:pickle_ball_game/match_state.dart';
 import 'package:pickle_ball_game/pickleball_flame_game.dart';
 import 'package:pickle_ball_game/pickleball_rules.dart';
 import 'package:pickle_ball_game/screens/main_menu_screen.dart';
+import 'package:pickle_ball_game/screens/paddle_shop_screen.dart';
 import 'package:pickle_ball_game/screens/settings_screen.dart';
+import 'package:pickle_ball_game/widgets/game_pause_overlay.dart';
+import 'package:pickle_ball_game/widgets/match_complete_overlay.dart';
 
 void main() {
   test('court and match rules use shared boundaries', () {
@@ -951,4 +954,82 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 5));
   });
+
+  testWidgets(
+    'GamePauseOverlay renders without overflow on compact landscape viewports',
+    (WidgetTester tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(640, 260);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GamePauseOverlay(
+              onResume: () {},
+              onRestart: () {},
+              onQuit: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('PAUSED'), findsOneWidget);
+      expect(find.text('RESUME'), findsOneWidget);
+      expect(find.text('RESTART'), findsOneWidget);
+      expect(find.text('QUIT'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'MatchCompleteOverlay renders without overflow on compact landscape viewports',
+    (WidgetTester tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(640, 260);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MatchCompleteOverlay(
+              playerScore: 11,
+              botScore: 8,
+              onPlayAgain: () {},
+              onBackToMenu: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('🏆 VICTORY'), findsOneWidget);
+      expect(find.text('11 - 8'), findsOneWidget);
+      expect(find.text('PLAY AGAIN'), findsOneWidget);
+      expect(find.text('BACK TO MENU'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'PaddleShopScreen renders without overflow on compact landscape viewports',
+    (WidgetTester tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(640, 280);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: PaddleShopScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.takeException(), isNull);
+      expect(find.text('PADDLE ARSENAL'), findsOneWidget);
+    },
+  );
 }
+

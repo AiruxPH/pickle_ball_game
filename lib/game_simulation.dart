@@ -173,9 +173,9 @@ class Camera3D {
         target = eye + vmath.Vector3(dirX, dirY, dirZ);
         break;
       case CameraMode.topDown:
-        // Zoomed-in top-down framing where the court fills the view comfortably
-        eye = vmath.Vector3(shakeX, shakeY, 2.15);
-        target = vmath.Vector3(0.0, 0.0, 0.0);
+        // Top-down framing where the court fills the view comfortably with clearance for top HUD
+        eye = vmath.Vector3(shakeX, shakeY - 0.12, 2.65);
+        target = vmath.Vector3(0.0, -0.12, 0.0);
         up = vmath.Vector3(0.0, -1.0, 0.0); // Looking down Z, Y is up on screen
         break;
     }
