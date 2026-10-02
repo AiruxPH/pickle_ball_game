@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../screens/rulebook_screen.dart';
 import 'angular_frame.dart';
 import 'confirmation_dialog.dart';
 import 'pause_menu_button.dart';
@@ -83,6 +84,23 @@ class GamePauseOverlay extends StatelessWidget {
                         content:
                             'Are you sure you want to restart? Your current score will be lost.',
                         onConfirm: onRestart,
+                      );
+                    },
+                  ),
+                  SizedBox(height: isCompact ? 8 : 12),
+                  PauseMenuButton(
+                    icon: Icons.menu_book,
+                    label: 'RULEBOOK',
+                    color: Colors.transparent,
+                    textColor: const Color(0xFF00E5FF),
+                    borderColor: const Color(0xFF00E5FF).withValues(alpha: 0.5),
+                    compact: isCompact,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RulebookScreen(),
+                        ),
                       );
                     },
                   ),

@@ -5,6 +5,7 @@ import '../game_simulation.dart' show BotDifficulty;
 import '../theme/app_theme.dart';
 import 'profile_screen.dart';
 import 'paddle_shop_screen.dart';
+import 'rulebook_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/angular_frame.dart';
 import '../widgets/background_painter.dart';
@@ -143,6 +144,15 @@ class MainMenuScreen extends StatelessWidget {
                           _buildCurrencyPill(),
                           const SizedBox(width: 10),
                           _buildShopPill(context),
+                          const SizedBox(width: 10),
+                          _buildIconButton(Icons.menu_book, () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RulebookScreen(),
+                              ),
+                            );
+                          }),
                           const SizedBox(width: 10),
                           _buildIconButton(Icons.settings, () {
                             Navigator.push(

@@ -21,11 +21,24 @@ class PickleballRules {
   static const double courtLength = 1.0;
   // Half-court width: 10 ft / 22 ft = 0.4545
   static const double courtWidth = 0.4545;
-  // Net height: 36 inches / 22 ft = 0.1364 at posts (34 inches / 22 ft = 0.1288 at center)
-  static const double netHeight = 0.1364;
+
+  // USAP Rule 2.C.2: Net height is 36 inches at the sidelines, 34 inches at center
+  // 36 in / (22 ft * 12 in/ft) = 0.1364
+  // 34 in / (22 ft * 12 in/ft) = 0.1288
+  static const double netHeightPosts = 36.0 / (22.0 * 12.0); // 0.13636
+  static const double netHeightCenter = 34.0 / (22.0 * 12.0); // 0.12879
+  /// Standard reference post net height (backward compatibility)
+  static const double netHeight = netHeightPosts;
+
   // Non-Volley Zone ("Kitchen"): 7 ft / 22 ft = 0.3182
-  static const double kitchenDepth = 0.3182;
+  static const double kitchenDepth = 7.0 / 22.0; // 0.31818
   static const double screenCourtScale = 0.9;
+
+  /// Returns the USAP regulation net height at a given horizontal distance [x] from center.
+  static double netHeightAtX(double x) {
+    final t = (x.abs() / courtWidth).clamp(0.0, 1.0);
+    return netHeightCenter + t * (netHeightPosts - netHeightCenter);
+  }
 
   static bool isInsideCourt(double x, double y) {
     return x.abs() <= courtWidth && y.abs() <= courtLength;

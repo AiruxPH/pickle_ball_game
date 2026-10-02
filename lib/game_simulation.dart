@@ -1255,7 +1255,7 @@ class GameSimulation {
     final crossedNetPlane = (previousBallY < 0 && ball.y >= 0) ||
         (previousBallY > 0 && ball.y <= 0);
     final isWithinNetHeight =
-        ball.z < PickleballRules.netHeight && ball.z >= 0;
+        ball.z < PickleballRules.netHeightAtX(ball.x) && ball.z >= 0;
     final isWithinNetWidth = ball.x.abs() <= courtWidth * 1.15;
 
     if (crossedNetPlane && isWithinNetHeight && isWithinNetWidth) {
