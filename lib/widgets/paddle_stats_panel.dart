@@ -23,15 +23,14 @@ class PaddleStatsPanel extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final contentWidth = constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : 320.0;
           return FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth:
-                    constraints.maxWidth > 0 ? constraints.maxWidth : 220,
-                maxWidth: 320,
-              ),
+            child: SizedBox(
+              width: contentWidth,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,

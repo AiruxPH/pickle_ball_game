@@ -22,6 +22,7 @@ import 'package:pickle_ball_game/screens/rulebook_screen.dart';
 import 'package:pickle_ball_game/screens/settings_screen.dart';
 import 'package:pickle_ball_game/widgets/game_pause_overlay.dart';
 import 'package:pickle_ball_game/widgets/match_complete_overlay.dart';
+import 'package:pickle_ball_game/widgets/paddle_stats_panel.dart';
 import 'package:pickle_ball_game/widgets/rulebook/glossary_card_widget.dart';
 import 'package:pickle_ball_game/widgets/serve_rhythm_meter.dart';
 
@@ -37,6 +38,30 @@ void main() {
       paddles.map((paddle) => paddle.id).toSet().length,
       paddles.length,
     );
+  });
+
+  testWidgets('paddle stats panel accepts widths greater than 320 pixels', (
+    WidgetTester tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(640, 360);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 580,
+            height: 220,
+            child: PaddleStatsPanel(paddle: PaddleCatalog.allPaddles.first),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('SPECIFICATIONS'), findsOneWidget);
   });
 
   test('court and match rules use shared boundaries', () {

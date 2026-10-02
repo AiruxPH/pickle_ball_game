@@ -4,6 +4,21 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-03] - Paddle Stats Wide-Layout Constraint Fix
+
+### Fixes
+- Fixed `BoxConstraints has non-normalized width constraints` in `PaddleStatsPanel` when its available width exceeded 320 pixels.
+- Replaced the conflicting dynamic `minWidth` and fixed 320-pixel `maxWidth` with one finite width derived from the `LayoutBuilder` constraints.
+- Preserved `FittedBox.scaleDown` behavior for vertically compact landscape layouts.
+- Added a 580-pixel-wide widget regression test for the stats panel.
+
+### Files Changed
+- `lib/widgets/paddle_stats_panel.dart`
+- `test/widget_test.dart`
+- `CHANGELOG.md`
+
+---
+
 ## [2026-10-02] - Distinct Paddle Designs & Kinetic Familiar Identities
 
 ### Changes
