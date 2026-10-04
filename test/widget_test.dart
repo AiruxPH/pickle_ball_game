@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flame/game.dart';
 
 import 'package:pickle_ball_game/game_simulation.dart';
+import 'package:pickle_ball_game/game_input_adapter.dart';
 import 'package:pickle_ball_game/main.dart';
 import 'package:pickle_ball_game/match_state.dart';
 import 'package:pickle_ball_game/models/paddle_item.dart';
@@ -27,6 +28,19 @@ import 'package:pickle_ball_game/widgets/rulebook/glossary_card_widget.dart';
 import 'package:pickle_ball_game/widgets/serve_rhythm_meter.dart';
 
 void main() {
+  test('mouse drag input shares normalized joystick movement', () {
+    final input = GameInputAdapter();
+    input.setDirectionalInput(2, 2);
+
+    expect(input.joystickX, closeTo(0.707106, 0.000001));
+    expect(input.joystickY, closeTo(0.707106, 0.000001));
+    expect(input.knobOffset.distance, closeTo(45, 0.0001));
+
+    input.resetJoystick();
+    expect(input.joystickX, 0);
+    expect(input.joystickY, 0);
+  });
+
   test('paddle catalog gives every kinetic familiar a unique design', () {
     final paddles = PaddleCatalog.allPaddles;
     expect(paddles, isNotEmpty);
@@ -246,6 +260,86 @@ void main() {
     expect(simulation.isTwoBounceViolation(forPlayer: false), isFalse);
   });
 
+  test('player cannot volley before the required server-side bounce', () {
+    final simulation = GameSimulation();
+    simulation
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.serverBounceRequired
+      ..servingSide = MatchSide.player
+      ..playerX = 0
+      ..playerY = 0.75;
+    simulation.ball
+      ..x = 0
+      ..y = 0.60
+      ..z = 0.08
+      ..velocityY = 0.01
+      ..hasBounced = false;
+
+    expect(simulation.canPlayerHitBall(), isTrue);
+    expect(simulation.swing(), SwingResult.twoBounceFault);
+  });
+
+  test('missed swing reports why the player could not contact the ball', () {
+    final simulation = GameSimulation();
+    simulation
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.openRally
+      ..playerX = 0
+      ..playerY = 0.75;
+
+    simulation.ball
+      ..x = 0.40
+      ..y = 0.65
+      ..z = 0.15
+      ..velocityY = 0.01;
+    expect(simulation.swing(), SwingResult.missed);
+    expect(simulation.lastPlayerMissReason, PlayerMissReason.tooFarSideways);
+
+    simulation.ball
+      ..x = 0
+      ..y = 0.30
+      ..z = 0.15
+      ..velocityY = 0.01;
+    expect(simulation.swing(), SwingResult.missed);
+    expect(simulation.lastPlayerMissReason, PlayerMissReason.tooEarly);
+
+    simulation.ball
+      ..x = 0
+      ..y = 0.65
+      ..z = 0.15
+      ..velocityY = -0.01;
+    expect(simulation.swing(), SwingResult.missed);
+    expect(simulation.lastPlayerMissReason, PlayerMissReason.ballMovingAway);
+  });
+
+  test('buffered swing faults instead of hitting before required bounce', () {
+    final simulation = GameSimulation();
+    simulation
+      ..playPhase = MatchPlayPhase.inRally
+      ..rallyPhase = RallyPhase.serverBounceRequired
+      ..servingSide = MatchSide.player
+      ..playerX = 0
+      ..playerY = 0.75
+      ..playerSwingActiveTimer = 0.20;
+    simulation.ball
+      ..x = 0
+      ..y = 0.60
+      ..z = 0.08
+      ..velocityY = 0.01
+      ..hasBounced = false;
+
+    expect(simulation.update(), RallyEnd.playerFault);
+    expect(simulation.playPhase, MatchPlayPhase.deadBall);
+    expect(simulation.rallyLength, 0);
+  });
+
+  test('diagonal player input is normalized to straight-line speed', () {
+    final input = normalizeDirectionalInput(1, 1);
+    expect(input.distance, closeTo(1.0, 0.000001));
+    expect(input.dx, closeTo(0.707106, 0.000001));
+    expect(input.dy, closeTo(0.707106, 0.000001));
+  });
+
   test('bot moves toward the predicted bounce instead of the current ball', () {
     final simulation = GameSimulation();
     simulation.botReactionTimer = 0;
@@ -442,6 +536,19 @@ void main() {
     expect(simulation.rallyLength, 0);
     expect(simulation.playerVelocityX, beforeX);
     expect(simulation.playerVelocityY, beforeY);
+  });
+
+  test('dash is ignored while the player is serving', () {
+    final simulation = GameSimulation();
+    simulation.resetRally(servingSide: MatchSide.player);
+    var dashFired = false;
+    simulation.onPlayerDash = (_, _) => dashFired = true;
+
+    simulation.dashPlayer();
+
+    expect(simulation.playerVelocityX, 0);
+    expect(simulation.playerVelocityY, 0);
+    expect(dashFired, isFalse);
   });
 
   test('low receiving contact selects a net-clearing safe return', () {

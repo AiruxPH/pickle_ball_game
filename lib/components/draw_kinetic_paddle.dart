@@ -3,6 +3,16 @@ import 'dart:ui';
 
 import '../models/paddle_item.dart';
 
+double kineticFamiliarOrbitSpeed(PaddleDesign design) => switch (design) {
+      PaddleDesign.lightning => 3.5,
+      PaddleDesign.inferno => 2.9,
+      PaddleDesign.sovereign => 2.15,
+      PaddleDesign.cosmos => 1.75,
+      PaddleDesign.industrial => 1.55,
+      PaddleDesign.phantom => 2.35,
+      PaddleDesign.tournament => 2.6,
+    };
+
 /// Standalone rendering function for drawing the kinetic elongated paddle familiar,
 /// its revolving orbit, aiming vector, and contact effects.
 void drawKineticPaddle({
@@ -34,15 +44,7 @@ void drawKineticPaddle({
 
   // --- FAMILIAR REVOLVING ORBIT ---
   // The paddle orbits around the character like a magical companion/familiar.
-  final orbitSpeed = switch (design) {
-    PaddleDesign.lightning => 3.5,
-    PaddleDesign.inferno => 2.9,
-    PaddleDesign.sovereign => 2.15,
-    PaddleDesign.cosmos => 1.75,
-    PaddleDesign.industrial => 1.55,
-    PaddleDesign.phantom => 2.35,
-    PaddleDesign.tournament => 2.6,
-  };
+  final orbitSpeed = kineticFamiliarOrbitSpeed(design);
   final orbitAngle = animTimer * orbitSpeed;
   final orbitRadiusX = 28.0 * scale;
   final orbitRadiusY = 11.5 * scale; // Compressed in Y for isometric perspective

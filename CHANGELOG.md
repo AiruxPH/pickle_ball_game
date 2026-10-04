@@ -4,6 +4,68 @@ All notable changes, fixes, and improvements to the Pickleball Game are document
 
 ---
 
+## [2026-10-03] - Gameplay Video Review Improvements
+
+### Changes
+- Made the gameplay viewport responsive: landscape displays now use 16:9 instead of forcing the court into a narrow portrait 9:16 column.
+- Added a high-visibility ball height guide, landing ring, and ground marker so aerial depth and the projected landing position are easier to judge.
+- Moved rally and fault feedback from above the joystick to a centered HUD position beneath the scoreboard.
+- Moved the serve rhythm meter into a dedicated upper HUD position instead of covering the near court and player controls.
+- Added cause-specific missed-swing feedback for a ball moving away, early and late swings, excessive lateral distance, and excessive ball height.
+- Preserved kitchen and two-bounce fault callouts through scoring transitions instead of immediately replacing them with generic point text.
+- Carried automatic second-bounce, net, and out-of-bounds causes into the rally-result HUD.
+- Added regression coverage for player miss-reason classification.
+
+### Files Changed
+- `lib/components/ball_visual_component.dart`
+- `lib/game_simulation.dart`
+- `lib/screens/game_screen.dart`
+- `test/widget_test.dart`
+- `CHANGELOG.md`
+
+---
+
+## [2026-10-03] - Primary Mouse Swipe Movement
+
+### Changes
+- Added primary/left-mouse drag movement over the gameplay court for player-vs-bot and practice modes.
+- Mapped drag direction through the same circular normalization used by the virtual joystick, preventing diagonal speed boosts.
+- Reset drag movement immediately when the primary button is released.
+- Preserved existing free-roam drag behavior for camera orbit and kept spectator mode input isolated from player movement.
+- Added a regression test for normalized mouse-drag input and release/reset behavior.
+
+### Files Changed
+- `lib/game_input_adapter.dart`
+- `lib/screens/game_screen.dart`
+- `test/widget_test.dart`
+- `CHANGELOG.md`
+
+---
+
+## [2026-10-03] - Player-Side Gameplay Reliability Pass
+
+### Fixes
+- Normalized combined directional input so diagonal keyboard movement no longer travels about 41% faster than straight movement.
+- Disabled player dash while the player is serving, where baseline positioning ignores velocity and previously produced VFX without actual movement.
+- Fixed immediate and buffered swings being able to volley a low ball before the mandatory server-side bounce; both paths now consistently report a two-bounce fault.
+- Added focused regression tests for diagonal input, serve-time dash suppression, immediate two-bounce violations, and buffered two-bounce violations.
+- Reset joystick and effective movement input when pausing or restarting, preventing movement from remaining latched after a touch is interrupted by an overlay.
+- Replaced overlapping delayed swing callbacks with one cancellable timer so a previous swing cannot prematurely stop a newer swing animation.
+- Restored the browser context menu when leaving the game screen instead of leaving it disabled throughout the web application.
+- Synchronized player and bot sprite layering with each familiar's unique orbit speed, preventing non-tournament paddles from popping through characters at the wrong point in their orbit.
+
+### Files Changed
+- `lib/game_simulation.dart`
+- `lib/pickleball_flame_game.dart`
+- `lib/screens/game_screen.dart`
+- `lib/components/draw_kinetic_paddle.dart`
+- `lib/components/player_visual_component.dart`
+- `lib/components/bot_visual_component.dart`
+- `test/widget_test.dart`
+- `CHANGELOG.md`
+
+---
+
 ## [2026-10-03] - Paddle Stats Wide-Layout Constraint Fix
 
 ### Fixes

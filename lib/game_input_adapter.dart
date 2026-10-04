@@ -60,6 +60,21 @@ class GameInputAdapter {
     onJoystickChanged?.call(0.0, 0.0);
   }
 
+  /// Updates directional input from a non-joystick source such as a primary
+  /// mouse drag. Values are normalized to the same circular range as touch.
+  void setDirectionalInput(double x, double y) {
+    var nextX = x;
+    var nextY = y;
+    final distance = math.sqrt(nextX * nextX + nextY * nextY);
+    if (distance > 1.0) {
+      nextX /= distance;
+      nextY /= distance;
+    }
+    joystickX = nextX.clamp(-1.0, 1.0).toDouble();
+    joystickY = nextY.clamp(-1.0, 1.0).toDouble();
+    onJoystickChanged?.call(joystickX, joystickY);
+  }
+
   /// Reset forcefully (e.g. when the game pauses).
   void resetJoystick() {
     _activePointerId = null;

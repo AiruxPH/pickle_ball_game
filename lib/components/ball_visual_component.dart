@@ -72,6 +72,32 @@ class BallVisualComponent extends Component {
     final shadowScale = depthScale * simulation.ballShadowScale();
     final ballScale = depthScale * simulation.ballScale();
 
+    // A height guide and landing ring make the ball's elevation readable even
+    // when perspective places it well above the far baseline.
+    if (simulation.ball.z > 0.025) {
+      final heightAlpha = (0.22 + simulation.ball.z * 1.6)
+          .clamp(0.22, 0.72)
+          .toDouble();
+      final guidePaint = Paint()
+        ..color = const Color(0xFFD8F06A).withValues(alpha: heightAlpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4 * depthScale;
+      canvas.drawLine(shadowCenter, ballCenter, guidePaint);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: shadowCenter,
+          width: 25 * depthScale,
+          height: 11 * depthScale,
+        ),
+        guidePaint,
+      );
+      canvas.drawCircle(
+        shadowCenter,
+        2.2 * depthScale,
+        Paint()..color = const Color(0xFFD8F06A),
+      );
+    }
+
     // Draw shadow
     final shadowPaint = Paint()
       ..color = const Color(0x99000000)

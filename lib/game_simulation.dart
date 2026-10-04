@@ -58,6 +58,14 @@ enum RallyEnd { playerFault, botFault }
 
 enum SwingResult { hit, missed, kitchenFault, twoBounceFault }
 
+enum PlayerMissReason {
+  ballMovingAway,
+  tooEarly,
+  tooLate,
+  tooFarSideways,
+  ballTooHigh,
+}
+
 class Camera3D {
   Camera3D() {
     _updateMatrices();
@@ -364,6 +372,8 @@ class GameSimulation {
   final serveRhythm = ServeRhythmController();
   VoidCallback? onServeWhiff;
   ServeTimingResult? lastServeTiming;
+  PlayerMissReason? lastPlayerMissReason;
+  GameplayEventType? lastRallyCause;
 
   double get bot2ReactionTimer => bottomBotAgent.reactionTimer;
   set bot2ReactionTimer(double value) => bottomBotAgent.reactionTimer = value;
@@ -382,6 +392,12 @@ class GameSimulation {
     if (gameMode == GameMode.botVsBot) return;
     if (playPhase != MatchPlayPhase.inRally &&
         playPhase != MatchPlayPhase.waitingForServe) {
+      return;
+    }
+    // Serving movement is deliberately constrained to the baseline and ignores
+    // velocity, so accepting a dash here only played VFX without moving.
+    if (playPhase == MatchPlayPhase.waitingForServe &&
+        servingSide == MatchSide.player) {
       return;
     }
 
@@ -481,6 +497,7 @@ class GameSimulation {
   }
 
   RallyEnd _endRally(RallyEnd result, {GameplayEventType? cause}) {
+    lastRallyCause = cause;
     playPhase = MatchPlayPhase.deadBall;
     rallyPhase = RallyPhase.deadBall;
     final faultSide = result == RallyEnd.playerFault
@@ -633,6 +650,8 @@ class GameSimulation {
     playerSwingActiveTimer = 0.0;
     serveRhythm.reset();
     lastServeTiming = null;
+    lastPlayerMissReason = null;
+    lastRallyCause = null;
     if (servingSide == MatchSide.player) {
       playerX = _servePositionX;
     } else {
@@ -1041,10 +1060,8 @@ class GameSimulation {
             return _endRally(RallyEnd.playerFault);
           }
           if (isTwoBounceViolation(forPlayer: true)) {
-            // If ball is descending toward ground on serve/return, wait for bounce instead of premature fault
-            if (ball.z > 0.12) {
-              return null;
-            }
+            playerSwingActiveTimer = 0.0;
+            return _endRally(RallyEnd.playerFault);
           }
         }
         playerSwingActiveTimer = 0.0;
@@ -1420,6 +1437,7 @@ class GameSimulation {
   }
 
   SwingResult swing({double joystickX = 0.0, double joystickY = 0.0}) {
+    lastPlayerMissReason = null;
     if (gameMode == GameMode.botVsBot) {
       return SwingResult.missed;
     }
@@ -1449,6 +1467,19 @@ class GameSimulation {
 
     // Check hit radius first
     if (!canPlayerHitBall()) {
+      final dx = (ball.x - playerX).abs();
+      final dyFront = playerY - ball.y;
+      if (ball.velocityY <= 0) {
+        lastPlayerMissReason = PlayerMissReason.ballMovingAway;
+      } else if (ball.z > playerHitZMax) {
+        lastPlayerMissReason = PlayerMissReason.ballTooHigh;
+      } else if (dx > playerHitRadiusX) {
+        lastPlayerMissReason = PlayerMissReason.tooFarSideways;
+      } else if (dyFront > playerHitFrontY) {
+        lastPlayerMissReason = PlayerMissReason.tooEarly;
+      } else {
+        lastPlayerMissReason = PlayerMissReason.tooLate;
+      }
       // Buffer the swing so hitting slightly early still connects as the ball enters reach
       playerSwingActiveTimer = 0.20;
       return SwingResult.missed;
@@ -1463,9 +1494,7 @@ class GameSimulation {
         return SwingResult.kitchenFault;
       }
       if (isTwoBounceViolation(forPlayer: true)) {
-        if (ball.z > 0.12) {
-          return SwingResult.twoBounceFault;
-        }
+        return SwingResult.twoBounceFault;
       }
     }
 

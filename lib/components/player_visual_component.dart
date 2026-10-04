@@ -152,14 +152,14 @@ class PlayerVisualComponent extends Component {
       (ballPoint.y + 1.0) / 2.0 * game.size.y,
     );
 
-    // Familiar orbit depth check (passes behind character when sin(orbitAngle) < -0.15)
-    final orbitAngle = animTimer * 2.6;
-    final isBehind = math.sin(orbitAngle) < -0.15 && !game.isSwinging;
-
     final isBotVsBot = game.simulation.gameMode == GameMode.botVsBot;
     final equipped = isBotVsBot
         ? game.bottomBotPaddle
         : PaddleCatalog.getById(SettingsManager().equippedPaddleId);
+    // Keep compositing depth synchronized with the selected familiar's orbit.
+    final orbitAngle =
+        animTimer * kineticFamiliarOrbitSpeed(equipped.resolvedDesign);
+    final isBehind = math.sin(orbitAngle) < -0.15 && !game.isSwinging;
     void drawPlayerFamiliarPaddle() {
       drawKineticPaddle(
         canvas: canvas,

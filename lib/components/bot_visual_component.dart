@@ -203,11 +203,11 @@ class BotVisualComponent extends Component {
         (ballPoint.y + 1.0) / 2.0 * game.size.y,
       );
 
-      // Familiar orbit depth check (passes behind character when sin(orbitAngle) < -0.15)
-      final orbitAngle = animTimer * 2.6;
-      final isBehind = math.sin(orbitAngle) < -0.15 && !game.isBotSwinging;
-
       final botPaddle = game.topBotPaddle;
+      // Keep compositing depth synchronized with the selected familiar's orbit.
+      final orbitAngle =
+          animTimer * kineticFamiliarOrbitSpeed(botPaddle.resolvedDesign);
+      final isBehind = math.sin(orbitAngle) < -0.15 && !game.isBotSwinging;
       void drawBotFamiliarPaddle() {
         drawKineticPaddle(
           canvas: canvas,

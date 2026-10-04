@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flame/game.dart';
@@ -54,6 +55,8 @@ class _PickleballGameState extends State<PickleballGame> {
   bool _showDebugMenu = false;
   String feedbackText = '';
   double _initialZoomZ = 4.0;
+  Offset? _playerDragOrigin;
+  Timer? _swingAnimationTimer;
 
   int get playerScore => match.playerScore;
   int get botScore => match.botScore;
@@ -153,7 +156,7 @@ class _PickleballGameState extends State<PickleballGame> {
         flameGame.inputY = y;
       });
     };
-    if (kIsWeb) BrowserContextMenu.disableContextMenu();
+    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
       _startGame();
@@ -161,6 +164,7 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   void _startGame() {
+    _input.resetJoystick();
     setState(() {
       if (match.isComplete) match.reset();
       match.start();
@@ -179,14 +183,22 @@ class _PickleballGameState extends State<PickleballGame> {
   }
 
   void _togglePause() {
+    final willPause = !_isPaused;
+    if (willPause) {
+      _input.resetJoystick();
+      flameGame.inputX = 0;
+      flameGame.inputY = 0;
+      flameGame.effectiveInputX = 0;
+      flameGame.effectiveInputY = 0;
+    }
     setState(() {
-      _isPaused = !_isPaused;
+      _isPaused = willPause;
       flameGame.isPlaying = !_isPaused;
     });
     if (!_isPaused) _focusNode.requestFocus();
   }
 
-  void _handleRallyEnd(RallyEnd rallyEnd) {
+  void _handleRallyEnd(RallyEnd rallyEnd, {String? faultCallout}) {
     if (!mounted) return;
     if (widget.gameMode == 2) {
       // In practice mode, continuous drills run without match score interruption
@@ -198,9 +210,18 @@ class _PickleballGameState extends State<PickleballGame> {
       final pointWinner = rallyEnd == RallyEnd.playerFault
           ? MatchSide.bot
           : MatchSide.player;
+      final rallyOutcome = rallyEnd == RallyEnd.playerFault ? 'LOST' : 'WON';
       match.resolveRally(rallyWinner: pointWinner);
       if (match.isComplete) {
         feedbackText = playerScore > botScore ? 'YOU WIN!' : 'CPU WINS';
+      } else if (faultCallout != null) {
+        feedbackText = faultCallout;
+      } else if (simulation.lastRallyCause == GameplayEventType.doubleBounce) {
+        feedbackText = 'SECOND BOUNCE — RALLY $rallyOutcome';
+      } else if (simulation.lastRallyCause == GameplayEventType.netFault) {
+        feedbackText = 'NET FAULT — RALLY $rallyOutcome';
+      } else if (simulation.lastRallyCause == GameplayEventType.outOfBounds) {
+        feedbackText = 'OUT — RALLY $rallyOutcome';
       } else if (playerScore > previousPlayerScore) {
         feedbackText = 'POINT FOR YOU!';
       } else if (botScore > previousBotScore) {
@@ -214,7 +235,9 @@ class _PickleballGameState extends State<PickleballGame> {
           if (mounted) {
             if (feedbackText == 'POINT FOR YOU!' ||
                 feedbackText == 'POINT FOR CPU!' ||
-                feedbackText == 'SIDE OUT!') {
+                feedbackText == 'SIDE OUT!' ||
+                feedbackText == faultCallout ||
+                feedbackText.contains('— RALLY ')) {
               setState(() => feedbackText = '');
             }
             setState(() {
@@ -238,7 +261,8 @@ class _PickleballGameState extends State<PickleballGame> {
   void _executeSwing() {
     if (!isPlaying || _isPaused || widget.gameMode == 1) return;
     setState(() => flameGame.isSwinging = true);
-    Future.delayed(const Duration(milliseconds: 150), () {
+    _swingAnimationTimer?.cancel();
+    _swingAnimationTimer = Timer(const Duration(milliseconds: 150), () {
       if (mounted) setState(() => flameGame.isSwinging = false);
     });
     final swingResult = simulation.swing(
@@ -258,17 +282,38 @@ class _PickleballGameState extends State<PickleballGame> {
       } else if (swingResult == SwingResult.twoBounceFault) {
         feedbackText = 'TWO-BOUNCE FAULT!';
         if (widget.gameMode != 2) {
-          _handleRallyEnd(RallyEnd.playerFault);
+          _handleRallyEnd(
+            RallyEnd.playerFault,
+            faultCallout: 'TWO-BOUNCE FAULT!',
+          );
         } else {
           simulation.practiceStreak = 0;
         }
       } else if (swingResult == SwingResult.kitchenFault) {
         feedbackText = 'KITCHEN FAULT!';
         if (widget.gameMode != 2) {
-          _handleRallyEnd(RallyEnd.playerFault);
+          _handleRallyEnd(
+            RallyEnd.playerFault,
+            faultCallout: 'KITCHEN FAULT!',
+          );
         } else {
           simulation.practiceStreak = 0;
         }
+      } else if (swingResult == SwingResult.missed &&
+          simulation.lastPlayerMissReason != null) {
+        feedbackText = switch (simulation.lastPlayerMissReason!) {
+          PlayerMissReason.ballMovingAway => 'WAIT FOR THE RETURN',
+          PlayerMissReason.tooEarly => 'TOO EARLY — BALL OUT OF REACH',
+          PlayerMissReason.tooLate => 'TOO LATE — BALL PASSED YOU',
+          PlayerMissReason.tooFarSideways => 'MOVE CLOSER TO THE BALL',
+          PlayerMissReason.ballTooHigh => 'BALL IS TOO HIGH',
+        };
+        final missFeedback = feedbackText;
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (mounted && feedbackText == missFeedback) {
+            setState(() => feedbackText = '');
+          }
+        });
       }
     });
   }
@@ -306,6 +351,9 @@ class _PickleballGameState extends State<PickleballGame> {
 
   @override
   void dispose() {
+    _swingAnimationTimer?.cancel();
+    _input.onJoystickChanged = null;
+    if (kIsWeb) unawaited(BrowserContextMenu.enableContextMenu());
     flameGame.stop();
     _focusNode.dispose();
     super.dispose();
@@ -355,11 +403,20 @@ class _PickleballGameState extends State<PickleballGame> {
             children: [
               // 1. The Game rendering (centered with 9:16 aspect ratio)
               Center(
-                child: AspectRatio(
-                  aspectRatio: 9 / 16,
-                  child: GestureDetector(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final landscape =
+                        constraints.maxWidth >= constraints.maxHeight;
+                    return AspectRatio(
+                      aspectRatio: landscape ? 16 / 9 : 9 / 16,
+                      child: GestureDetector(
                     onScaleStart: (details) {
                       _initialZoomZ = simulation.camera.freeRoamZ;
+                      if (simulation.camera.mode != CameraMode.freeRoam &&
+                          !_isPaused &&
+                          widget.gameMode != 1) {
+                        _playerDragOrigin = details.focalPoint;
+                      }
                     },
                     onScaleUpdate: (details) {
                       if (simulation.camera.mode == CameraMode.freeRoam) {
@@ -375,10 +432,30 @@ class _PickleballGameState extends State<PickleballGame> {
                             .camera
                             .freeRoamPitch
                             .clamp(-math.pi / 2.2, math.pi / 6.0);
+                      } else if (!_isPaused && widget.gameMode != 1) {
+                        // Primary-button drag acts like a virtual joystick on
+                        // desktop: swipe in a direction to move, release to stop.
+                        final origin = _playerDragOrigin;
+                        if (origin == null) return;
+                        const dragRange = 60.0;
+                        final displacement = details.focalPoint - origin;
+                        _input.setDirectionalInput(
+                          displacement.dx / dragRange,
+                          displacement.dy / dragRange,
+                        );
                       }
                     },
-                    child: GameWidget(game: flameGame),
-                  ),
+                    onScaleEnd: (_) {
+                      if (simulation.camera.mode != CameraMode.freeRoam &&
+                          widget.gameMode != 1) {
+                        _playerDragOrigin = null;
+                        _input.resetJoystick();
+                      }
+                    },
+                        child: GameWidget(game: flameGame),
+                      ),
+                    );
+                  },
                 ),
               ),
 
@@ -491,10 +568,13 @@ class _PickleballGameState extends State<PickleballGame> {
 
               if (feedbackText.isNotEmpty)
                 Positioned(
-                  bottom: 120 * _uiScale,
-                  left: 16,
-                  child: IgnorePointer(
-                    child: RefereePopupWidget(text: feedbackText),
+                  top: 58 * _uiScale,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: IgnorePointer(
+                      child: RefereePopupWidget(text: feedbackText),
+                    ),
                   ),
                 ),
 
@@ -564,7 +644,7 @@ class _PickleballGameState extends State<PickleballGame> {
                   simulation.servingSide == MatchSide.player &&
                   (widget.gameMode == 0 || widget.gameMode == 2))
                 Positioned(
-                  bottom: 115 * _uiScale,
+                  top: 108 * _uiScale,
                   left: 0,
                   right: 0,
                   child: Center(

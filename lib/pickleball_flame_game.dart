@@ -28,6 +28,19 @@ export 'components/draw_kinetic_paddle.dart';
 export 'components/hit_effect_component.dart';
 export 'components/player_visual_component.dart';
 
+Offset normalizeDirectionalInput(double x, double y) {
+  var normalizedX = x.clamp(-1.0, 1.0).toDouble();
+  var normalizedY = y.clamp(-1.0, 1.0).toDouble();
+  final magnitude = math.sqrt(
+    normalizedX * normalizedX + normalizedY * normalizedY,
+  );
+  if (magnitude > 1.0) {
+    normalizedX /= magnitude;
+    normalizedY /= magnitude;
+  }
+  return Offset(normalizedX, normalizedY);
+}
+
 /// Flame game orchestrator managing the simulation tick, sprite sheets,
 /// camera sizing, inputs, visual components, and VFX spawns.
 class PickleballFlameGame extends FlameGame {
@@ -203,8 +216,12 @@ class PickleballFlameGame extends FlameGame {
       currentInputY = 0;
     }
 
-    effectiveInputX = currentInputX.clamp(-1.0, 1.0);
-    effectiveInputY = currentInputY.clamp(-1.0, 1.0);
+    final normalizedInput = normalizeDirectionalInput(
+      currentInputX,
+      currentInputY,
+    );
+    effectiveInputX = normalizedInput.dx;
+    effectiveInputY = normalizedInput.dy;
 
     while (_timeAccumulator >= fixedStep) {
       final rallyEnd = simulation.update(
